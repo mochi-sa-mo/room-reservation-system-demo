@@ -3,12 +3,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/fireba
 import { getFirestore } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBTTcfPbyRYQvN60X_8AGu0s_BfXdhhAk4",
-  authDomain: "room-reservation-system-cists.firebaseapp.com",
-  projectId: "room-reservation-system-cists",
-  storageBucket: "room-reservation-system-cists.firebasestorage.app",
-  messagingSenderId: "79407752626",
-  appId: "1:79407752626:web:4fae089f7a876d0e1c70ab"
+  apiKey: "AIzaSyBMIYb5mt_aFCxWuJtN5slJi67H_3E8mIs",
+  authDomain: "room-reservation-system-demooo.firebaseapp.com",
+  projectId: "room-reservation-system-demooo",
+  storageBucket: "room-reservation-system-demooo.firebasestorage.app",
+  messagingSenderId: "804014151337",
+  appId: "1:804014151337:web:e14d41d84ba69b45cebbb8"
 };
 
 const app = initializeApp(firebaseConfig);
