@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>システム管理 - 部室予約</title>
+    <style>
+        body { font-family: sans-serif; background: #f5f7fa; padding: 20px; }
+        .container { background: #fff; padding: 20px; border-radius: 8px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        textarea { width: 100%; height: 100px; padding: 8px; box-sizing: border-box; }
+        .btn { padding: 10px 20px; background: #4A90E2; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-danger { background: #d0021b; }
+        .status-badge { display: inline-block; padding: 5px 10px; border-radius: 4px; color: white; font-weight: bold; margin-bottom: 15px; }
+        .status-on { background: #d0021b; }
+        .status-off { background: #4caf50; }
+        .section-divider { border-top: 2px dashed #ccc; margin: 30px 0; padding-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🛠️ システムメンテナンス設定</h2>
+        <div id="current-status" class="status-badge status-off">通常稼働中</div>
+        
+        <div class="form-group">
+            <label><strong>メンテナンス状態</strong></label><br>
+            <label><input type="radio" name="mnt-status" value="false"> 通常稼働（ログイン可能）</label><br>
+            <label><input type="radio" name="mnt-status" value="true"> メンテナンス中（ログイン遮断）</label>
+        </div>
+        
+        <div class="form-group">
+            <label><strong>メンテナンス時に表示するメッセージ</strong></label>
+            <textarea id="mnt-message" placeholder="例: 現在システムメンテナンス中です。〇〇時頃に復旧予定です。"></textarea>
+        </div>
+        
+        <div class="section-divider"></div>
+        
+        <h2>📢 ログイン画面のお知らせ表示</h2>
+        <p style="font-size: 0.85em; color: #666; margin-top: -10px;">通常のログイン画面の上部に、全員に向けたお知らせを表示できます。</p>
+        
+        <div class="form-group">
+            <label><strong>表示状態</strong></label><br>
+            <label><input type="radio" name="notice-status" value="true"> 表示する</label><br>
+            <label><input type="radio" name="notice-status" value="false" checked> 表示しない</label>
+        </div>
+        
+        <div class="form-group">
+            <label><strong>お知らせメッセージ</strong></label>
+            <textarea id="notice-message" placeholder="例: 次回の予約期間は〇月〇日からです。"></textarea>
+        </div>
+        
+        <button class="btn" id="btn-save" style="width: 100%; margin-top: 10px;">設定を保存して反映</button>
+        <button class="btn btn-danger" onclick="location.href='login.html'; localStorage.removeItem('userRole');" style="margin-top:20px; width:100%;">ログアウト</button>
+    </div>
+
+    <script type="module">
+        const role = localStorage.getItem('userRole');
+        if (role !== 'sysadmin') {
+            alert('システム管理者権限がありません。');
+            window.location.href = 'login.html';
+        }
+
+        import { db } from "./firebase.js";
+        import { doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+        const mntRef = doc(db, "systemSettings", "maintenance");
+        const noticeRef = doc(db, "systemSettings", "systemNotice");
+
+        // メンテナンス状態のリアルタイム読み込み
+        onSnapshot(mntRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                const radio = document.querySelector(`input[name="mnt-status"][value="${data.active}"]`);
+                if (radio) radio.checked = true;
+                document.getElementById('mnt-message').value = data.message || '';
+                
+                const badge = document.getElementById('current-status');
+                if (data.active) {
+                    badge.textContent = '⚠️ メンテナンスモード稼働中 (一般アクセス遮断)';
+                    badge.className = 'status-badge status-on';
+                } else {
+                    badge.textContent = '🟢 通常稼働中';
+                    badge.className = 'status-badge status-off';
+                }
+            }
+        });
+
+        // お知らせのリアルタイム読み込み
+        onSnapshot(noticeRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                const radio = document.querySelector(`input[name="notice-status"][value="${data.active}"]`);
+                if (radio) radio.checked = true;
+                document.getElementById('notice-message').value = data.message || '';
+            }
+        });
+
+        // 保存処理
+        document.getElementById('btn-save').onclick = async () => {
+            const isMntActive = document.querySelector('input[name="mnt-status"]:checked').value === "true";
+            const mntMsg = document.getElementById('mnt-message').value.trim();
+            
+            const isNoticeActive = document.querySelector('input[name="notice-status"]:checked').value === "true";
+            const noticeMsg = document.getElementById('notice-message').value.trim();
+            
+            try {
+                await setDoc(mntRef, { active: isMntActive, message: mntMsg });
+                await setDoc(noticeRef, { active: isNoticeActive, message: noticeMsg });
+                alert("すべての設定をシステムに反映しました。");
+            } catch (error) {
+                console.error(error);
+                alert("保存に失敗しました。");
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>追加予約 - 部室予約システム</title>
+    <style>
+        /* 画面全体の横揺れを防ぎ、要素の幅計算を統一する */
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+        }
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #4A90E2;
+            --primary-hover: #357abd;
+            --success-color: #4caf50;
+            --success-hover: #388e3c;
+            --bg-color: #f5f7fa;
+            --border-color: #ccc;
+            --disabled-color: #ffebee; 
+            --disabled-border: #ffcdd2;
+            --disabled-text: #c62828;
+            --existing-bg: #e0e0e0;    
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        .main-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .calendar-section {
+            flex: 2;
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow-x: auto; 
+            min-width: 0;
+        }
+
+        /* 表の上の説明文などを1行で表示し、はみ出た部分はスクロールさせる */
+        .calendar-section p, 
+        .calendar-section span,
+        .calendar-section .instruction {
+            white-space: nowrap;
+        }
+
+        /* WebKit系(iPhone/Safari)で右端の余白が消えるバグを防ぐおまじない */
+        .calendar-section::after {
+            content: "";
+            display: block;
+            width: 1px;
+            height: 1px;
+            clear: both;
+            padding-right: 15px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 60px repeat(7, minmax(95px, 1fr));
+            gap: 1px;
+            background-color: var(--border-color);
+            border: 1px solid var(--border-color);
+            width: 100%;
+            min-width: max-content; 
+        }
+        .header-cell, .period-cell {
+            background-color: #eee;
+            font-weight: bold;
+            text-align: center;
+            padding: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85em;
+        }
+        .today-col {
+            background-color: #fffde7 !important;
+        }
+
+        .cell {
+            background-color: #fff;
+            padding: 6px;
+            min-height: 55px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .cell.available:hover {
+            background-color: #e8f5e9;
+        }
+
+        .cell.has-existing {
+            background-color: var(--existing-bg);
+            cursor: not-allowed;
+        }
+        .cell.admin-disabled {
+            background-color: var(--disabled-color);
+            border: 1px solid var(--disabled-border);
+            color: var(--disabled-text);
+            cursor: not-allowed;
+            font-size: 0.8em;
+            font-weight: bold;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            word-break: break-word;
+        }
+
+        .cell.selected {
+            background-color: var(--success-color) !important;
+            color: white !important;
+            box-shadow: inset 0 0 0 2px #fff;
+        }
+
+        .faint-band-tag {
+            background-color: #bdbdbd;
+            color: #fff;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 0.75em;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .form-section {
+            flex: 1;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 20px;
+            border-top: 5px solid var(--success-color);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .form-group label .required-badge {
+            color: red;
+            margin-left: 4px;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        .form-group textarea {
+            resize: vertical;
+            height: 100px;
+        }
+
+        .selected-list {
+            margin-bottom: 15px;
+            font-size: 0.85em;
+            color: #555;
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px dashed var(--border-color);
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: bold;
+            transition: background-color 0.2s;
+            text-align: center;
+        }
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn-success { background-color: var(--success-color); }
+        .btn-success:hover { background-color: var(--success-hover); }
+        .btn-back { background-color: #999; }
+        .btn-back:hover { background-color: #888; }
+        .btn-danger { background-color: #d0021b; }
+        .btn-submit { width: 100%; padding: 10px; font-size: 1em; margin-top: 5px; }
+
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            /* ★修正: スマホ表示でも縦並びにならず1行(横並び)を維持 */
+            header { 
+                flex-direction: row; 
+                justify-content: space-between; 
+                align-items: center; 
+            }
+            .main-container { flex-direction: column; gap: 15px; }
+            .calendar-section, .form-section { width: 100%; flex: none; }
+            .form-section { position: static; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>追加予約</h1>
+        <div>
+            <button class="btn btn-back" id="btn-back-top">トップに戻る</button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="calendar-section">
+            <h2 style="margin-top: 0; font-size: 1.1em; color: #555;">今週の空き枠を選択（「他バンドが希望中」は選択できます。）</h2>
+            <div class="grid" id="tsuika-grid"></div>
+        </div>
+
+        <div class="form-section">
+            <h2 style="margin-top: 0; font-size: 1.1em; color: #2e7d32;">追加予約の希望提出</h2>
+            <p style="font-size: 0.8em; color: #666; margin-top: -10px;">※管理者の承認後に確定されます。</p>
+            
+            <label style="font-weight: bold; font-size: 0.9em; display:block; margin-bottom:4px;">選択中の日程</label>
+            <div class="selected-list" id="selected-display">
+                選択されていません（枠を選んでください）
+            </div>
+            
+            <div class="form-group">
+                <label for="band-name">バンド名<span class="required-badge">*</span></label>
+                <input type="text" id="band-name" placeholder="例: cist_keion">
+            </div>
+            
+            <div class="form-group">
+                <label for="notes">備考</label>
+                <textarea id="notes" placeholder="未記入でもOK"></textarea>
+            </div>
+            
+            <button class="btn btn-success btn-submit" id="btn-submit-req">追加希望を送信する</button>
+        </div>
+    </div>
+
+    <script type="module">
+        const role = localStorage.getItem('userRole');
+        if (!role) {
+            window.location.href = 'login.html';
+        }
+
+        import { db } from "./firebase.js";
+        import { collection, onSnapshot, addDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+        const days = ['日', '月', '火', '水', '木', '金', '土'];
+        const periods = ['1限', '2限', '昼休み', '3限', '4限', '5限', '放課後1', '放課後2'];
+        
+        let selectedSlots = [];
+        let dbConfirmedReservations = [];
+        let dbDisabledSlots = [];
+
+        function getTodayStr() {
+            const now = new Date();
+            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        }
+
+        function getWeekDates(offset) {
+            const now = new Date();
+            const sunday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() + (offset * 7));
+            const dates = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + i);
+                dates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+            }
+            return dates;
+        }
+
+        const currentWeekDates = getWeekDates(0); 
+        const todayStr = getTodayStr();
+
+        window.onload = function() {
+            document.getElementById('btn-back-top').onclick = () => window.location.href = 'index.html';
+            document.getElementById('btn-submit-req').onclick = submitReservationRequest;
+
+            startRealtimeSync();
+        };
+
+        function startRealtimeSync() {
+            onSnapshot(collection(db, "disabledSlots"), (snapshot) => {
+                dbDisabledSlots = [];
+                snapshot.forEach((doc) => {
+                    dbDisabledSlots.push(doc.data());
+                });
+                initTsuikaGrid(); 
+            });
+
+            onSnapshot(collection(db, "reservations"), (snapshot) => {
+                dbConfirmedReservations = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (currentWeekDates.includes(data.date) && data.deleted !== true) {
+                        dbConfirmedReservations.push(data);
+                    }
+                });
+                initTsuikaGrid(); 
+            });
+        }
+
+        function initTsuikaGrid() {
+            const grid = document.getElementById('tsuika-grid');
+            grid.innerHTML = '';
+
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'header-cell';
+            grid.appendChild(emptyCell);
+
+            days.forEach((day, dIndex) => {
+                const dayCell = document.createElement('div');
+                dayCell.className = 'header-cell';
+                if (currentWeekDates[dIndex] === todayStr) {
+                    dayCell.classList.add('today-col');
+                }
+                dayCell.textContent = day;
+                grid.appendChild(dayCell);
+            });
+
+            periods.forEach((period, pIndex) => {
+                const periodCell = document.createElement('div');
+                periodCell.className = 'period-cell';
+                periodCell.textContent = period;
+                grid.appendChild(periodCell);
+
+                days.forEach((day, dIndex) => {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${dIndex}-${pIndex}`;
+                    
+                    if (currentWeekDates[dIndex] === todayStr) {
+                        cell.classList.add('today-col');
+                    }
+                    
+                    const isAdminDisabled = dbDisabledSlots.some(s => s.day === dIndex && s.period === pIndex && s.blocked === true);
+                    const targetDate = currentWeekDates[dIndex];
+                    const cellRes = dbConfirmedReservations.filter(r => r.date === targetDate && r.period === pIndex);
+                    
+                    const blockingRes = cellRes.filter(r => r.confirmed === true && r.cancelRequested === false && r.rejected !== true);
+
+                    if (isAdminDisabled) {
+                        cell.classList.add('admin-disabled');
+                        cell.textContent = '予約不可';
+                    } 
+                    else if (blockingRes.length > 0) {
+                        cell.classList.add('has-existing');
+                        blockingRes.forEach(res => {
+                            const tag = document.createElement('div');
+                            tag.className = 'faint-band-tag';
+                            tag.textContent = '不可(確定のため)'; 
+                            cell.appendChild(tag);
+                        });
+                    } 
+                    else {
+                        cell.classList.add('available');
+
+                        cellRes.filter(r => r.rejected !== true).forEach(res => {
+                            const tag = document.createElement('div');
+                            tag.className = 'faint-band-tag';
+                            tag.textContent = res.cancelRequested ? '取消申請あり' : '他バンドが希望中'; 
+                            cell.appendChild(tag);
+                        });
+
+                        const isSelected = selectedSlots.some(s => s.day === dIndex && s.period === pIndex);
+                        if (isSelected) {
+                            cell.classList.add('selected');
+                        }
+                        cell.onclick = () => toggleSlotSelection(dIndex, pIndex, cell);
+                    }
+
+                    grid.appendChild(cell);
+                });
+            });
+        }
+
+        function toggleSlotSelection(dayIndex, periodIndex, cellElement) {
+            const slotStr = `${days[dayIndex]}曜 ${periods[periodIndex]}`;
+            const slotData = { day: dayIndex, period: periodIndex, text: slotStr };
+
+            const targetIndex = selectedSlots.findIndex(
+                s => s.day === dayIndex && s.period === periodIndex
+            );
+
+            if (targetIndex >= 0) {
+                selectedSlots.splice(targetIndex, 1);
+                cellElement.classList.remove('selected');
+            } else {
+                selectedSlots.push(slotData);
+                cellElement.classList.add('selected');
+            }
+
+            updateSelectedDisplay();
+        }
+
+        function updateSelectedDisplay() {
+            const display = document.getElementById('selected-display');
+            if (selectedSlots.length === 0) {
+                display.textContent = '選択されていません（クリックして枠を選んでください）';
+                display.style.color = '#555';
+            } else {
+                display.innerHTML = selectedSlots.map(s => `<strong>${s.text}</strong>`).join(', ');
+                display.style.color = 'var(--success-color)';
+            }
+        }
+
+        async function submitReservationRequest() {
+            const bandName = document.getElementById('band-name').value.trim();
+            const notes = document.getElementById('notes').value.trim();
+
+            if (selectedSlots.length === 0) {
+                alert('追加予約する時間帯をカレンダーから1つ以上選択してください。');
+                return;
+            }
+            if (!bandName) {
+                alert('バンド名は必ず入力してください。');
+                return;
+            }
+
+            try {
+                const promises = selectedSlots.map(slot => {
+                    return addDoc(collection(db, "reservations"), {
+                        date: currentWeekDates[slot.day], 
+                        day: slot.day,
+                        period: slot.period,
+                        bandName: bandName,
+                        notes: notes,
+                        confirmed: false,       
+                        cancelRequested: false,
+                        isAdditional: true,     
+                        rejected: false,        
+                        deleted: false,         
+                        createdAt: new Date().toISOString()
+                    });
+                });
+
+                await Promise.all(promises);
+
+                await addDoc(collection(db, "logs"), {
+                    timestamp: new Date().toISOString(),
+                    category: "reservation",
+                    opType: "create",
+                    bandName: bandName,
+                    slot: selectedSlots.map(s => s.text).join(', '),
+                    detail: "【追加予約】 一般ユーザーが空き枠へ追加希望を送信しました"
+                });
+
+                alert(`【送信完了】\n${bandName} の追加予約希望を ${selectedSlots.length} 件送信しました。\n管理者の承認をお待ちください。`);
+                
+                selectedSlots = [];
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error("予約送信エラー:", error);
+                alert("データベースへの送信に失敗しました。ネットワーク状態を確認してください。");
+            }
+        }
+    </script>
+</body>
+</html>
