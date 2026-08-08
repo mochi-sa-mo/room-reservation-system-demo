@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>設定（パスワード変更） - 部室予約システム</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f5f7fa; margin: 0; padding: 20px; color: #333; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #ccc; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1em; }
+        
+        .btn { padding: 10px 16px; border: none; border-radius: 4px; cursor: pointer; background-color: #4A90E2; color: white; font-weight: bold; width: 100%; font-size: 1em;}
+        .btn:hover { background-color: #357abd; }
+        .btn:disabled { background-color: #ccc; cursor: not-allowed; }
+        .btn-back { background-color: #999; width: auto; }
+        .btn-back:hover { background-color: #888; }
+        
+        .error-message { color: #d0021b; font-size: 0.85em; margin-bottom: 15px; display: none; padding: 10px; background: #ffe8e8; border-radius: 4px;}
+        .success-message { color: #4caf50; font-size: 0.9em; margin-bottom: 15px; display: none; padding: 10px; background: #e8f5e9; border-radius: 4px; font-weight: bold; text-align: center;}
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>パスワード変更</h1>
+        <!-- 履歴を戻るか、トップページに戻るボタン -->
+        <button class="btn btn-back" onclick="window.history.back()">戻る</button>
+    </header>
+
+    <div class="container">
+        <h2 style="margin-top: 0; font-size: 1.2em;">新しいパスワードの設定</h2>
+        <p style="font-size: 0.85em; color: #666; line-height: 1.5;">
+            セキュリティのため、管理者から配布された初期パスワードから、あなただけが知る秘密のパスワードに変更してください。（6文字以上）
+        </p>
+
+        <div class="error-message" id="error-msg"></div>
+        <div class="success-message" id="success-msg"></div>
+
+        <form id="password-form">
+            <div class="form-group">
+                <label for="new-password">新しいパスワード</label>
+                <input type="password" id="new-password" required placeholder="6文字以上で入力">
+            </div>
+            <div class="form-group">
+                <label for="confirm-password">新しいパスワード（確認用）</label>
+                <input type="password" id="confirm-password" required placeholder="もう一度入力">
+            </div>
+            <button type="submit" class="btn" id="btn-submit">変更を保存する</button>
+        </form>
+    </div>
+
+    <script type="module">
+        import { auth } from "./firebase.js";
+        // Firebase Authの パスワード更新機能 と ログイン状態確認機能 を読み込む
+        import { updatePassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+
+        // ページを開いたときにログインしているかチェック
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                alert("ログイン状態が確認できません。再度ログインしてください。");
+                window.location.href = "login.html";
+            }
+        });
+
+        document.getElementById('password-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newPass = document.getElementById('new-password').value;
+            const confirmPass = document.getElementById('confirm-password').value;
+            const errorMsg = document.getElementById('error-msg');
+            const successMsg = document.getElementById('success-msg');
+            const btnSubmit = document.getElementById('btn-submit');
+
+            // メッセージを一旦消す
+            errorMsg.style.display = 'none';
+            successMsg.style.display = 'none';
+
+            // 入力チェック
+            if (newPass !== confirmPass) {
+                errorMsg.textContent = "確認用パスワードが一致しません。";
+                errorMsg.style.display = 'block';
+                return;
+            }
+            if (newPass.length < 6) {
+                errorMsg.textContent = "パスワードは6文字以上で設定してください。";
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            btnSubmit.disabled = true;
+            btnSubmit.textContent = '変更を保存中...';
+
+            try {
+                // 現在ログインしているユーザー情報を取得してパスワードを更新
+                const user = auth.currentUser;
+                await updatePassword(user, newPass);
+                
+                // 成功時の処理
+                successMsg.textContent = "パスワードを正常に変更しました！";
+                successMsg.style.display = 'block';
+                document.getElementById('password-form').reset(); // フォームを空にする
+
+            } catch (error) {
+                console.error("パスワード変更エラー:", error);
+                // Firebaseのセキュリティ仕様: ログインしてから時間が経ちすぎていると変更を拒否される
+                if (error.code === 'auth/requires-recent-login') {
+                    errorMsg.textContent = "安全のため、一度ログアウトして再度ログインし直してから変更してください。";
+                } else {
+                    errorMsg.textContent = "パスワードの変更に失敗しました。";
+                }
+                errorMsg.style.display = 'block';
+            }
+
+            btnSubmit.disabled = false;
+            btnSubmit.textContent = '変更を保存する';
+        });
+    </script>
+</body>
+</html>
