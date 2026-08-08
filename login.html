@@ -92,11 +92,10 @@
     </div>
 
     <script type="module">
-        // ▼変更: firebase.jsから auth を追加でインポート
         import { db, auth } from "./firebase.js"; 
         import { doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
-        // ▼追加: Firebase Authのログイン関数をインポート
         import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
         let isMaintenanceMode = false;
 
