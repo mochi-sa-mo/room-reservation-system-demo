@@ -92,8 +92,11 @@
     </div>
 
     <script type="module">
-        import { db } from "./firebase.js";
+        // ▼変更: firebase.jsから auth を追加でインポート
+        import { db, auth } from "./firebase.js"; 
         import { doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        // ▼追加: Firebase Authのログイン関数をインポート
+        import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
         let isMaintenanceMode = false;
 
@@ -106,7 +109,6 @@
 
                 if (isMaintenanceMode) {
                     alertBox.style.display = 'block';
-                    // タイトルをh3タグで分離したため、テキストのみをコンテンツエリアに入れるように変更
                     document.getElementById('maintenance-content').textContent = data.message || "現在システムを利用できません。";
                 } else {
                     alertBox.style.display = 'none';
@@ -142,34 +144,44 @@
             errorMsg.style.display = 'none';
 
             try {
-                const accountRef = doc(db, "accounts", id);
-                const accountSnap = await getDoc(accountRef);
+                // 1. 入力されたID(学籍番号)からダミーメールアドレスを生成
+                const dummyEmail = `${id}@dummy.local`;
 
-                if (accountSnap.exists() && accountSnap.data().password === pass) {
-                    const assignedRole = accountSnap.data().role;
+                // 2. Firebase Authenticationの安全な仕組みでログイン処理
+                await signInWithEmailAndPassword(auth, dummyEmail, pass);
 
-                    if (isMaintenanceMode && assignedRole !== 'sysadmin') {
-                        errorMsg.textContent = "現在メンテナンス中のためログインできません。";
-                        errorMsg.style.display = 'block';
-                        btnSubmit.disabled = false;
-                        btnSubmit.textContent = 'ログイン';
-                        return;
-                    }
+                // 3. ログイン成功後、Firestoreから権限(ロール)を取得
+                // ※新しく「users」というコレクションを作ってロールを管理します
+                const userRef = doc(db, "users", id);
+                const userSnap = await getDoc(userRef);
 
-                    localStorage.setItem('userRole', assignedRole);
-
-                    if (assignedRole === 'admin') window.location.href = 'admin.html';
-                    else if (assignedRole === 'log') window.location.href = 'log.html';
-                    else if (assignedRole === 'sysadmin') window.location.href = 'sysadmin.html';
-                    else window.location.href = 'index.html';
-
-                } else {
-                    errorMsg.textContent = "IDまたはパスワードが間違っています。";
-                    errorMsg.style.display = 'block';
+                // Firestoreに権限設定がない部員は、自動的に一般ユーザー(member)とする
+                let assignedRole = 'member';
+                if (userSnap.exists() && userSnap.data().role) {
+                    assignedRole = userSnap.data().role;
                 }
+
+                // 4. メンテナンスモードの確認
+                if (isMaintenanceMode && assignedRole !== 'sysadmin') {
+                    errorMsg.textContent = "現在メンテナンス中のためログインできません。";
+                    errorMsg.style.display = 'block';
+                    btnSubmit.disabled = false;
+                    btnSubmit.textContent = 'ログイン';
+                    return;
+                }
+
+                // 5. 権限ごとの画面へ遷移
+                localStorage.setItem('userRole', assignedRole);
+
+                if (assignedRole === 'admin') window.location.href = 'admin.html';
+                else if (assignedRole === 'log') window.location.href = 'log.html';
+                else if (assignedRole === 'sysadmin') window.location.href = 'sysadmin.html';
+                else window.location.href = 'index.html';
+
             } catch (error) {
+                // Authで弾かれた（ID未登録、パスワード間違い等）場合はここに来る
                 console.error("認証エラー:", error);
-                errorMsg.textContent = "データベースとの通信に失敗しました。";
+                errorMsg.textContent = "IDまたはパスワードが間違っています。";
                 errorMsg.style.display = 'block';
             }
 
