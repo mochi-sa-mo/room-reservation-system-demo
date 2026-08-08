@@ -155,6 +155,7 @@
                 const userSnap = await getDoc(userRef);
 
                 // Firestoreに権限設定がない部員は、自動的に一般ユーザー(member)とする
+                // role = userの member を割り振っている
                 let assignedRole = 'member';
                 if (userSnap.exists() && userSnap.data().role) {
                     assignedRole = userSnap.data().role;
