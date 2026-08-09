@@ -42,13 +42,15 @@
         .entry-item-detail { font-size: 0.9em; color: #555; line-height: 1.5; }
         .tag { display: inline-block; background: #4A90E2; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 5px; font-weight: bold;}
         
-        /* ▼ 詳細・変更ボタン */
-        .action-buttons { display: flex; gap: 10px; margin-top: 10px; }
-        .btn-small { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold; flex: 1; text-align: center; }
-        .btn-info { background: #e0f7fa; color: #00838f; border: 1px solid #00838f; }
+        /* ▼ 詳細・変更・削除ボタン */
+        .action-buttons { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+        .btn-small { padding: 8px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold; flex: 1; text-align: center; min-width: 80px; }
+        .btn-info { background: #e0f7fa; color: #00838f; border: 1px solid #00838f; flex: 2; }
         .btn-info:hover { background: #b2ebf2; }
-        .btn-edit { background: #fff3e0; color: #e65100; border: 1px solid #e65100; }
+        .btn-edit { background: #fff3e0; color: #e65100; border: 1px solid #e65100; flex: 2; }
         .btn-edit:hover { background: #ffe0b2; }
+        .btn-delete { background: #ffebee; color: #c62828; border: 1px solid #c62828; flex: 1; }
+        .btn-delete:hover { background: #ffcdd2; }
 
         /* ▼ 詳細表示モーダル */
         .modal-overlay {
@@ -113,7 +115,7 @@
         <h2 style="margin-top: 0; font-size: 1.2em; color: #4A90E2;">🎵 あなたの出演予定</h2>
         <p style="font-size: 0.85em; color: #666; margin-bottom: 15px;">
             あなたがメンバーとして登録されているライブの一覧です。<br>
-            ※代表者は「変更」ボタンからメンバー構成を修正できます。
+            ※代表者は「変更」「削除」から内容を修正できます。
         </p>
         <div id="my-entries-list">
             <p style="color: #999; font-size: 0.9em;">読込中...</p>
@@ -131,14 +133,14 @@
 
     <script type="module">
         import { db, auth } from "./firebase.js";
-        // updateDoc と doc を追加インポート
-        import { collection, getDocs, query, where, addDoc, doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        // ▼ deleteDoc を追加インポート
+        import { collection, getDocs, query, where, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
         let currentUserId = "";
         let userBands = {}; 
-        let myEntriesData = {}; // 取得したエントリーデータをメモリに保存
-        let editingEntryId = null; // 変更（編集）モード時のドキュメントID
+        let myEntriesData = {}; 
+        let editingEntryId = null; 
 
         const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Other"];
         const typeOptions = ["正規", "サポート", "ゲスト"];
@@ -234,7 +236,7 @@
                 const entriesSnap = await getDocs(entriesQuery);
 
                 myEntriesList.innerHTML = '';
-                myEntriesData = {}; // メモリをクリア
+                myEntriesData = {}; 
                 
                 if (entriesSnap.empty) {
                     myEntriesList.innerHTML = '<p style="color: #666; font-size: 0.9em;">現在、あなたがエントリーされているライブはありません。</p>';
@@ -244,7 +246,7 @@
                 entriesSnap.forEach(docSnap => {
                     const data = docSnap.data();
                     const entryId = docSnap.id;
-                    myEntriesData[entryId] = data; // データをメモリに保存
+                    myEntriesData[entryId] = data; 
 
                     const myInfo = data.performers.find(p => p.id === currentUserId);
                     const myPart = myInfo ? myInfo.part : "不明";
@@ -262,24 +264,29 @@
                     detailDiv.className = 'entry-item-detail';
                     detailDiv.innerHTML = `<strong>出演バンド:</strong> ${data.bandName || 'バンド名未設定'}<br><strong>あなたのパート:</strong> ${myPart} ${typeTag}`;
 
-                    // ボタンエリアの生成
                     const actionDiv = document.createElement('div');
                     actionDiv.className = 'action-buttons';
 
-                    // 1. 詳細確認ボタン（参加者全員が見れる）
+                    // 1. 詳細確認ボタン（参加者全員）
                     const btnInfo = document.createElement('button');
                     btnInfo.className = 'btn-small btn-info';
-                    btnInfo.textContent = '📄 登録内容を確認';
+                    btnInfo.textContent = '📄 詳細';
                     btnInfo.onclick = () => showDetailsModal(entryId);
                     actionDiv.appendChild(btnInfo);
 
-                    // 2. 変更ボタン（自分がそのバンドの「代表者」である場合のみ表示）
+                    // 2. 代表者のみのアクション（変更・削除）
                     if (userBands[data.bandId]) {
                         const btnEdit = document.createElement('button');
                         btnEdit.className = 'btn-small btn-edit';
-                        btnEdit.textContent = '✏️ 内容を変更する';
+                        btnEdit.textContent = '✏️ 変更';
                         btnEdit.onclick = () => activateEditMode(entryId);
                         actionDiv.appendChild(btnEdit);
+
+                        const btnDelete = document.createElement('button');
+                        btnDelete.className = 'btn-small btn-delete';
+                        btnDelete.textContent = '🗑️ 削除';
+                        btnDelete.onclick = () => deleteEntry(entryId);
+                        actionDiv.appendChild(btnDelete);
                     }
 
                     item.appendChild(titleDiv);
@@ -294,7 +301,28 @@
             }
         }
 
-        // ▼ 機能追加1：詳細確認モーダルの表示
+        // ▼ 機能追加：エントリーの削除処理
+        async function deleteEntry(entryId) {
+            if (confirm('本当にこのライブエントリーを取り消し（削除）しますか？\n※この操作は元に戻せません。')) {
+                try {
+                    // Firestoreからドキュメントを削除
+                    await deleteDoc(doc(db, "liveEntries", entryId));
+                    alert('エントリーを削除しました。');
+                    
+                    // 削除後、もし変更モードを開いていた場合はリセットする
+                    if (editingEntryId === entryId) {
+                        document.getElementById('btn-cancel-edit').click();
+                    }
+                    
+                    // リストを再読み込みして画面を更新
+                    loadMyEntries();
+                } catch (error) {
+                    console.error("エントリー削除エラー:", error);
+                    alert("削除に失敗しました。");
+                }
+            }
+        }
+
         function showDetailsModal(entryId) {
             const data = myEntriesData[entryId];
             let html = `<p style="margin-bottom: 5px;"><strong>🎵 ライブ:</strong> ${data.liveName}</p>`;
@@ -315,12 +343,10 @@
             document.getElementById('details-modal').style.display = 'none';
         });
 
-        // ▼ 機能追加2：変更モード（上書き）の有効化
         function activateEditMode(entryId) {
             const data = myEntriesData[entryId];
             editingEntryId = entryId;
 
-            // フォームに既存のデータをセット
             document.getElementById('live-select').value = data.liveId;
             document.getElementById('band-select').value = data.bandId;
             
@@ -332,18 +358,14 @@
 
             document.getElementById('performers-section').style.display = 'block';
             
-            // ボタンの見た目を変更モードに切り替え
             const btnSubmit = document.getElementById('btn-submit');
             btnSubmit.textContent = '変更を保存する';
-            btnSubmit.style.backgroundColor = '#e65100'; // 目立つオレンジに変更
+            btnSubmit.style.backgroundColor = '#e65100'; 
             
             document.getElementById('btn-cancel-edit').style.display = 'block';
-            
-            // 画面をフォームの上部までスクロール
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // 変更をやめるボタンの処理
         document.getElementById('btn-cancel-edit').addEventListener('click', () => {
             editingEntryId = null;
             document.getElementById('entry-form').reset();
@@ -387,7 +409,6 @@
             document.getElementById('members-container').appendChild(createPerformerRow("", "Other", "サポート"));
         });
 
-        // フォーム送信（新規作成 ＆ 上書き更新 の統合）
         document.getElementById('entry-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const liveSelect = document.getElementById('live-select');
@@ -442,7 +463,6 @@
                 errorMsg.style.display = 'block'; return;
             }
 
-            // モードに応じた確認メッセージ
             const confirmMsg = editingEntryId 
                 ? "エントリー内容を変更（上書き）します。よろしいですか？" 
                 : "この編成でライブにエントリーします。よろしいですか？";
@@ -463,12 +483,10 @@
                 };
 
                 if (editingEntryId) {
-                    // ▼ 上書き更新（Update）
                     entryData.updatedAt = serverTimestamp();
                     await updateDoc(doc(db, "liveEntries", editingEntryId), entryData);
                     successMsg.textContent = "エントリー内容を変更しました！";
                 } else {
-                    // ▼ 新規作成（Create）
                     entryData.enteredBy = currentUserId;
                     entryData.createdAt = serverTimestamp();
                     await addDoc(collection(db, "liveEntries"), entryData);
@@ -477,7 +495,6 @@
 
                 successMsg.style.display = 'block';
                 
-                // UIのリセット
                 editingEntryId = null;
                 document.getElementById('performers-section').style.display = 'none';
                 document.getElementById('entry-form').reset();
@@ -485,7 +502,6 @@
                 btnSubmit.textContent = 'この内容でエントリーする';
                 btnSubmit.style.backgroundColor = '#ff9800';
                 
-                // データを最新状態に再読み込み
                 loadMyEntries();
 
             } catch (error) {
