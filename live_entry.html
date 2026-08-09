@@ -146,7 +146,7 @@
         </div>
     </div>
 
-    <!-- ▼ 汎用アクション確認モーダル (追加) -->
+    <!-- 汎用アクション確認モーダル -->
     <div id="confirm-modal" class="modal-overlay">
         <div class="modal-content">
             <h3 id="confirm-modal-title" style="margin-top: 0; margin-bottom: 15px; font-size: 1.1em;">確認</h3>
@@ -169,7 +169,7 @@
         let editingEntryId = null; 
 
         // モーダル制御用の状態変数
-        let pendingAction = null; // 'create', 'update', 'delete'
+        let pendingAction = null; 
         let pendingEntryData = null;
         let pendingDeleteId = null;
 
@@ -219,6 +219,59 @@
             return row;
         }
 
+        // ▼ 追加: すでにエントリー済みのバンドを選択不可にするための関数
+        async function updateBandSelectOptions(liveId, editingBandIdToAllow = null) {
+            const bandSelect = document.getElementById('band-select');
+            const currentSelectedBand = bandSelect.value;
+            
+            bandSelect.innerHTML = '<option value="">バンドを選択してください</option>';
+            const bandIds = Object.keys(userBands);
+
+            if (!liveId) {
+                bandIds.forEach(id => {
+                    const option = document.createElement('option');
+                    option.value = id; option.textContent = userBands[id].name;
+                    bandSelect.appendChild(option);
+                });
+                return;
+            }
+
+            try {
+                // 選択されたライブにおける全エントリーを取得
+                const q = query(collection(db, "liveEntries"), where("liveId", "==", liveId));
+                const snap = await getDocs(q);
+                
+                const enteredBandIds = [];
+                snap.forEach(docSnap => {
+                    // 編集中のエントリー自身のbandIdは除外対象から外す（自分の枠だから）
+                    if (docSnap.id !== editingEntryId) {
+                        enteredBandIds.push(docSnap.data().bandId);
+                    }
+                });
+
+                bandIds.forEach(id => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    
+                    if (enteredBandIds.includes(id) && id !== editingBandIdToAllow) {
+                        // 重複エントリーを防ぐための処理
+                        option.textContent = `${userBands[id].name} (エントリー済み)`;
+                        option.disabled = true;
+                    } else {
+                        option.textContent = userBands[id].name;
+                    }
+                    bandSelect.appendChild(option);
+                });
+
+                if (currentSelectedBand && !enteredBandIds.includes(currentSelectedBand)) {
+                    bandSelect.value = currentSelectedBand;
+                }
+
+            } catch (error) {
+                console.error("エントリー状況確認エラー:", error);
+            }
+        }
+
         async function initializeForm() {
             try {
                 const liveSelect = document.getElementById('live-select');
@@ -236,19 +289,17 @@
                 const bandsQuery = query(collection(db, "bands"), where("leaders", "array-contains", currentUserId));
                 const bandsSnap = await getDocs(bandsQuery);
                 
-                bandSelect.innerHTML = '<option value="">バンドを選択してください</option>';
                 bandsSnap.forEach(doc => {
                     const data = doc.data();
                     userBands[doc.id] = data; 
-                    const option = document.createElement('option');
-                    option.value = doc.id; option.textContent = data.name;
-                    bandSelect.appendChild(option);
                 });
 
-                if (!bandsSnap.empty) {
-                    document.getElementById('btn-submit').disabled = false;
-                } else {
+                await updateBandSelectOptions("");
+
+                if (bandsSnap.empty) {
                     bandSelect.innerHTML = '<option value="">代表権限を持つバンドがありません</option>';
+                } else {
+                    document.getElementById('btn-submit').disabled = false;
                 }
 
                 loadMyEntries();
@@ -259,6 +310,13 @@
                 document.getElementById('error-msg').style.display = 'block';
             }
         }
+
+        // ▼ 追加: ライブ選択が変わったときに、重複防止チェックを走らせる
+        document.getElementById('live-select').addEventListener('change', async (e) => {
+            const liveId = e.target.value;
+            await updateBandSelectOptions(liveId);
+            document.getElementById('performers-section').style.display = 'none';
+        });
 
         async function loadMyEntries() {
             const myEntriesList = document.getElementById('my-entries-list');
@@ -330,7 +388,6 @@
             }
         }
 
-        // ▼ 【追加・修正】エントリーの削除をモーダルで確認する
         function confirmDeleteEntry(entryId) {
             pendingAction = 'delete';
             pendingDeleteId = entryId;
@@ -373,11 +430,14 @@
             document.getElementById('details-modal').style.display = 'none';
         });
 
-        function activateEditMode(entryId) {
+        async function activateEditMode(entryId) {
             const data = myEntriesData[entryId];
             editingEntryId = entryId;
 
             document.getElementById('live-select').value = data.liveId;
+            
+            // ▼ 追加: 編集モード時は、自分のバンドのdisabledを解除してからセットする
+            await updateBandSelectOptions(data.liveId, data.bandId);
             document.getElementById('band-select').value = data.bandId;
             
             const container = document.getElementById('members-container');
@@ -396,7 +456,7 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        document.getElementById('btn-cancel-edit').addEventListener('click', () => {
+        document.getElementById('btn-cancel-edit').addEventListener('click', async () => {
             editingEntryId = null;
             document.getElementById('entry-form').reset();
             document.getElementById('performers-section').style.display = 'none';
@@ -408,6 +468,9 @@
             document.getElementById('btn-cancel-edit').style.display = 'none';
             document.getElementById('error-msg').style.display = 'none';
             document.getElementById('success-msg').style.display = 'none';
+
+            // リセットしたのでバンドの選択肢も再構築
+            await updateBandSelectOptions(document.getElementById('live-select').value);
         });
 
         onAuthStateChanged(auth, (user) => {
@@ -439,7 +502,6 @@
             document.getElementById('members-container').appendChild(createPerformerRow("", "Other", "サポート"));
         });
 
-        // ▼ フォーム送信時：書き込む前にカスタムモーダルを表示
         document.getElementById('entry-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const liveSelect = document.getElementById('live-select');
@@ -490,7 +552,6 @@
                 errorMsg.style.display = 'block'; return;
             }
 
-            // モーダル用のデータを準備
             pendingAction = editingEntryId ? 'update' : 'create';
             pendingEntryData = {
                 liveId: liveId, liveName: liveName,
@@ -520,7 +581,6 @@
             document.getElementById('confirm-modal').style.display = 'flex';
         });
 
-        // ▼ モーダルの「キャンセル」ボタン
         document.getElementById('btn-confirm-cancel').addEventListener('click', () => {
             document.getElementById('confirm-modal').style.display = 'none';
             pendingAction = null;
@@ -528,16 +588,16 @@
             pendingDeleteId = null;
         });
 
-        // ▼ モーダルの「確定する」ボタン（すべての書き込み処理を統合）
         document.getElementById('btn-confirm-execute').addEventListener('click', async () => {
             document.getElementById('confirm-modal').style.display = 'none';
             const errorMsg = document.getElementById('error-msg');
             const successMsg = document.getElementById('success-msg');
             
             if (pendingAction === 'delete') {
-                // --- 削除処理 ---
                 try {
                     await deleteDoc(doc(db, "liveEntries", pendingDeleteId));
+                    // ▼ 画面の一番上に遷移してサクセスメッセージを表示
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                     successMsg.textContent = "エントリーを削除しました。";
                     successMsg.style.display = 'block';
                     
@@ -545,14 +605,15 @@
                         document.getElementById('btn-cancel-edit').click();
                     }
                     loadMyEntries();
+                    updateBandSelectOptions(document.getElementById('live-select').value);
                     setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
                 } catch (error) {
                     console.error("エントリー削除エラー:", error);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                     errorMsg.textContent = "削除に失敗しました。";
                     errorMsg.style.display = 'block';
                 }
             } else if (pendingAction === 'create' || pendingAction === 'update') {
-                // --- 登録・更新処理 ---
                 const btnSubmit = document.getElementById('btn-submit');
                 btnSubmit.disabled = true;
                 btnSubmit.textContent = '保存中...';
@@ -561,11 +622,15 @@
                     if (pendingAction === 'update') {
                         pendingEntryData.updatedAt = serverTimestamp();
                         await updateDoc(doc(db, "liveEntries", editingEntryId), pendingEntryData);
+                        // ▼ 画面の一番上に遷移してサクセスメッセージを表示
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                         successMsg.textContent = "エントリー内容を変更しました！";
                     } else {
                         pendingEntryData.enteredBy = currentUserId;
                         pendingEntryData.createdAt = serverTimestamp();
                         await addDoc(collection(db, "liveEntries"), pendingEntryData);
+                        // ▼ 画面の一番上に遷移してサクセスメッセージを表示
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                         successMsg.textContent = "エントリーが完了しました！";
                     }
 
@@ -579,17 +644,18 @@
                     btnSubmit.style.backgroundColor = '#ff9800';
                     
                     loadMyEntries();
+                    updateBandSelectOptions(document.getElementById('live-select').value);
                     setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
 
                 } catch (error) {
                     console.error("エントリーエラー:", error);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                     errorMsg.textContent = "データの保存に失敗しました。";
                     errorMsg.style.display = 'block';
                 }
                 btnSubmit.disabled = false;
             }
 
-            // 状態をリセット
             pendingAction = null;
             pendingEntryData = null;
             pendingDeleteId = null;
