@@ -27,7 +27,7 @@
         .btn-edit-mode { background: #fff3e0; color: #e65100; border: 1px solid #e65100; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.2s; }
         .btn-edit-mode:hover { background: #ffe0b2; }
 
-        /* 編集フォームエリア (初期非表示) */
+        /* 編集フォームエリア */
         #edit-section { display: none; background: #fff; padding: 20px; border-radius: 8px; border: 2px solid #e65100; box-shadow: 0 4px 12px rgba(230, 81, 0, 0.15); max-width: 600px; margin: 0 auto; }
         
         .form-group { margin-bottom: 15px; }
@@ -50,6 +50,27 @@
 
         .error-message { color: #d0021b; font-size: 0.85em; margin-bottom: 15px; display: none; padding: 10px; background: #ffe8e8; border-radius: 4px;}
         .success-message { color: #4caf50; font-size: 0.9em; margin-bottom: 15px; display: none; padding: 10px; background: #e8f5e9; border-radius: 4px; font-weight: bold; text-align: center;}
+
+        /* ▼ カスタム確認モーダル */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); z-index: 1000; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); animation: fadeIn 0.2s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .modal-details {
+            background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; 
+            font-size: 0.95em; line-height: 1.6; border: 1px solid #ddd; max-height: 50vh; overflow-y: auto;
+        }
+        .modal-actions { display: flex; gap: 10px; }
+        .btn-modal-cancel { flex: 1; padding: 12px; border: none; border-radius: 4px; background: #999; color: white; font-weight: bold; cursor: pointer; }
+        .btn-modal-cancel:hover { background: #888; }
+        .btn-modal-confirm { flex: 1; padding: 12px; border: none; border-radius: 4px; background: #4A90E2; color: white; font-weight: bold; cursor: pointer; }
+        .btn-modal-confirm:hover { background: #357abd; }
     </style>
 </head>
 <body>
@@ -93,9 +114,21 @@
 
             <div class="action-buttons">
                 <button type="button" class="btn-cancel" id="btn-cancel-edit">キャンセル</button>
-                <button type="submit" class="btn-save" id="btn-save">変更を保存する</button>
+                <button type="submit" class="btn-save" id="btn-save">確認画面へ進む</button>
             </div>
         </form>
+    </div>
+
+    <!-- ▼ カスタム確認モーダル -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: #333; font-size: 1.1em;">更新内容の確認</h3>
+            <div id="modal-details" class="modal-details"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn-modal-cancel" id="btn-modal-cancel">修正する</button>
+                <button type="button" class="btn-modal-confirm" id="btn-modal-confirm">更新を確定する</button>
+            </div>
+        </div>
     </div>
 
     <script type="module">
@@ -104,8 +137,9 @@
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
         let currentUserId = "";
-        let myBandsData = {}; // 取得したバンド情報をメモリに保持
-        let editingBandId = null; // 現在編集中のバンドID
+        let myBandsData = {}; 
+        let editingBandId = null; 
+        let pendingUpdateData = null; // 確認画面で保持する更新データ
 
         const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Other"];
 
@@ -118,13 +152,11 @@
             }
         });
 
-        // 1. 自分が所属するバンドを取得して表示する処理
         async function loadMyBands() {
             const container = document.getElementById('bands-container');
             container.innerHTML = '<p style="color: #999; text-align: center;">読込中...</p>';
             
             try {
-                // memberIds に自分のIDが含まれるバンドのみを取得（低コストな写像）
                 const q = query(collection(db, "bands"), where("memberIds", "array-contains", currentUserId));
                 const snap = await getDocs(q);
                 
@@ -139,9 +171,8 @@
                 snap.forEach(docSnap => {
                     const data = docSnap.data();
                     const bandId = docSnap.id;
-                    myBandsData[bandId] = data; // メモリに保持
+                    myBandsData[bandId] = data; 
 
-                    // 自分がこのバンドのリーダーかどうかを判定
                     const isLeader = data.leaders && data.leaders.includes(currentUserId);
 
                     const card = document.createElement('div');
@@ -159,7 +190,6 @@
                         const li = document.createElement('li');
                         li.innerHTML = `<span class="part-badge">${m.part}</span> ${m.id}`;
                         
-                        // 代表者バッジの表示
                         if (data.leaders && data.leaders.includes(m.id)) {
                             const badge = document.createElement('span');
                             badge.className = 'leader-badge';
@@ -170,7 +200,6 @@
                     });
                     card.appendChild(ul);
 
-                    // リーダーの場合のみ「編集ボタン」を表示
                     if (isLeader) {
                         const editBtn = document.createElement('button');
                         editBtn.className = 'btn-edit-mode';
@@ -188,7 +217,6 @@
             }
         }
 
-        // 2. 編集フォームを開く処理
         function openEditMode(bandId) {
             editingBandId = bandId;
             const data = myBandsData[bandId];
@@ -198,7 +226,6 @@
             const container = document.getElementById('edit-members-container');
             container.innerHTML = '';
             
-            // 既存メンバーを展開
             data.memberDetails.forEach(m => {
                 const isMe = (m.id === currentUserId);
                 const isCoLeader = !isMe && data.leaders.includes(m.id);
@@ -207,12 +234,9 @@
 
             document.getElementById('list-section').style.display = 'none';
             document.getElementById('edit-section').style.display = 'block';
-            
-            // 画面上部へスクロール
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // 編集フォームの「キャンセル」ボタン
         document.getElementById('btn-cancel-edit').addEventListener('click', () => {
             editingBandId = null;
             document.getElementById('edit-section').style.display = 'none';
@@ -221,7 +245,6 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
 
-        // メンバー行を生成する関数（編集用）
         function createMemberRow(isCreator = false, defaultId = "", defaultPart = "Vo.", isCoLeader = false) {
             const row = document.createElement('div');
             row.className = 'member-row';
@@ -256,7 +279,6 @@
                 checkbox.className = 'coleader-checkbox';
                 if (isCoLeader) checkbox.checked = true;
                 
-                // 共同代表は1名までの排他制御
                 checkbox.addEventListener('change', function() {
                     if (this.checked) {
                         document.querySelectorAll('.coleader-checkbox').forEach(cb => {
@@ -285,19 +307,17 @@
             return row;
         }
 
-        // 行追加ボタン
         document.getElementById('btn-add-member').addEventListener('click', () => {
             document.getElementById('edit-members-container').appendChild(createMemberRow(false));
         });
 
-        // 3. 編集の保存（更新）処理
-        document.getElementById('edit-form').addEventListener('submit', async (e) => {
+        // ▼ モーダルを表示するためのフォーム送信処理
+        document.getElementById('edit-form').addEventListener('submit', (e) => {
             e.preventDefault();
             if (!editingBandId) return;
 
             const bandName = document.getElementById('edit-band-name').value.trim();
             const errorMsg = document.getElementById('error-msg');
-            const btnSave = document.getElementById('btn-save');
             errorMsg.style.display = 'none';
 
             if (!bandName) {
@@ -308,7 +328,7 @@
             const memberRows = document.querySelectorAll('.member-row');
             let memberDetails = [];
             let memberIds = [];
-            let leaders = [currentUserId]; // 自分は常にリーダーとして保持
+            let leaders = [currentUserId]; 
             let hasError = false;
             let formatError = false;
 
@@ -343,22 +363,50 @@
                 errorMsg.style.display = 'block'; return;
             }
 
-            if (!window.confirm("この内容でバンド情報を更新します。よろしいですか？")) return;
+            // 更新データを一時保持
+            pendingUpdateData = {
+                name: bandName,
+                memberIds: uniqueMemberIds,
+                memberDetails: memberDetails,
+                leaders: leaders
+            };
+
+            // モーダル用のHTMLを生成して表示
+            let confirmHtml = `<div style="margin-bottom: 10px;"><strong>【バンド名】</strong><br>${bandName}</div>`;
+            confirmHtml += `<div><strong>【メンバー構成】</strong><br>`;
+            memberDetails.forEach(m => {
+                let roleText = "";
+                if (m.id === currentUserId) roleText = ' <span style="color:#4A90E2; font-weight:bold;">(代表)</span>';
+                else if (leaders.includes(m.id)) roleText = ' <span style="color:#ff9800; font-weight:bold;">(共同代表)</span>';
+                confirmHtml += `・${m.part} ${m.id}${roleText}<br>`;
+            });
+            confirmHtml += `</div>`;
+
+            document.getElementById('modal-details').innerHTML = confirmHtml;
+            document.getElementById('confirm-modal').style.display = 'flex';
+        });
+
+        // モーダルの「修正する」ボタン
+        document.getElementById('btn-modal-cancel').addEventListener('click', () => {
+            document.getElementById('confirm-modal').style.display = 'none';
+            pendingUpdateData = null; 
+        });
+
+        // ▼ モーダルの「更新を確定する」ボタン（データベースへの上書き書き込み）
+        document.getElementById('btn-modal-confirm').addEventListener('click', async () => {
+            if (!pendingUpdateData || !editingBandId) return;
+            
+            document.getElementById('confirm-modal').style.display = 'none';
+            const btnSave = document.getElementById('btn-save');
+            const errorMsg = document.getElementById('error-msg');
 
             btnSave.disabled = true;
             btnSave.textContent = '保存中...';
 
             try {
-                // ドキュメントを上書き更新（Update）
                 const bandRef = doc(db, "bands", editingBandId);
-                await updateDoc(bandRef, {
-                    name: bandName,
-                    memberIds: uniqueMemberIds,
-                    memberDetails: memberDetails,
-                    leaders: leaders
-                });
+                await updateDoc(bandRef, pendingUpdateData);
 
-                // 一覧画面へ戻り、再読み込み
                 editingBandId = null;
                 document.getElementById('edit-section').style.display = 'none';
                 document.getElementById('list-section').style.display = 'block';
@@ -367,7 +415,6 @@
                 successMsg.textContent = "バンド情報を正常に更新しました！";
                 successMsg.style.display = 'block';
                 
-                // 少し時間をおいてメッセージを消す
                 setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
 
                 await loadMyBands();
@@ -379,7 +426,8 @@
             }
 
             btnSave.disabled = false;
-            btnSave.textContent = '変更を保存する';
+            btnSave.textContent = '確認画面へ進む';
+            pendingUpdateData = null;
         });
     </script>
 </body>
