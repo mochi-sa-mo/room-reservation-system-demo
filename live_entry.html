@@ -7,7 +7,7 @@
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f5f7fa; margin: 0; padding: 20px; color: #333; }
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #ccc; }
-        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto 20px; }
         
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 0.9em; }
@@ -33,6 +33,13 @@
         
         .error-message { color: #d0021b; font-size: 0.85em; margin-bottom: 15px; display: none; padding: 10px; background: #ffe8e8; border-radius: 4px;}
         .success-message { color: #4caf50; font-size: 0.9em; margin-bottom: 15px; display: none; padding: 10px; background: #e8f5e9; border-radius: 4px; font-weight: bold; text-align: center;}
+
+        /* ▼ エントリー状況確認エリアのスタイル */
+        .status-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+        .entry-item { background: #f0f8ff; border-left: 5px solid #4A90E2; padding: 15px; margin-bottom: 10px; border-radius: 4px; }
+        .entry-item-title { font-weight: bold; font-size: 1.1em; color: #333; margin-bottom: 5px; }
+        .entry-item-detail { font-size: 0.9em; color: #555; line-height: 1.5; }
+        .tag { display: inline-block; background: #4A90E2; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 5px; font-weight: bold;}
     </style>
 </head>
 <body>
@@ -42,11 +49,12 @@
         <button class="btn-back btn" onclick="window.history.back()">戻る</button>
     </header>
 
+    <!-- エントリー申請フォーム -->
     <div class="container">
         <h2 style="margin-top: 0; font-size: 1.2em;">出演エントリー申請</h2>
         <p style="font-size: 0.85em; color: #666; line-height: 1.5;">
             あなたが代表権限を持つバンドをライブにエントリーさせます。<br>
-            ※このライブ限りのサポートメンバーの追加やパート変更も可能です。
+            ※代表権限がない場合は、下の「あなたの出演予定」のみ確認できます。
         </p>
 
         <div class="error-message" id="error-msg"></div>
@@ -79,23 +87,32 @@
         </form>
     </div>
 
+    <!-- ▼ あなたの出演予定確認エリア -->
+    <div class="status-container">
+        <h2 style="margin-top: 0; font-size: 1.2em; color: #4A90E2;">🎵 あなたの出演予定</h2>
+        <p style="font-size: 0.85em; color: #666; margin-bottom: 15px;">
+            あなたがメンバーとして登録されているライブの一覧です。
+        </p>
+        <div id="my-entries-list">
+            <p style="color: #999; font-size: 0.9em;">読込中...</p>
+        </div>
+    </div>
+
     <script type="module">
         import { db, auth } from "./firebase.js";
         import { collection, getDocs, query, where, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
         let currentUserId = "";
-        let userBands = {}; // 取得したバンド情報を保持する連想配列
+        let userBands = {}; 
 
         const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Other"];
         const typeOptions = ["正規", "サポート", "ゲスト"];
 
-        // メンバー行を動的に生成する関数
         function createPerformerRow(id = "", part = "Vo.", type = "正規") {
             const row = document.createElement('div');
             row.className = 'member-row';
 
-            // パート
             const partSelect = document.createElement('select');
             partSelect.className = 'part-select';
             partsOptions.forEach(p => {
@@ -105,7 +122,6 @@
                 partSelect.appendChild(option);
             });
 
-            // 学籍番号
             const input = document.createElement('input');
             input.type = 'text';
             input.className = 'id-input';
@@ -113,7 +129,6 @@
             input.maxLength = 6;
             input.value = id;
 
-            // 属性（正規/サポート等）
             const typeSelect = document.createElement('select');
             typeSelect.className = 'type-select';
             typeOptions.forEach(t => {
@@ -123,7 +138,6 @@
                 typeSelect.appendChild(option);
             });
 
-            // 削除ボタン
             const removeBtn = document.createElement('button');
             removeBtn.type = 'button';
             removeBtn.className = 'btn-remove';
@@ -138,10 +152,10 @@
             return row;
         }
 
-        // 初期化処理：ライブ一覧とバンド一覧の取得
+        // 初期化処理
         async function initializeForm() {
             try {
-                // 1. アクティブなライブ(L)の取得
+                // 1. アクティブなライブの取得
                 const liveSelect = document.getElementById('live-select');
                 const livesQuery = query(collection(db, "lives"), where("isActive", "==", true));
                 const livesSnap = await getDocs(livesQuery);
@@ -154,7 +168,7 @@
                     liveSelect.appendChild(option);
                 });
 
-                // 2. 自分が代表(leaders)に含まれるバンド(Bu)の取得
+                // 2. 自分が代表のバンドを取得
                 const bandSelect = document.getElementById('band-select');
                 const bandsQuery = query(collection(db, "bands"), where("leaders", "array-contains", currentUserId));
                 const bandsSnap = await getDocs(bandsQuery);
@@ -162,7 +176,7 @@
                 bandSelect.innerHTML = '<option value="">バンドを選択してください</option>';
                 bandsSnap.forEach(doc => {
                     const data = doc.data();
-                    userBands[doc.id] = data; // 後でメンバー展開に使うためメモリに保存
+                    userBands[doc.id] = data; 
                     const option = document.createElement('option');
                     option.value = doc.id;
                     option.textContent = data.name;
@@ -175,6 +189,9 @@
                     document.getElementById('btn-submit').disabled = false;
                 }
 
+                // 3. 【追加】自分がエントリーされている情報の取得と表示
+                loadMyEntries();
+
             } catch (error) {
                 console.error("データ取得エラー:", error);
                 document.getElementById('error-msg').textContent = "データの読み込みに失敗しました。";
@@ -182,18 +199,58 @@
             }
         }
 
-        // ログイン状態の確認
+        // 自分の出演予定を読み込む関数
+        async function loadMyEntries() {
+            const myEntriesList = document.getElementById('my-entries-list');
+            try {
+                // 「performerIds」に自分の学籍番号が含まれているエントリーだけを抽出
+                const entriesQuery = query(collection(db, "liveEntries"), where("performerIds", "array-contains", currentUserId));
+                const entriesSnap = await getDocs(entriesQuery);
+
+                myEntriesList.innerHTML = '';
+                
+                if (entriesSnap.empty) {
+                    myEntriesList.innerHTML = '<p style="color: #666; font-size: 0.9em;">現在、あなたがエントリーされているライブはありません。</p>';
+                    return;
+                }
+
+                entriesSnap.forEach(doc => {
+                    const data = doc.data();
+                    // 自分の担当パートなどの詳細情報を探す
+                    const myInfo = data.performers.find(p => p.id === currentUserId);
+                    const myPart = myInfo ? myInfo.part : "不明";
+                    const myType = myInfo ? myInfo.type : "";
+
+                    const typeTag = myType !== "正規" ? `<span class="tag" style="background:#ff9800;">${myType}</span>` : `<span class="tag">${myType}</span>`;
+
+                    const item = document.createElement('div');
+                    item.className = 'entry-item';
+                    item.innerHTML = `
+                        <div class="entry-item-title">${data.liveName || 'ライブ名未設定'}</div>
+                        <div class="entry-item-detail">
+                            <strong>出演バンド:</strong> ${data.bandName || 'バンド名未設定'}<br>
+                            <strong>あなたのパート:</strong> ${myPart} ${typeTag}
+                        </div>
+                    `;
+                    myEntriesList.appendChild(item);
+                });
+
+            } catch (error) {
+                console.error("出演予定取得エラー:", error);
+                myEntriesList.innerHTML = '<p style="color: #d0021b; font-size: 0.9em;">出演予定の読み込みに失敗しました。</p>';
+            }
+        }
+
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUserId = user.email.split('@')[0];
-                initializeForm(); // データ読み込み開始
+                initializeForm(); 
             } else {
                 alert("ログイン状態が確認できません。再度ログインしてください。");
                 window.location.href = "login.html";
             }
         });
 
-        // バンドが選択されたら、基本メンバーを展開する
         document.getElementById('band-select').addEventListener('change', (e) => {
             const bandId = e.target.value;
             const container = document.getElementById('members-container');
@@ -201,7 +258,6 @@
 
             if (bandId && userBands[bandId]) {
                 const band = userBands[bandId];
-                // バンドマスターの基本メンバーを展開
                 band.memberDetails.forEach(m => {
                     container.appendChild(createPerformerRow(m.id, m.part, "正規"));
                 });
@@ -211,16 +267,22 @@
             }
         });
 
-        // サポートメンバー追加ボタン
         document.getElementById('btn-add-member').addEventListener('click', () => {
             document.getElementById('members-container').appendChild(createPerformerRow("", "Other", "サポート"));
         });
 
-        // フォーム送信処理 (Eへのマッピング)
         document.getElementById('entry-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const liveId = document.getElementById('live-select').value;
-            const bandId = document.getElementById('band-select').value;
+            const liveSelect = document.getElementById('live-select');
+            const bandSelect = document.getElementById('band-select');
+            
+            const liveId = liveSelect.value;
+            const bandId = bandSelect.value;
+            
+            // 【重要】セレクトボックスで選択されている「テキスト（名前）」を取得
+            const liveName = liveSelect.options[liveSelect.selectedIndex].text;
+            const bandName = bandSelect.options[bandSelect.selectedIndex].text;
+
             const errorMsg = document.getElementById('error-msg');
             const successMsg = document.getElementById('success-msg');
             const btnSubmit = document.getElementById('btn-submit');
@@ -233,7 +295,6 @@
                 errorMsg.style.display = 'block'; return;
             }
 
-            // 展開されたメンバー情報を収集
             const memberRows = document.querySelectorAll('.member-row');
             let performers = [];
             let performerIds = [];
@@ -262,7 +323,6 @@
                 errorMsg.style.display = 'block'; return;
             }
 
-            // 重複チェック（同一ライブで同じバンド内に同じ人が複数回登録される論理矛盾の排除）
             const uniqueIds = [...new Set(performerIds)];
             if (uniqueIds.length !== performerIds.length) {
                 errorMsg.textContent = "同じ学籍番号が複数回入力されています。";
@@ -275,13 +335,15 @@
             btnSubmit.textContent = '送信中...';
 
             try {
-                // liveEntries コレクションへの書き込み
+                // 【追加】liveName と bandName も一緒にデータベースへ書き込む
                 const entryData = {
                     liveId: liveId,
+                    liveName: liveName,
                     bandId: bandId,
+                    bandName: bandName,
                     enteredBy: currentUserId,
                     performers: performers,
-                    performerIds: uniqueIds, // 検索・アラート抽出用
+                    performerIds: uniqueIds,
                     createdAt: serverTimestamp()
                 };
 
@@ -291,6 +353,9 @@
                 successMsg.style.display = 'block';
                 document.getElementById('performers-section').style.display = 'none';
                 document.getElementById('entry-form').reset();
+                
+                // エントリー完了後、自動的に下の「出演予定リスト」を最新状態に更新する
+                loadMyEntries();
 
             } catch (error) {
                 console.error("エントリーエラー:", error);
