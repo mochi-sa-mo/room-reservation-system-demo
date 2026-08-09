@@ -7,7 +7,7 @@
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f5f7fa; margin: 0; padding: 20px; color: #333; }
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #ccc; }
-        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
         
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
@@ -15,14 +15,18 @@
         
         /* 動的追加メンバー行のスタイル */
         .member-list { margin-bottom: 15px; }
-        .member-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
-        .member-row select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; background-color: white; }
-        .member-row input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
-        .btn-remove { background-color: #e74c3c; color: white; border: none; border-radius: 4px; padding: 10px; cursor: pointer; font-weight: bold; white-space: nowrap; }
+        .member-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; background: #f9f9f9; padding: 10px; border-radius: 4px; border: 1px solid #eee; }
+        .member-row select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; background-color: white; }
+        .member-row input[type="text"] { flex: 1; min-width: 150px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
+        
+        .coleader-label { display: flex; align-items: center; font-size: 0.85em; font-weight: bold; color: #555; cursor: pointer; white-space: nowrap; margin-left: auto; }
+        .coleader-label input[type="checkbox"] { margin-right: 5px; transform: scale(1.2); }
+        
+        .btn-remove { background-color: #e74c3c; color: white; border: none; border-radius: 4px; padding: 8px 12px; cursor: pointer; font-weight: bold; white-space: nowrap; margin-left: 10px; }
         .btn-remove:hover { background-color: #c0392b; }
         
-        .btn-add { background-color: #f0f0f0; color: #333; border: 1px dashed #ccc; border-radius: 4px; padding: 10px; cursor: pointer; font-weight: bold; width: 100%; text-align: center; margin-bottom: 20px; }
-        .btn-add:hover { background-color: #e0e0e0; }
+        .btn-add { background-color: #fff; color: #4A90E2; border: 2px dashed #4A90E2; border-radius: 4px; padding: 10px; cursor: pointer; font-weight: bold; width: 100%; text-align: center; margin-bottom: 20px; transition: 0.2s; }
+        .btn-add:hover { background-color: #f0f8ff; }
 
         .btn { padding: 12px 16px; border: none; border-radius: 4px; cursor: pointer; background-color: #4caf50; color: white; font-weight: bold; width: 100%; font-size: 1em; transition: background-color 0.2s;}
         .btn:hover { background-color: #45a049; }
@@ -38,13 +42,14 @@
 
     <header>
         <h1>バンド新規登録</h1>
-        <button class="btn btn-back" onclick="window.history.back()">戻る</button>
+        <button class="btn-back btn" onclick="window.history.back()">戻る</button>
     </header>
 
     <div class="container">
         <h2 style="margin-top: 0; font-size: 1.2em;">新しいバンドの作成</h2>
         <p style="font-size: 0.85em; color: #666; line-height: 1.5;">
-            バンドの基本メンバーと担当パートを登録します。（※各ライブでの実際の出演メンバーは、ライブへのエントリー時に別途調整可能です）
+            バンド名と基本メンバーの学籍番号（半角数字6桁）を登録します。<br>
+            ※あなた以外に「共同代表」を1名まで指定できます。
         </p>
 
         <div class="error-message" id="error-msg"></div>
@@ -59,12 +64,12 @@
             <div class="form-group">
                 <label>基本メンバー構成</label>
                 <div id="members-container" class="member-list">
-                    <!-- JavaScriptで初期行（作成者自身）が自動生成されます -->
+                    <!-- JSで初期行（作成者自身）が自動生成されます -->
                 </div>
                 <button type="button" class="btn-add" id="btn-add-member">＋ メンバーを追加する</button>
             </div>
 
-            <button type="submit" class="btn" id="btn-submit">バンドを登録する</button>
+            <button type="submit" class="btn" id="btn-submit">確認してバンドを登録する</button>
         </form>
     </div>
 
@@ -76,12 +81,12 @@
         let currentUserId = "";
         const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Other"];
 
-        // UI: メンバー入力行を生成する関数
+        // メンバー行を生成する関数
         function createMemberRow(isCreator = false, defaultId = "") {
             const row = document.createElement('div');
             row.className = 'member-row';
 
-            // パート選択プルダウン
+            // パート選択
             const select = document.createElement('select');
             select.className = 'part-select';
             partsOptions.forEach(part => {
@@ -91,24 +96,46 @@
                 select.appendChild(option);
             });
 
-            // 学籍番号入力フィールド
+            // 学籍番号入力 (半角数字6桁制限用)
             const input = document.createElement('input');
             input.type = 'text';
             input.className = 'id-input';
             input.placeholder = '学籍番号 (例: 231030)';
-            if (defaultId) {
-                input.value = defaultId;
-            }
+            input.maxLength = 6;
+            if (defaultId) input.value = defaultId;
+
+            // 代表者/共同代表の設定エリア
+            const roleContainer = document.createElement('div');
+            roleContainer.className = 'coleader-label';
+
             if (isCreator) {
-                // 作成者は削除・ID変更できないようにする（論理的整合性の保護）
                 input.readOnly = true;
                 input.style.backgroundColor = "#eee";
+                roleContainer.textContent = '👑 代表(固定)';
+                roleContainer.style.color = '#4A90E2';
+            } else {
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'coleader-checkbox';
+                
+                // 【制御】共同代表は1名まで（他をチェックしたら外す）
+                checkbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        document.querySelectorAll('.coleader-checkbox').forEach(cb => {
+                            if (cb !== this) cb.checked = false;
+                        });
+                    }
+                });
+
+                roleContainer.appendChild(checkbox);
+                roleContainer.appendChild(document.createTextNode(' 共同代表にする'));
             }
 
             row.appendChild(select);
             row.appendChild(input);
+            row.appendChild(roleContainer);
 
-            // 作成者以外の行には「削除」ボタンを追加
+            // 作成者以外の行には「削除」ボタン
             if (!isCreator) {
                 const removeBtn = document.createElement('button');
                 removeBtn.type = 'button';
@@ -121,13 +148,12 @@
             return row;
         }
 
-        // ログイン状態の確認と初期UIの構築
+        // ログイン確認と初期表示
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUserId = user.email.split('@')[0];
-                // 画面読み込み時、作成者自身の行を1行目に強制追加する
                 const container = document.getElementById('members-container');
-                container.innerHTML = ''; // 初期化
+                container.innerHTML = ''; 
                 container.appendChild(createMemberRow(true, currentUserId));
             } else {
                 alert("ログイン状態が確認できません。再度ログインしてください。");
@@ -135,12 +161,10 @@
             }
         });
 
-        // 「メンバーを追加する」ボタンの処理
         document.getElementById('btn-add-member').addEventListener('click', () => {
             document.getElementById('members-container').appendChild(createMemberRow(false));
         });
 
-        // フォーム送信（データベースへの保存）処理
         document.getElementById('band-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const bandName = document.getElementById('band-name').value.trim();
@@ -153,52 +177,75 @@
 
             if (!bandName) {
                 errorMsg.textContent = "バンド名を入力してください。";
-                errorMsg.style.display = 'block';
-                return;
+                errorMsg.style.display = 'block'; return;
             }
 
-            // 画面上の全メンバー行を走査し、データを抽出
             const memberRows = document.querySelectorAll('.member-row');
             let memberDetails = [];
             let memberIds = [];
+            let leaders = [currentUserId];
             let hasError = false;
+            let formatError = false;
 
+            // 各行のデータを検証して抽出
             memberRows.forEach(row => {
                 const part = row.querySelector('.part-select').value;
                 const id = row.querySelector('.id-input').value.trim();
-                
+                const isCoLeader = row.querySelector('.coleader-checkbox')?.checked;
+
                 if (!id) {
                     hasError = true;
+                } else if (!/^\d{6}$/.test(id)) {
+                    // 半角数字6桁チェック
+                    formatError = true;
                 } else {
                     memberDetails.push({ id: id, part: part });
                     memberIds.push(id);
+                    if (isCoLeader) leaders.push(id);
                 }
             });
 
             if (hasError) {
                 errorMsg.textContent = "学籍番号が入力されていない行があります。";
-                errorMsg.style.display = 'block';
-                return;
+                errorMsg.style.display = 'block'; return;
+            }
+            if (formatError) {
+                errorMsg.textContent = "学籍番号は「半角数字6桁」で入力してください。";
+                errorMsg.style.display = 'block'; return;
             }
 
-            // 重複チェック（同一学籍番号が複数回入力される論理的矛盾を排除）
             const uniqueMemberIds = [...new Set(memberIds)];
             if (uniqueMemberIds.length !== memberIds.length) {
                 errorMsg.textContent = "同じ学籍番号が複数回入力されています。";
-                errorMsg.style.display = 'block';
-                return;
+                errorMsg.style.display = 'block'; return;
             }
 
+            // === 最終確認ダイアログ用の文字列を生成 ===
+            let confirmMessage = `以下の内容でバンドを登録します。よろしいですか？\n\n`;
+            confirmMessage += `【バンド名】\n${bandName}\n\n`;
+            confirmMessage += `【メンバー】\n`;
+            memberDetails.forEach(m => {
+                let roleText = "";
+                if (m.id === currentUserId) roleText = " (代表)";
+                else if (leaders.includes(m.id)) roleText = " (共同代表)";
+                confirmMessage += `・${m.part} ${m.id}${roleText}\n`;
+            });
+
+            // ユーザーが「キャンセル」を押した場合は処理を中断
+            if (!window.confirm(confirmMessage)) {
+                return; 
+            }
+
+            // --- ここからデータベース登録処理 ---
             btnSubmit.disabled = true;
             btnSubmit.textContent = '登録中...';
 
             try {
-                // Firestoreの 'bands' コレクションに新しいドキュメントを追加
                 const bandData = {
                     name: bandName,
-                    memberIds: uniqueMemberIds,        // 検索用（1次元配列）
-                    memberDetails: memberDetails,      // 詳細データ用（オブジェクト配列）
-                    leaders: [currentUserId]           // 作成者をリーダーとして定義
+                    memberIds: uniqueMemberIds,
+                    memberDetails: memberDetails,
+                    leaders: leaders
                 };
 
                 await addDoc(collection(db, "bands"), bandData);
@@ -206,7 +253,7 @@
                 successMsg.textContent = "バンドを正常に登録しました！";
                 successMsg.style.display = 'block';
                 
-                // フォームをリセットし、再度初期状態（自分だけ）に戻す
+                // リセット
                 document.getElementById('band-form').reset();
                 const container = document.getElementById('members-container');
                 container.innerHTML = '';
@@ -219,7 +266,7 @@
             }
 
             btnSubmit.disabled = false;
-            btnSubmit.textContent = 'バンドを登録する';
+            btnSubmit.textContent = '確認してバンドを登録する';
         });
     </script>
 </body>
