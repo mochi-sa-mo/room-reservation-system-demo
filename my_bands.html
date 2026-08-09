@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>所属バンド管理 - 部室予約システム</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f5f7fa; margin: 0; padding: 20px; color: #333; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #ccc; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto 20px; }
+        
+        .btn-back { background-color: #999; color: white; padding: 10px 15px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .btn-back:hover { background-color: #888; }
+        
+        h2 { margin-top: 0; font-size: 1.2em; color: #4A90E2; }
+        p.desc { font-size: 0.85em; color: #666; line-height: 1.5; margin-bottom: 20px; }
+
+        /* バンドカード一覧 */
+        .band-card { background: #fff; border: 1px solid #e0e0e0; border-left: 5px solid #4A90E2; padding: 15px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .band-name { font-weight: bold; font-size: 1.2em; margin-bottom: 10px; color: #333; }
+        .member-list-view { list-style: none; padding: 0; margin: 0 0 10px 0; font-size: 0.95em; }
+        .member-list-view li { padding: 4px 0; border-bottom: 1px dashed #eee; display: flex; align-items: center; }
+        .member-list-view li:last-child { border-bottom: none; }
+        .part-badge { display: inline-block; background: #eee; color: #555; width: 45px; text-align: center; padding: 2px 5px; border-radius: 4px; font-size: 0.85em; font-weight: bold; margin-right: 10px; }
+        .leader-badge { font-size: 0.8em; color: #ff9800; font-weight: bold; margin-left: auto; background: #fff3e0; padding: 2px 6px; border-radius: 12px; }
+        
+        .btn-edit-mode { background: #fff3e0; color: #e65100; border: 1px solid #e65100; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.2s; }
+        .btn-edit-mode:hover { background: #ffe0b2; }
+
+        /* 編集フォームエリア (初期非表示) */
+        #edit-section { display: none; background: #fff; padding: 20px; border-radius: 8px; border: 2px solid #e65100; box-shadow: 0 4px 12px rgba(230, 81, 0, 0.15); max-width: 600px; margin: 0 auto; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
+        .form-group input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1em; }
+        
+        .member-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; background: #f9f9f9; padding: 10px; border-radius: 4px; border: 1px solid #eee; }
+        .member-row select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; background-color: white; }
+        .member-row input[type="text"] { flex: 1; min-width: 120px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
+        
+        .coleader-label { display: flex; align-items: center; font-size: 0.85em; font-weight: bold; color: #555; cursor: pointer; white-space: nowrap; margin-left: auto; }
+        .coleader-label input[type="checkbox"] { margin-right: 5px; transform: scale(1.2); }
+        
+        .btn-remove { background-color: #e74c3c; color: white; border: none; border-radius: 4px; padding: 8px 12px; cursor: pointer; font-weight: bold; margin-left: 10px; }
+        .btn-add { background-color: #fff; color: #4A90E2; border: 2px dashed #4A90E2; border-radius: 4px; padding: 10px; cursor: pointer; font-weight: bold; width: 100%; text-align: center; margin-bottom: 20px; }
+        
+        .action-buttons { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-save { background: #4caf50; color: white; padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; flex: 2; font-size: 1em; }
+        .btn-cancel { background: #999; color: white; padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; flex: 1; font-size: 1em; }
+
+        .error-message { color: #d0021b; font-size: 0.85em; margin-bottom: 15px; display: none; padding: 10px; background: #ffe8e8; border-radius: 4px;}
+        .success-message { color: #4caf50; font-size: 0.9em; margin-bottom: 15px; display: none; padding: 10px; background: #e8f5e9; border-radius: 4px; font-weight: bold; text-align: center;}
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>所属バンド管理</h1>
+        <button class="btn-back" onclick="window.history.back()">戻る</button>
+    </header>
+
+    <div class="container" id="list-section">
+        <h2>🎸 あなたの所属バンド一覧</h2>
+        <p class="desc">
+            あなたがメンバーとして登録されているバンドの一覧です。<br>
+            ※代表権限（👑）を持つバンドは、名前やメンバーを編集できます。
+        </p>
+        <div class="success-message" id="main-success-msg"></div>
+        
+        <div id="bands-container">
+            <p style="color: #999; text-align: center;">読込中...</p>
+        </div>
+    </div>
+
+    <!-- 編集フォーム (初期非表示) -->
+    <div id="edit-section">
+        <h2 style="color: #e65100;">✏️ バンド情報の編集</h2>
+        <p class="desc" style="margin-bottom: 15px;">バンド名、メンバーの追加・削除、担当パート、共同代表の変更が可能です。</p>
+        
+        <div class="error-message" id="error-msg"></div>
+        
+        <form id="edit-form">
+            <div class="form-group">
+                <label for="edit-band-name">バンド名 / グループ名</label>
+                <input type="text" id="edit-band-name" required>
+            </div>
+            
+            <div class="form-group">
+                <label>メンバー構成</label>
+                <div id="edit-members-container"></div>
+                <button type="button" class="btn-add" id="btn-add-member">＋ メンバーを追加する</button>
+            </div>
+
+            <div class="action-buttons">
+                <button type="button" class="btn-cancel" id="btn-cancel-edit">キャンセル</button>
+                <button type="submit" class="btn-save" id="btn-save">変更を保存する</button>
+            </div>
+        </form>
+    </div>
+
+    <script type="module">
+        import { db, auth } from "./firebase.js";
+        import { collection, getDocs, query, where, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+
+        let currentUserId = "";
+        let myBandsData = {}; // 取得したバンド情報をメモリに保持
+        let editingBandId = null; // 現在編集中のバンドID
+
+        const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Other"];
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUserId = user.email.split('@')[0];
+                loadMyBands();
+            } else {
+                window.location.href = "login.html";
+            }
+        });
+
+        // 1. 自分が所属するバンドを取得して表示する処理
+        async function loadMyBands() {
+            const container = document.getElementById('bands-container');
+            container.innerHTML = '<p style="color: #999; text-align: center;">読込中...</p>';
+            
+            try {
+                // memberIds に自分のIDが含まれるバンドのみを取得（低コストな写像）
+                const q = query(collection(db, "bands"), where("memberIds", "array-contains", currentUserId));
+                const snap = await getDocs(q);
+                
+                myBandsData = {};
+                container.innerHTML = '';
+                
+                if (snap.empty) {
+                    container.innerHTML = '<p style="color: #666; text-align: center;">現在、あなたが所属しているバンドはありません。</p>';
+                    return;
+                }
+
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const bandId = docSnap.id;
+                    myBandsData[bandId] = data; // メモリに保持
+
+                    // 自分がこのバンドのリーダーかどうかを判定
+                    const isLeader = data.leaders && data.leaders.includes(currentUserId);
+
+                    const card = document.createElement('div');
+                    card.className = 'band-card';
+
+                    const nameEl = document.createElement('div');
+                    nameEl.className = 'band-name';
+                    nameEl.textContent = data.name;
+                    card.appendChild(nameEl);
+
+                    const ul = document.createElement('ul');
+                    ul.className = 'member-list-view';
+                    
+                    data.memberDetails.forEach(m => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<span class="part-badge">${m.part}</span> ${m.id}`;
+                        
+                        // 代表者バッジの表示
+                        if (data.leaders && data.leaders.includes(m.id)) {
+                            const badge = document.createElement('span');
+                            badge.className = 'leader-badge';
+                            badge.textContent = '👑 代表';
+                            li.appendChild(badge);
+                        }
+                        ul.appendChild(li);
+                    });
+                    card.appendChild(ul);
+
+                    // リーダーの場合のみ「編集ボタン」を表示
+                    if (isLeader) {
+                        const editBtn = document.createElement('button');
+                        editBtn.className = 'btn-edit-mode';
+                        editBtn.textContent = '✏️ このバンドの情報を編集する';
+                        editBtn.onclick = () => openEditMode(bandId);
+                        card.appendChild(editBtn);
+                    }
+
+                    container.appendChild(card);
+                });
+
+            } catch (error) {
+                console.error("バンド取得エラー:", error);
+                container.innerHTML = '<p style="color: #d0021b;">データの読み込みに失敗しました。</p>';
+            }
+        }
+
+        // 2. 編集フォームを開く処理
+        function openEditMode(bandId) {
+            editingBandId = bandId;
+            const data = myBandsData[bandId];
+
+            document.getElementById('edit-band-name').value = data.name;
+            
+            const container = document.getElementById('edit-members-container');
+            container.innerHTML = '';
+            
+            // 既存メンバーを展開
+            data.memberDetails.forEach(m => {
+                const isMe = (m.id === currentUserId);
+                const isCoLeader = !isMe && data.leaders.includes(m.id);
+                container.appendChild(createMemberRow(isMe, m.id, m.part, isCoLeader));
+            });
+
+            document.getElementById('list-section').style.display = 'none';
+            document.getElementById('edit-section').style.display = 'block';
+            
+            // 画面上部へスクロール
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 編集フォームの「キャンセル」ボタン
+        document.getElementById('btn-cancel-edit').addEventListener('click', () => {
+            editingBandId = null;
+            document.getElementById('edit-section').style.display = 'none';
+            document.getElementById('list-section').style.display = 'block';
+            document.getElementById('error-msg').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // メンバー行を生成する関数（編集用）
+        function createMemberRow(isCreator = false, defaultId = "", defaultPart = "Vo.", isCoLeader = false) {
+            const row = document.createElement('div');
+            row.className = 'member-row';
+
+            const select = document.createElement('select');
+            select.className = 'part-select';
+            partsOptions.forEach(part => {
+                const option = document.createElement('option');
+                option.value = part;
+                option.textContent = part;
+                if (part === defaultPart) option.selected = true;
+                select.appendChild(option);
+            });
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'id-input';
+            input.placeholder = '学籍番号 (6桁)';
+            input.maxLength = 6;
+            if (defaultId) input.value = defaultId;
+
+            const roleContainer = document.createElement('div');
+            roleContainer.className = 'coleader-label';
+
+            if (isCreator) {
+                input.readOnly = true;
+                input.style.backgroundColor = "#eee";
+                roleContainer.innerHTML = '<span style="color:#4A90E2;">👑 代表(固定)</span>';
+            } else {
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'coleader-checkbox';
+                if (isCoLeader) checkbox.checked = true;
+                
+                // 共同代表は1名までの排他制御
+                checkbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        document.querySelectorAll('.coleader-checkbox').forEach(cb => {
+                            if (cb !== this) cb.checked = false;
+                        });
+                    }
+                });
+
+                roleContainer.appendChild(checkbox);
+                roleContainer.appendChild(document.createTextNode(' 共同代表にする'));
+            }
+
+            row.appendChild(select);
+            row.appendChild(input);
+            row.appendChild(roleContainer);
+
+            if (!isCreator) {
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn-remove';
+                removeBtn.textContent = '削除';
+                removeBtn.onclick = () => row.remove();
+                row.appendChild(removeBtn);
+            }
+
+            return row;
+        }
+
+        // 行追加ボタン
+        document.getElementById('btn-add-member').addEventListener('click', () => {
+            document.getElementById('edit-members-container').appendChild(createMemberRow(false));
+        });
+
+        // 3. 編集の保存（更新）処理
+        document.getElementById('edit-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!editingBandId) return;
+
+            const bandName = document.getElementById('edit-band-name').value.trim();
+            const errorMsg = document.getElementById('error-msg');
+            const btnSave = document.getElementById('btn-save');
+            errorMsg.style.display = 'none';
+
+            if (!bandName) {
+                errorMsg.textContent = "バンド名を入力してください。";
+                errorMsg.style.display = 'block'; return;
+            }
+
+            const memberRows = document.querySelectorAll('.member-row');
+            let memberDetails = [];
+            let memberIds = [];
+            let leaders = [currentUserId]; // 自分は常にリーダーとして保持
+            let hasError = false;
+            let formatError = false;
+
+            memberRows.forEach(row => {
+                const part = row.querySelector('.part-select').value;
+                const id = row.querySelector('.id-input').value.trim();
+                const isCoLeader = row.querySelector('.coleader-checkbox')?.checked;
+
+                if (!id) {
+                    hasError = true;
+                } else if (!/^\d{6}$/.test(id)) {
+                    formatError = true;
+                } else {
+                    memberDetails.push({ id: id, part: part });
+                    memberIds.push(id);
+                    if (isCoLeader) leaders.push(id);
+                }
+            });
+
+            if (hasError) {
+                errorMsg.textContent = "学籍番号が入力されていない行があります。";
+                errorMsg.style.display = 'block'; return;
+            }
+            if (formatError) {
+                errorMsg.textContent = "学籍番号は「半角数字6桁」で入力してください。";
+                errorMsg.style.display = 'block'; return;
+            }
+
+            const uniqueMemberIds = [...new Set(memberIds)];
+            if (uniqueMemberIds.length !== memberIds.length) {
+                errorMsg.textContent = "同じ学籍番号が複数回入力されています。";
+                errorMsg.style.display = 'block'; return;
+            }
+
+            if (!window.confirm("この内容でバンド情報を更新します。よろしいですか？")) return;
+
+            btnSave.disabled = true;
+            btnSave.textContent = '保存中...';
+
+            try {
+                // ドキュメントを上書き更新（Update）
+                const bandRef = doc(db, "bands", editingBandId);
+                await updateDoc(bandRef, {
+                    name: bandName,
+                    memberIds: uniqueMemberIds,
+                    memberDetails: memberDetails,
+                    leaders: leaders
+                });
+
+                // 一覧画面へ戻り、再読み込み
+                editingBandId = null;
+                document.getElementById('edit-section').style.display = 'none';
+                document.getElementById('list-section').style.display = 'block';
+                
+                const successMsg = document.getElementById('main-success-msg');
+                successMsg.textContent = "バンド情報を正常に更新しました！";
+                successMsg.style.display = 'block';
+                
+                // 少し時間をおいてメッセージを消す
+                setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
+
+                await loadMyBands();
+
+            } catch (error) {
+                console.error("更新エラー:", error);
+                errorMsg.textContent = "データベースの更新に失敗しました。";
+                errorMsg.style.display = 'block';
+            }
+
+            btnSave.disabled = false;
+            btnSave.textContent = '変更を保存する';
+        });
+    </script>
+</body>
+</html>
