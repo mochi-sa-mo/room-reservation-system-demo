@@ -52,7 +52,7 @@
         .btn-delete { background: #ffebee; color: #c62828; border: 1px solid #c62828; flex: 1; }
         .btn-delete:hover { background: #ffcdd2; }
 
-        /* ▼ 詳細表示モーダル */
+        /* ▼ モーダル全般 */
         .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0, 0, 0, 0.6); z-index: 1000; justify-content: center; align-items: center;
@@ -62,7 +62,22 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.3); animation: fadeIn 0.2s ease-out;
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* ▼ 詳細表示専用 */
         .btn-close-modal { padding: 10px; background: #999; color: white; border: none; border-radius: 4px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 15px; }
+        
+        /* ▼ アクション確認専用 */
+        .modal-details {
+            background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; 
+            font-size: 0.95em; line-height: 1.6; border: 1px solid #ddd; max-height: 50vh; overflow-y: auto;
+        }
+        .modal-actions { display: flex; gap: 10px; }
+        .btn-modal-cancel { flex: 1; padding: 12px; border: none; border-radius: 4px; background: #999; color: white; font-weight: bold; cursor: pointer; }
+        .btn-modal-cancel:hover { background: #888; }
+        .btn-modal-confirm { flex: 1; padding: 12px; border: none; border-radius: 4px; background: #ff9800; color: white; font-weight: bold; cursor: pointer; }
+        .btn-modal-confirm:hover { background: #e68a00; }
+        .btn-modal-danger { background: #c62828 !important; }
+        .btn-modal-danger:hover { background: #b71c1c !important; }
     </style>
 </head>
 <body>
@@ -105,7 +120,7 @@
 
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button type="button" class="btn btn-cancel" id="btn-cancel-edit" style="flex: 1;">変更をやめる</button>
-                <button type="submit" class="btn btn-submit" id="btn-submit" disabled style="flex: 2;">この内容でエントリーする</button>
+                <button type="submit" class="btn btn-submit" id="btn-submit" disabled style="flex: 2;">確認画面へ進む</button>
             </div>
         </form>
     </div>
@@ -122,7 +137,7 @@
         </div>
     </div>
 
-    <!-- 登録内容確認モーダル -->
+    <!-- 単なる詳細確認モーダル -->
     <div id="details-modal" class="modal-overlay">
         <div class="modal-content">
             <h3 style="margin-top: 0; margin-bottom: 15px; color: #333; font-size: 1.1em; border-bottom: 1px solid #ccc; padding-bottom: 5px;">登録内容の詳細</h3>
@@ -131,9 +146,20 @@
         </div>
     </div>
 
+    <!-- ▼ 汎用アクション確認モーダル (追加) -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="confirm-modal-title" style="margin-top: 0; margin-bottom: 15px; font-size: 1.1em;">確認</h3>
+            <div id="confirm-modal-details" class="modal-details"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn-modal-cancel" id="btn-confirm-cancel">キャンセル</button>
+                <button type="button" class="btn-modal-confirm" id="btn-confirm-execute">確定する</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { db, auth } from "./firebase.js";
-        // ▼ deleteDoc を追加インポート
         import { collection, getDocs, query, where, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
@@ -141,6 +167,11 @@
         let userBands = {}; 
         let myEntriesData = {}; 
         let editingEntryId = null; 
+
+        // モーダル制御用の状態変数
+        let pendingAction = null; // 'create', 'update', 'delete'
+        let pendingEntryData = null;
+        let pendingDeleteId = null;
 
         const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Other"];
         const typeOptions = ["正規", "サポート", "ゲスト"];
@@ -267,14 +298,12 @@
                     const actionDiv = document.createElement('div');
                     actionDiv.className = 'action-buttons';
 
-                    // 1. 詳細確認ボタン（参加者全員）
                     const btnInfo = document.createElement('button');
                     btnInfo.className = 'btn-small btn-info';
                     btnInfo.textContent = '📄 詳細';
                     btnInfo.onclick = () => showDetailsModal(entryId);
                     actionDiv.appendChild(btnInfo);
 
-                    // 2. 代表者のみのアクション（変更・削除）
                     if (userBands[data.bandId]) {
                         const btnEdit = document.createElement('button');
                         btnEdit.className = 'btn-small btn-edit';
@@ -285,7 +314,7 @@
                         const btnDelete = document.createElement('button');
                         btnDelete.className = 'btn-small btn-delete';
                         btnDelete.textContent = '🗑️ 削除';
-                        btnDelete.onclick = () => deleteEntry(entryId);
+                        btnDelete.onclick = () => confirmDeleteEntry(entryId);
                         actionDiv.appendChild(btnDelete);
                     }
 
@@ -301,26 +330,27 @@
             }
         }
 
-        // ▼ 機能追加：エントリーの削除処理
-        async function deleteEntry(entryId) {
-            if (confirm('本当にこのライブエントリーを取り消し（削除）しますか？\n※この操作は元に戻せません。')) {
-                try {
-                    // Firestoreからドキュメントを削除
-                    await deleteDoc(doc(db, "liveEntries", entryId));
-                    alert('エントリーを削除しました。');
-                    
-                    // 削除後、もし変更モードを開いていた場合はリセットする
-                    if (editingEntryId === entryId) {
-                        document.getElementById('btn-cancel-edit').click();
-                    }
-                    
-                    // リストを再読み込みして画面を更新
-                    loadMyEntries();
-                } catch (error) {
-                    console.error("エントリー削除エラー:", error);
-                    alert("削除に失敗しました。");
-                }
-            }
+        // ▼ 【追加・修正】エントリーの削除をモーダルで確認する
+        function confirmDeleteEntry(entryId) {
+            pendingAction = 'delete';
+            pendingDeleteId = entryId;
+            const data = myEntriesData[entryId];
+            
+            const titleEl = document.getElementById('confirm-modal-title');
+            titleEl.textContent = 'エントリーの削除確認';
+            titleEl.style.color = '#c62828';
+            
+            document.getElementById('confirm-modal-details').innerHTML = `
+                <p style="color: #c62828; font-weight: bold; margin-bottom: 15px;">※この操作は元に戻せません。本当に削除しますか？</p>
+                <strong>🎵 ライブ:</strong> ${data.liveName}<br>
+                <strong>🎸 バンド:</strong> ${data.bandName}
+            `;
+            
+            const executeBtn = document.getElementById('btn-confirm-execute');
+            executeBtn.textContent = '削除する';
+            executeBtn.className = 'btn-modal-confirm btn-modal-danger';
+            
+            document.getElementById('confirm-modal').style.display = 'flex';
         }
 
         function showDetailsModal(entryId) {
@@ -359,7 +389,7 @@
             document.getElementById('performers-section').style.display = 'block';
             
             const btnSubmit = document.getElementById('btn-submit');
-            btnSubmit.textContent = '変更を保存する';
+            btnSubmit.textContent = '確認画面へ進む';
             btnSubmit.style.backgroundColor = '#e65100'; 
             
             document.getElementById('btn-cancel-edit').style.display = 'block';
@@ -372,7 +402,7 @@
             document.getElementById('performers-section').style.display = 'none';
             
             const btnSubmit = document.getElementById('btn-submit');
-            btnSubmit.textContent = 'この内容でエントリーする';
+            btnSubmit.textContent = '確認画面へ進む';
             btnSubmit.style.backgroundColor = '#ff9800';
             
             document.getElementById('btn-cancel-edit').style.display = 'none';
@@ -409,7 +439,8 @@
             document.getElementById('members-container').appendChild(createPerformerRow("", "Other", "サポート"));
         });
 
-        document.getElementById('entry-form').addEventListener('submit', async (e) => {
+        // ▼ フォーム送信時：書き込む前にカスタムモーダルを表示
+        document.getElementById('entry-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const liveSelect = document.getElementById('live-select');
             const bandSelect = document.getElementById('band-select');
@@ -420,11 +451,7 @@
             const bandName = bandSelect.options[bandSelect.selectedIndex].text;
 
             const errorMsg = document.getElementById('error-msg');
-            const successMsg = document.getElementById('success-msg');
-            const btnSubmit = document.getElementById('btn-submit');
-
             errorMsg.style.display = 'none';
-            successMsg.style.display = 'none';
 
             if (!liveId || !bandId) {
                 errorMsg.textContent = "ライブとバンドを正しく選択してください。";
@@ -463,53 +490,109 @@
                 errorMsg.style.display = 'block'; return;
             }
 
-            const confirmMsg = editingEntryId 
-                ? "エントリー内容を変更（上書き）します。よろしいですか？" 
-                : "この編成でライブにエントリーします。よろしいですか？";
-                
-            if (!window.confirm(confirmMsg)) return;
+            // モーダル用のデータを準備
+            pendingAction = editingEntryId ? 'update' : 'create';
+            pendingEntryData = {
+                liveId: liveId, liveName: liveName,
+                bandId: bandId, bandName: bandName,
+                performers: performers, performerIds: uniqueIds
+            };
 
-            btnSubmit.disabled = true;
-            btnSubmit.textContent = '保存中...';
+            const titleEl = document.getElementById('confirm-modal-title');
+            titleEl.textContent = editingEntryId ? '変更内容の確認' : 'エントリー内容の確認';
+            titleEl.style.color = '#333';
+            
+            let confirmHtml = `<div style="margin-bottom: 10px;"><strong>【ライブ】</strong><br>${liveName}</div>`;
+            confirmHtml += `<div style="margin-bottom: 10px;"><strong>【バンド】</strong><br>${bandName}</div>`;
+            confirmHtml += `<div><strong>【メンバー構成】</strong><br>`;
+            performers.forEach(p => {
+                let roleText = p.type === "正規" ? "" : ` <span style="color:#ff9800; font-weight:bold;">(${p.type})</span>`;
+                confirmHtml += `・${p.part} ${p.id}${roleText}<br>`;
+            });
+            confirmHtml += `</div>`;
+            
+            document.getElementById('confirm-modal-details').innerHTML = confirmHtml;
+            
+            const executeBtn = document.getElementById('btn-confirm-execute');
+            executeBtn.textContent = editingEntryId ? '変更を確定する' : 'エントリーを確定する';
+            executeBtn.className = 'btn-modal-confirm';
+            
+            document.getElementById('confirm-modal').style.display = 'flex';
+        });
 
-            try {
-                const entryData = {
-                    liveId: liveId,
-                    liveName: liveName,
-                    bandId: bandId,
-                    bandName: bandName,
-                    performers: performers,
-                    performerIds: uniqueIds
-                };
+        // ▼ モーダルの「キャンセル」ボタン
+        document.getElementById('btn-confirm-cancel').addEventListener('click', () => {
+            document.getElementById('confirm-modal').style.display = 'none';
+            pendingAction = null;
+            pendingEntryData = null;
+            pendingDeleteId = null;
+        });
 
-                if (editingEntryId) {
-                    entryData.updatedAt = serverTimestamp();
-                    await updateDoc(doc(db, "liveEntries", editingEntryId), entryData);
-                    successMsg.textContent = "エントリー内容を変更しました！";
-                } else {
-                    entryData.enteredBy = currentUserId;
-                    entryData.createdAt = serverTimestamp();
-                    await addDoc(collection(db, "liveEntries"), entryData);
-                    successMsg.textContent = "エントリーが完了しました！";
+        // ▼ モーダルの「確定する」ボタン（すべての書き込み処理を統合）
+        document.getElementById('btn-confirm-execute').addEventListener('click', async () => {
+            document.getElementById('confirm-modal').style.display = 'none';
+            const errorMsg = document.getElementById('error-msg');
+            const successMsg = document.getElementById('success-msg');
+            
+            if (pendingAction === 'delete') {
+                // --- 削除処理 ---
+                try {
+                    await deleteDoc(doc(db, "liveEntries", pendingDeleteId));
+                    successMsg.textContent = "エントリーを削除しました。";
+                    successMsg.style.display = 'block';
+                    
+                    if (editingEntryId === pendingDeleteId) {
+                        document.getElementById('btn-cancel-edit').click();
+                    }
+                    loadMyEntries();
+                    setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
+                } catch (error) {
+                    console.error("エントリー削除エラー:", error);
+                    errorMsg.textContent = "削除に失敗しました。";
+                    errorMsg.style.display = 'block';
                 }
+            } else if (pendingAction === 'create' || pendingAction === 'update') {
+                // --- 登録・更新処理 ---
+                const btnSubmit = document.getElementById('btn-submit');
+                btnSubmit.disabled = true;
+                btnSubmit.textContent = '保存中...';
 
-                successMsg.style.display = 'block';
-                
-                editingEntryId = null;
-                document.getElementById('performers-section').style.display = 'none';
-                document.getElementById('entry-form').reset();
-                document.getElementById('btn-cancel-edit').style.display = 'none';
-                btnSubmit.textContent = 'この内容でエントリーする';
-                btnSubmit.style.backgroundColor = '#ff9800';
-                
-                loadMyEntries();
+                try {
+                    if (pendingAction === 'update') {
+                        pendingEntryData.updatedAt = serverTimestamp();
+                        await updateDoc(doc(db, "liveEntries", editingEntryId), pendingEntryData);
+                        successMsg.textContent = "エントリー内容を変更しました！";
+                    } else {
+                        pendingEntryData.enteredBy = currentUserId;
+                        pendingEntryData.createdAt = serverTimestamp();
+                        await addDoc(collection(db, "liveEntries"), pendingEntryData);
+                        successMsg.textContent = "エントリーが完了しました！";
+                    }
 
-            } catch (error) {
-                console.error("エントリーエラー:", error);
-                errorMsg.textContent = "データの保存に失敗しました。";
-                errorMsg.style.display = 'block';
+                    successMsg.style.display = 'block';
+                    
+                    editingEntryId = null;
+                    document.getElementById('performers-section').style.display = 'none';
+                    document.getElementById('entry-form').reset();
+                    document.getElementById('btn-cancel-edit').style.display = 'none';
+                    btnSubmit.textContent = '確認画面へ進む';
+                    btnSubmit.style.backgroundColor = '#ff9800';
+                    
+                    loadMyEntries();
+                    setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
+
+                } catch (error) {
+                    console.error("エントリーエラー:", error);
+                    errorMsg.textContent = "データの保存に失敗しました。";
+                    errorMsg.style.display = 'block';
+                }
+                btnSubmit.disabled = false;
             }
-            btnSubmit.disabled = false;
+
+            // 状態をリセット
+            pendingAction = null;
+            pendingEntryData = null;
+            pendingDeleteId = null;
         });
     </script>
 </body>
