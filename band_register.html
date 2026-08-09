@@ -36,6 +36,32 @@
         
         .error-message { color: #d0021b; font-size: 0.85em; margin-bottom: 15px; display: none; padding: 10px; background: #ffe8e8; border-radius: 4px;}
         .success-message { color: #4caf50; font-size: 0.9em; margin-bottom: 15px; display: none; padding: 10px; background: #e8f5e9; border-radius: 4px; font-weight: bold; text-align: center;}
+
+        /* ▼カスタムモーダルのスタイル */
+        .modal-overlay {
+            display: none; /* 初期状態は非表示 */
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: white; padding: 20px; border-radius: 12px;
+            width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            animation: fadeIn 0.2s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .modal-details {
+            background: #f9f9f9; padding: 15px; border-radius: 8px;
+            margin-bottom: 20px; font-size: 0.95em; line-height: 1.6;
+            border: 1px solid #ddd; max-height: 50vh; overflow-y: auto;
+        }
+        .modal-actions { display: flex; gap: 10px; }
+        .btn-modal-cancel { flex: 1; padding: 12px; border: none; border-radius: 4px; background: #999; color: white; font-weight: bold; cursor: pointer; }
+        .btn-modal-cancel:hover { background: #888; }
+        .btn-modal-confirm { flex: 1; padding: 12px; border: none; border-radius: 4px; background: #4A90E2; color: white; font-weight: bold; cursor: pointer; }
+        .btn-modal-confirm:hover { background: #357abd; }
     </style>
 </head>
 <body>
@@ -64,13 +90,25 @@
             <div class="form-group">
                 <label>基本メンバー構成</label>
                 <div id="members-container" class="member-list">
-                    <!-- JSで初期行（作成者自身）が自動生成されます -->
+                    <!-- JSで初期行が生成されます -->
                 </div>
                 <button type="button" class="btn-add" id="btn-add-member">＋ メンバーを追加する</button>
             </div>
 
-            <button type="submit" class="btn" id="btn-submit">確認してバンドを登録する</button>
+            <button type="submit" class="btn" id="btn-submit">確認画面へ進む</button>
         </form>
+    </div>
+
+    <!-- ▼カスタム確認モーダル -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: #333; font-size: 1.1em;">登録内容の確認</h3>
+            <div id="modal-details" class="modal-details"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn-modal-cancel" id="btn-modal-cancel">修正する</button>
+                <button type="button" class="btn-modal-confirm" id="btn-modal-confirm">登録を確定</button>
+            </div>
+        </div>
     </div>
 
     <script type="module">
@@ -80,13 +118,13 @@
 
         let currentUserId = "";
         const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Other"];
+        let pendingBandData = null; // 確認画面で保持するデータ
 
         // メンバー行を生成する関数
         function createMemberRow(isCreator = false, defaultId = "") {
             const row = document.createElement('div');
             row.className = 'member-row';
 
-            // パート選択
             const select = document.createElement('select');
             select.className = 'part-select';
             partsOptions.forEach(part => {
@@ -96,7 +134,6 @@
                 select.appendChild(option);
             });
 
-            // 学籍番号入力 (半角数字6桁制限用)
             const input = document.createElement('input');
             input.type = 'text';
             input.className = 'id-input';
@@ -104,21 +141,19 @@
             input.maxLength = 6;
             if (defaultId) input.value = defaultId;
 
-            // 代表者/共同代表の設定エリア
             const roleContainer = document.createElement('div');
             roleContainer.className = 'coleader-label';
 
             if (isCreator) {
                 input.readOnly = true;
                 input.style.backgroundColor = "#eee";
-                roleContainer.textContent = '👑 代表(固定)';
-                roleContainer.style.color = '#4A90E2';
+                roleContainer.innerHTML = '<span style="color:#4A90E2;">👑 代表(固定)</span>';
             } else {
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.className = 'coleader-checkbox';
                 
-                // 【制御】共同代表は1名まで（他をチェックしたら外す）
+                // 共同代表は1名まで
                 checkbox.addEventListener('change', function() {
                     if (this.checked) {
                         document.querySelectorAll('.coleader-checkbox').forEach(cb => {
@@ -135,7 +170,6 @@
             row.appendChild(input);
             row.appendChild(roleContainer);
 
-            // 作成者以外の行には「削除」ボタン
             if (!isCreator) {
                 const removeBtn = document.createElement('button');
                 removeBtn.type = 'button';
@@ -148,7 +182,7 @@
             return row;
         }
 
-        // ログイン確認と初期表示
+        // 初期表示
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUserId = user.email.split('@')[0];
@@ -165,12 +199,12 @@
             document.getElementById('members-container').appendChild(createMemberRow(false));
         });
 
-        document.getElementById('band-form').addEventListener('submit', async (e) => {
+        // フォーム送信（確認モーダルを表示）
+        document.getElementById('band-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const bandName = document.getElementById('band-name').value.trim();
             const errorMsg = document.getElementById('error-msg');
             const successMsg = document.getElementById('success-msg');
-            const btnSubmit = document.getElementById('btn-submit');
 
             errorMsg.style.display = 'none';
             successMsg.style.display = 'none';
@@ -187,7 +221,6 @@
             let hasError = false;
             let formatError = false;
 
-            // 各行のデータを検証して抽出
             memberRows.forEach(row => {
                 const part = row.querySelector('.part-select').value;
                 const id = row.querySelector('.id-input').value.trim();
@@ -196,7 +229,6 @@
                 if (!id) {
                     hasError = true;
                 } else if (!/^\d{6}$/.test(id)) {
-                    // 半角数字6桁チェック
                     formatError = true;
                 } else {
                     memberDetails.push({ id: id, part: part });
@@ -220,40 +252,53 @@
                 errorMsg.style.display = 'block'; return;
             }
 
-            // === 最終確認ダイアログ用の文字列を生成 ===
-            let confirmMessage = `以下の内容でバンドを登録します。よろしいですか？\n\n`;
-            confirmMessage += `【バンド名】\n${bandName}\n\n`;
-            confirmMessage += `【メンバー】\n`;
+            // 登録データを変数に保持
+            pendingBandData = {
+                name: bandName,
+                memberIds: uniqueMemberIds,
+                memberDetails: memberDetails,
+                leaders: leaders
+            };
+
+            // モーダル用のHTMLを生成して表示
+            let confirmHtml = `<div style="margin-bottom: 10px;"><strong>【バンド名】</strong><br>${bandName}</div>`;
+            confirmHtml += `<div><strong>【メンバー構成】</strong><br>`;
             memberDetails.forEach(m => {
                 let roleText = "";
-                if (m.id === currentUserId) roleText = " (代表)";
-                else if (leaders.includes(m.id)) roleText = " (共同代表)";
-                confirmMessage += `・${m.part} ${m.id}${roleText}\n`;
+                if (m.id === currentUserId) roleText = ' <span style="color:#4A90E2; font-weight:bold;">(代表)</span>';
+                else if (leaders.includes(m.id)) roleText = ' <span style="color:#ff9800; font-weight:bold;">(共同代表)</span>';
+                confirmHtml += `・${m.part} ${m.id}${roleText}<br>`;
             });
+            confirmHtml += `</div>`;
 
-            // ユーザーが「キャンセル」を押した場合は処理を中断
-            if (!window.confirm(confirmMessage)) {
-                return; 
-            }
+            document.getElementById('modal-details').innerHTML = confirmHtml;
+            document.getElementById('confirm-modal').style.display = 'flex';
+        });
 
-            // --- ここからデータベース登録処理 ---
+        // モーダルの「キャンセル」ボタン
+        document.getElementById('btn-modal-cancel').addEventListener('click', () => {
+            document.getElementById('confirm-modal').style.display = 'none';
+            pendingBandData = null; // データを破棄
+        });
+
+        // モーダルの「登録を確定」ボタン（データベースへの書き込み）
+        document.getElementById('btn-modal-confirm').addEventListener('click', async () => {
+            if (!pendingBandData) return;
+            
+            document.getElementById('confirm-modal').style.display = 'none';
+            const btnSubmit = document.getElementById('btn-submit');
+            const errorMsg = document.getElementById('error-msg');
+            const successMsg = document.getElementById('success-msg');
+
             btnSubmit.disabled = true;
             btnSubmit.textContent = '登録中...';
 
             try {
-                const bandData = {
-                    name: bandName,
-                    memberIds: uniqueMemberIds,
-                    memberDetails: memberDetails,
-                    leaders: leaders
-                };
-
-                await addDoc(collection(db, "bands"), bandData);
+                await addDoc(collection(db, "bands"), pendingBandData);
 
                 successMsg.textContent = "バンドを正常に登録しました！";
                 successMsg.style.display = 'block';
                 
-                // リセット
                 document.getElementById('band-form').reset();
                 const container = document.getElementById('members-container');
                 container.innerHTML = '';
@@ -266,7 +311,8 @@
             }
 
             btnSubmit.disabled = false;
-            btnSubmit.textContent = '確認してバンドを登録する';
+            btnSubmit.textContent = '確認画面へ進む';
+            pendingBandData = null;
         });
     </script>
 </body>
