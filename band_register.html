@@ -9,11 +9,21 @@
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #ccc; }
         .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; }
         
-        .form-group { margin-bottom: 15px; }
+        .form-group { margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
-        .form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1em; }
-        .note { font-size: 0.8em; color: #666; margin-top: 5px; }
+        .form-group input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1em; }
         
+        /* 動的追加メンバー行のスタイル */
+        .member-list { margin-bottom: 15px; }
+        .member-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .member-row select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; background-color: white; }
+        .member-row input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
+        .btn-remove { background-color: #e74c3c; color: white; border: none; border-radius: 4px; padding: 10px; cursor: pointer; font-weight: bold; white-space: nowrap; }
+        .btn-remove:hover { background-color: #c0392b; }
+        
+        .btn-add { background-color: #f0f0f0; color: #333; border: 1px dashed #ccc; border-radius: 4px; padding: 10px; cursor: pointer; font-weight: bold; width: 100%; text-align: center; margin-bottom: 20px; }
+        .btn-add:hover { background-color: #e0e0e0; }
+
         .btn { padding: 12px 16px; border: none; border-radius: 4px; cursor: pointer; background-color: #4caf50; color: white; font-weight: bold; width: 100%; font-size: 1em; transition: background-color 0.2s;}
         .btn:hover { background-color: #45a049; }
         .btn:disabled { background-color: #ccc; cursor: not-allowed; }
@@ -34,7 +44,7 @@
     <div class="container">
         <h2 style="margin-top: 0; font-size: 1.2em;">新しいバンドの作成</h2>
         <p style="font-size: 0.85em; color: #666; line-height: 1.5;">
-            新しいバンド（またはグループ）をシステムに登録します。登録したあなた自身は自動的にこのバンドの代表者（リーダー）およびメンバーとして登録されます。
+            バンドの基本メンバーと担当パートを登録します。（※各ライブでの実際の出演メンバーは、ライブへのエントリー時に別途調整可能です）
         </p>
 
         <div class="error-message" id="error-msg"></div>
@@ -47,9 +57,11 @@
             </div>
             
             <div class="form-group">
-                <label for="additional-members">他のメンバーの学籍番号（任意）</label>
-                <input type="text" id="additional-members" placeholder="例: 231030, 242011">
-                <div class="note">※複数の場合はカンマ（,）で区切って入力してください。後から追加・変更することも可能です。</div>
+                <label>基本メンバー構成</label>
+                <div id="members-container" class="member-list">
+                    <!-- JavaScriptで初期行（作成者自身）が自動生成されます -->
+                </div>
+                <button type="button" class="btn-add" id="btn-add-member">＋ メンバーを追加する</button>
             </div>
 
             <button type="submit" class="btn" id="btn-submit">バンドを登録する</button>
@@ -61,25 +73,77 @@
         import { collection, addDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
-        let currentUserEmail = "";
         let currentUserId = "";
+        const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Other"];
 
-        // ログイン状態の確認と学籍番号の抽出
+        // UI: メンバー入力行を生成する関数
+        function createMemberRow(isCreator = false, defaultId = "") {
+            const row = document.createElement('div');
+            row.className = 'member-row';
+
+            // パート選択プルダウン
+            const select = document.createElement('select');
+            select.className = 'part-select';
+            partsOptions.forEach(part => {
+                const option = document.createElement('option');
+                option.value = part;
+                option.textContent = part;
+                select.appendChild(option);
+            });
+
+            // 学籍番号入力フィールド
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'id-input';
+            input.placeholder = '学籍番号 (例: 231030)';
+            if (defaultId) {
+                input.value = defaultId;
+            }
+            if (isCreator) {
+                // 作成者は削除・ID変更できないようにする（論理的整合性の保護）
+                input.readOnly = true;
+                input.style.backgroundColor = "#eee";
+            }
+
+            row.appendChild(select);
+            row.appendChild(input);
+
+            // 作成者以外の行には「削除」ボタンを追加
+            if (!isCreator) {
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn-remove';
+                removeBtn.textContent = '削除';
+                removeBtn.onclick = () => row.remove();
+                row.appendChild(removeBtn);
+            }
+
+            return row;
+        }
+
+        // ログイン状態の確認と初期UIの構築
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                currentUserEmail = user.email;
-                // email (例: 231030@dummy.local) から '@' の前を抽出して学籍番号(ID)とする
-                currentUserId = currentUserEmail.split('@')[0];
+                currentUserId = user.email.split('@')[0];
+                // 画面読み込み時、作成者自身の行を1行目に強制追加する
+                const container = document.getElementById('members-container');
+                container.innerHTML = ''; // 初期化
+                container.appendChild(createMemberRow(true, currentUserId));
             } else {
                 alert("ログイン状態が確認できません。再度ログインしてください。");
                 window.location.href = "login.html";
             }
         });
 
+        // 「メンバーを追加する」ボタンの処理
+        document.getElementById('btn-add-member').addEventListener('click', () => {
+            document.getElementById('members-container').appendChild(createMemberRow(false));
+        });
+
+        // フォーム送信（データベースへの保存）処理
         document.getElementById('band-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const bandName = document.getElementById('band-name').value.trim();
-            const membersInput = document.getElementById('additional-members').value.trim();
             const errorMsg = document.getElementById('error-msg');
             const successMsg = document.getElementById('success-msg');
             const btnSubmit = document.getElementById('btn-submit');
@@ -93,32 +157,60 @@
                 return;
             }
 
+            // 画面上の全メンバー行を走査し、データを抽出
+            const memberRows = document.querySelectorAll('.member-row');
+            let memberDetails = [];
+            let memberIds = [];
+            let hasError = false;
+
+            memberRows.forEach(row => {
+                const part = row.querySelector('.part-select').value;
+                const id = row.querySelector('.id-input').value.trim();
+                
+                if (!id) {
+                    hasError = true;
+                } else {
+                    memberDetails.push({ id: id, part: part });
+                    memberIds.push(id);
+                }
+            });
+
+            if (hasError) {
+                errorMsg.textContent = "学籍番号が入力されていない行があります。";
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            // 重複チェック（同一学籍番号が複数回入力される論理的矛盾を排除）
+            const uniqueMemberIds = [...new Set(memberIds)];
+            if (uniqueMemberIds.length !== memberIds.length) {
+                errorMsg.textContent = "同じ学籍番号が複数回入力されています。";
+                errorMsg.style.display = 'block';
+                return;
+            }
+
             btnSubmit.disabled = true;
             btnSubmit.textContent = '登録中...';
 
             try {
-                // 入力された追加メンバーの文字列を配列に変換し、空白を除去
-                let memberArray = [];
-                if (membersInput) {
-                    memberArray = membersInput.split(',').map(id => id.trim()).filter(id => id !== "");
-                }
-                
-                // 操作者（自分）をメンバー配列に確実に追加し、重複を排除（Setを使用）
-                memberArray.push(currentUserId);
-                const uniqueMembers = [...new Set(memberArray)];
-
                 // Firestoreの 'bands' コレクションに新しいドキュメントを追加
                 const bandData = {
                     name: bandName,
-                    members: uniqueMembers, // 一意なメンバー学籍番号の配列
-                    leaders: [currentUserId]  // 初期状態では作成者のみをリーダーとする
+                    memberIds: uniqueMemberIds,        // 検索用（1次元配列）
+                    memberDetails: memberDetails,      // 詳細データ用（オブジェクト配列）
+                    leaders: [currentUserId]           // 作成者をリーダーとして定義
                 };
 
                 await addDoc(collection(db, "bands"), bandData);
 
                 successMsg.textContent = "バンドを正常に登録しました！";
                 successMsg.style.display = 'block';
+                
+                // フォームをリセットし、再度初期状態（自分だけ）に戻す
                 document.getElementById('band-form').reset();
+                const container = document.getElementById('members-container');
+                container.innerHTML = '';
+                container.appendChild(createMemberRow(true, currentUserId));
 
             } catch (error) {
                 console.error("バンド登録エラー:", error);
