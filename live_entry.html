@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ライブエントリー - 部室予約システム</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f5f7fa; margin: 0; padding: 20px; color: #333; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #ccc; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 0.9em; }
+        select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1em; background-color: white; }
+        
+        /* メンバーリスト関連 */
+        .member-list { margin-top: 10px; padding: 15px; background: #f9f9f9; border-radius: 4px; border: 1px solid #eee; }
+        .member-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
+        .member-row select { width: auto; padding: 8px; }
+        .member-row input[type="text"] { flex: 1; min-width: 120px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .member-row select.type-select { width: 110px; background-color: #e8f4f8; }
+        
+        .btn-remove { background-color: #e74c3c; color: white; border: none; border-radius: 4px; padding: 8px 12px; cursor: pointer; font-weight: bold; }
+        .btn-remove:hover { background-color: #c0392b; }
+        .btn-add { background-color: #fff; color: #4A90E2; border: 2px dashed #4A90E2; border-radius: 4px; padding: 10px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; transition: 0.2s; }
+        .btn-add:hover { background-color: #f0f8ff; }
+
+        .btn { padding: 12px 16px; border: none; border-radius: 4px; cursor: pointer; background-color: #ff9800; color: white; font-weight: bold; width: 100%; font-size: 1em; margin-top: 20px; transition: background-color 0.2s;}
+        .btn:hover { background-color: #e68a00; }
+        .btn:disabled { background-color: #ccc; cursor: not-allowed; }
+        .btn-back { background-color: #999; width: auto; margin-top: 0; }
+        .btn-back:hover { background-color: #888; }
+        
+        .error-message { color: #d0021b; font-size: 0.85em; margin-bottom: 15px; display: none; padding: 10px; background: #ffe8e8; border-radius: 4px;}
+        .success-message { color: #4caf50; font-size: 0.9em; margin-bottom: 15px; display: none; padding: 10px; background: #e8f5e9; border-radius: 4px; font-weight: bold; text-align: center;}
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>ライブエントリー</h1>
+        <button class="btn-back btn" onclick="window.history.back()">戻る</button>
+    </header>
+
+    <div class="container">
+        <h2 style="margin-top: 0; font-size: 1.2em;">出演エントリー申請</h2>
+        <p style="font-size: 0.85em; color: #666; line-height: 1.5;">
+            あなたが代表権限を持つバンドをライブにエントリーさせます。<br>
+            ※このライブ限りのサポートメンバーの追加やパート変更も可能です。
+        </p>
+
+        <div class="error-message" id="error-msg"></div>
+        <div class="success-message" id="success-msg"></div>
+
+        <form id="entry-form">
+            <div class="form-group">
+                <label for="live-select">エントリーするライブイベント</label>
+                <select id="live-select" required>
+                    <option value="">読込中...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="band-select">出演するバンド</label>
+                <select id="band-select" required>
+                    <option value="">読込中...</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="performers-section" style="display: none;">
+                <label>このライブでの実際の演奏メンバー</label>
+                <div class="member-list" id="members-container">
+                    <!-- JSで選択したバンドの基本メンバーが展開されます -->
+                </div>
+                <button type="button" class="btn-add" id="btn-add-member">＋ サポートメンバーを追加</button>
+            </div>
+
+            <button type="submit" class="btn" id="btn-submit" disabled>この内容でエントリーする</button>
+        </form>
+    </div>
+
+    <script type="module">
+        import { db, auth } from "./firebase.js";
+        import { collection, getDocs, query, where, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+
+        let currentUserId = "";
+        let userBands = {}; // 取得したバンド情報を保持する連想配列
+
+        const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Other"];
+        const typeOptions = ["正規", "サポート", "ゲスト"];
+
+        // メンバー行を動的に生成する関数
+        function createPerformerRow(id = "", part = "Vo.", type = "正規") {
+            const row = document.createElement('div');
+            row.className = 'member-row';
+
+            // パート
+            const partSelect = document.createElement('select');
+            partSelect.className = 'part-select';
+            partsOptions.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p; option.textContent = p;
+                if (p === part) option.selected = true;
+                partSelect.appendChild(option);
+            });
+
+            // 学籍番号
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'id-input';
+            input.placeholder = '学籍番号 (6桁)';
+            input.maxLength = 6;
+            input.value = id;
+
+            // 属性（正規/サポート等）
+            const typeSelect = document.createElement('select');
+            typeSelect.className = 'type-select';
+            typeOptions.forEach(t => {
+                const option = document.createElement('option');
+                option.value = t; option.textContent = t;
+                if (t === type) option.selected = true;
+                typeSelect.appendChild(option);
+            });
+
+            // 削除ボタン
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn-remove';
+            removeBtn.textContent = '削除';
+            removeBtn.onclick = () => row.remove();
+
+            row.appendChild(partSelect);
+            row.appendChild(input);
+            row.appendChild(typeSelect);
+            row.appendChild(removeBtn);
+
+            return row;
+        }
+
+        // 初期化処理：ライブ一覧とバンド一覧の取得
+        async function initializeForm() {
+            try {
+                // 1. アクティブなライブ(L)の取得
+                const liveSelect = document.getElementById('live-select');
+                const livesQuery = query(collection(db, "lives"), where("isActive", "==", true));
+                const livesSnap = await getDocs(livesQuery);
+                
+                liveSelect.innerHTML = '<option value="">ライブを選択してください</option>';
+                livesSnap.forEach(doc => {
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = doc.data().name;
+                    liveSelect.appendChild(option);
+                });
+
+                // 2. 自分が代表(leaders)に含まれるバンド(Bu)の取得
+                const bandSelect = document.getElementById('band-select');
+                const bandsQuery = query(collection(db, "bands"), where("leaders", "array-contains", currentUserId));
+                const bandsSnap = await getDocs(bandsQuery);
+                
+                bandSelect.innerHTML = '<option value="">バンドを選択してください</option>';
+                bandsSnap.forEach(doc => {
+                    const data = doc.data();
+                    userBands[doc.id] = data; // 後でメンバー展開に使うためメモリに保存
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = data.name;
+                    bandSelect.appendChild(option);
+                });
+
+                if (bandsSnap.empty) {
+                    bandSelect.innerHTML = '<option value="">代表権限を持つバンドがありません</option>';
+                } else {
+                    document.getElementById('btn-submit').disabled = false;
+                }
+
+            } catch (error) {
+                console.error("データ取得エラー:", error);
+                document.getElementById('error-msg').textContent = "データの読み込みに失敗しました。";
+                document.getElementById('error-msg').style.display = 'block';
+            }
+        }
+
+        // ログイン状態の確認
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUserId = user.email.split('@')[0];
+                initializeForm(); // データ読み込み開始
+            } else {
+                alert("ログイン状態が確認できません。再度ログインしてください。");
+                window.location.href = "login.html";
+            }
+        });
+
+        // バンドが選択されたら、基本メンバーを展開する
+        document.getElementById('band-select').addEventListener('change', (e) => {
+            const bandId = e.target.value;
+            const container = document.getElementById('members-container');
+            container.innerHTML = '';
+
+            if (bandId && userBands[bandId]) {
+                const band = userBands[bandId];
+                // バンドマスターの基本メンバーを展開
+                band.memberDetails.forEach(m => {
+                    container.appendChild(createPerformerRow(m.id, m.part, "正規"));
+                });
+                document.getElementById('performers-section').style.display = 'block';
+            } else {
+                document.getElementById('performers-section').style.display = 'none';
+            }
+        });
+
+        // サポートメンバー追加ボタン
+        document.getElementById('btn-add-member').addEventListener('click', () => {
+            document.getElementById('members-container').appendChild(createPerformerRow("", "Other", "サポート"));
+        });
+
+        // フォーム送信処理 (Eへのマッピング)
+        document.getElementById('entry-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const liveId = document.getElementById('live-select').value;
+            const bandId = document.getElementById('band-select').value;
+            const errorMsg = document.getElementById('error-msg');
+            const successMsg = document.getElementById('success-msg');
+            const btnSubmit = document.getElementById('btn-submit');
+
+            errorMsg.style.display = 'none';
+            successMsg.style.display = 'none';
+
+            if (!liveId || !bandId) {
+                errorMsg.textContent = "ライブとバンドを正しく選択してください。";
+                errorMsg.style.display = 'block'; return;
+            }
+
+            // 展開されたメンバー情報を収集
+            const memberRows = document.querySelectorAll('.member-row');
+            let performers = [];
+            let performerIds = [];
+            let hasError = false;
+
+            memberRows.forEach(row => {
+                const part = row.querySelector('.part-select').value;
+                const id = row.querySelector('.id-input').value.trim();
+                const type = row.querySelector('.type-select').value;
+
+                if (!/^\d{6}$/.test(id)) {
+                    hasError = true;
+                } else {
+                    performers.push({ id: id, part: part, type: type });
+                    performerIds.push(id);
+                }
+            });
+
+            if (hasError) {
+                errorMsg.textContent = "学籍番号は「半角数字6桁」で正しく入力してください。";
+                errorMsg.style.display = 'block'; return;
+            }
+
+            if (performers.length === 0) {
+                errorMsg.textContent = "出演メンバーが1人も指定されていません。";
+                errorMsg.style.display = 'block'; return;
+            }
+
+            // 重複チェック（同一ライブで同じバンド内に同じ人が複数回登録される論理矛盾の排除）
+            const uniqueIds = [...new Set(performerIds)];
+            if (uniqueIds.length !== performerIds.length) {
+                errorMsg.textContent = "同じ学籍番号が複数回入力されています。";
+                errorMsg.style.display = 'block'; return;
+            }
+
+            if (!window.confirm("この編成でライブにエントリーします。よろしいですか？")) return;
+
+            btnSubmit.disabled = true;
+            btnSubmit.textContent = '送信中...';
+
+            try {
+                // liveEntries コレクションへの書き込み
+                const entryData = {
+                    liveId: liveId,
+                    bandId: bandId,
+                    enteredBy: currentUserId,
+                    performers: performers,
+                    performerIds: uniqueIds, // 検索・アラート抽出用
+                    createdAt: serverTimestamp()
+                };
+
+                await addDoc(collection(db, "liveEntries"), entryData);
+
+                successMsg.textContent = "エントリーが完了しました！";
+                successMsg.style.display = 'block';
+                document.getElementById('performers-section').style.display = 'none';
+                document.getElementById('entry-form').reset();
+
+            } catch (error) {
+                console.error("エントリーエラー:", error);
+                errorMsg.textContent = "エントリーの登録に失敗しました。";
+                errorMsg.style.display = 'block';
+            }
+            btnSubmit.disabled = false;
+            btnSubmit.textContent = 'この内容でエントリーする';
+        });
+    </script>
+</body>
+</html>
