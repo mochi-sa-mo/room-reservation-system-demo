@@ -392,7 +392,7 @@
     <header>
         <h1>部室予約システム</h1>
         <div class="header-actions">
-            <!-- ハンバーガーアイコンのみにスッキリさせました -->
+            <!-- ハンバーガーアイコン -->
             <div class="hamburger" id="hamburger-btn">
                 <span></span>
                 <span></span>
@@ -452,7 +452,8 @@
         const role = localStorage.getItem('userRole');
         
         import { db } from "./firebase.js";
-        import { collection, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        // ▼ 変更点1: onSnapshot を消し、getDocs に変更して読み取りコスト増大を防ぎます
+        import { collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
         const days = ['日', '月', '火', '水', '木', '金', '土'];
         const periods = ['1限', '2限', '昼休み', '3限', '4限', '5限', '放課後1', '放課後2'];
@@ -478,21 +479,19 @@
         }
 
         window.onload = function() {
-            // イベントリスナーの割り当て
             document.getElementById('btn-logout').onclick = confirmLogout;
             document.getElementById('btn-prev').onclick = () => changeWeek(-1);
             document.getElementById('btn-next').onclick = () => changeWeek(1);
             document.getElementById('btn-close-modal').onclick = closeModal;
 
-            // ハンバーガーメニューの開閉処理
             document.getElementById('hamburger-btn').onclick = toggleMenu;
             document.getElementById('menu-overlay').onclick = toggleMenu;
 
             updateWeekButtons(); 
-            startRealtimeSync(); 
+            // ▼ 変更点2: リアルタイム同期ではなく、画面表示時に1回だけ読み込む関数を実行
+            loadData(); 
         };
 
-        // ハンバーガーメニューの開閉関数
         function toggleMenu() {
             document.getElementById('hamburger-btn').classList.toggle('open');
             document.getElementById('side-menu').classList.toggle('open');
@@ -527,22 +526,25 @@
             renderGrid();
         }
 
-        function startRealtimeSync() {
-            onSnapshot(collection(db, "reservations"), (snapshot) => {
+        // ▼ 変更点3: onSnapshotの代わりにgetDocsを使って1度だけデータを取得する（コスト削減）
+        async function loadData() {
+            try {
+                const resSnap = await getDocs(collection(db, "reservations"));
                 dbReservations = [];
-                snapshot.forEach((doc) => {
+                resSnap.forEach((doc) => {
                     dbReservations.push({ id: doc.id, ...doc.data() });
                 });
-                renderGrid(); 
-            });
+                renderGrid();
 
-            onSnapshot(collection(db, "announcements"), (snapshot) => {
+                const annSnap = await getDocs(collection(db, "announcements"));
                 dbAnnouncements = [];
-                snapshot.forEach((doc) => {
+                annSnap.forEach((doc) => {
                     dbAnnouncements.push({ id: doc.id, ...doc.data() });
                 });
-                renderAnnouncements(); 
-            });
+                renderAnnouncements();
+            } catch (error) {
+                console.error("データの取得に失敗しました:", error);
+            }
         }
 
         function renderAnnouncements() {
@@ -808,6 +810,23 @@
             document.getElementById('detail-modal').style.display = 'none';
             document.body.classList.remove('modal-open');
         }
+
+        // ▼ 変更点4: メニューが開きっぱなしになる不具合（BFCache）の防止と、リンククリック時のリセット処理
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                document.getElementById('hamburger-btn').classList.remove('open');
+                document.getElementById('side-menu').classList.remove('open');
+                document.getElementById('menu-overlay').classList.remove('open');
+            }
+        });
+
+        document.querySelectorAll('#side-menu a').forEach(link => {
+            link.addEventListener('click', () => {
+                document.getElementById('hamburger-btn').classList.remove('open');
+                document.getElementById('side-menu').classList.remove('open');
+                document.getElementById('menu-overlay').classList.remove('open');
+            });
+        });
     </script>
 </body>
 </html>
