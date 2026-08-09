@@ -411,6 +411,9 @@
                 document.getElementById('edit-section').style.display = 'none';
                 document.getElementById('list-section').style.display = 'block';
                 
+                // ▼ 画面の一番上に遷移してサクセスメッセージを表示
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                
                 const successMsg = document.getElementById('main-success-msg');
                 successMsg.textContent = "バンド情報を正常に更新しました！";
                 successMsg.style.display = 'block';
@@ -421,6 +424,10 @@
 
             } catch (error) {
                 console.error("更新エラー:", error);
+                
+                // ▼ エラー時も上にスクロール
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                
                 errorMsg.textContent = "データベースの更新に失敗しました。";
                 errorMsg.style.display = 'block';
             }
