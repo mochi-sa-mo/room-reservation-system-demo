@@ -63,7 +63,6 @@
             border-radius: 3px;
             transition: all 0.3s ease;
         }
-        /* 開いた時の×印アニメーション */
         .hamburger.open span:nth-child(1) {
             transform: translateY(7.5px) rotate(45deg);
         }
@@ -295,6 +294,7 @@
             opacity: 0.7;
         }
 
+        /* モーダル全般の基本スタイル */
         .modal {
             display: none;
             position: fixed;
@@ -314,7 +314,10 @@
             overflow-y: auto;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
             box-sizing: border-box;
+            animation: fadeIn 0.2s ease-out;
         }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
         .modal-content h3 {
             margin-top: 0;
             border-bottom: 2px solid var(--primary-color);
@@ -355,7 +358,7 @@
         }
 
         .btn {
-            padding: 8px 16px;
+            padding: 10px 16px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -366,6 +369,7 @@
             text-align: center;
         }
         .btn:hover { background-color: var(--primary-hover); }
+        .btn:disabled { background-color: #ccc; cursor: not-allowed; }
         .btn-nav { background-color: #e0e0e0; color: #333; }
         .btn-nav:hover { background-color: #d0d0d0; }
         .btn-warning { background-color: #f5a623; }
@@ -374,13 +378,18 @@
         .btn-danger:hover { background-color: #a00215; }
         .btn-success { background-color: #4caf50; color: white; }
         .btn-success:hover { background-color: #388e3c; }
+
+        /* カスタム確認用モーダルのスタイル */
+        .confirm-actions {
+            display: flex; gap: 10px; margin-top: 20px;
+        }
+        .confirm-actions .btn { flex: 1; }
         
         @media (max-width: 768px) {
             .announcements {
                 flex-direction: column;
                 gap: 15px;
             }
-            
             .grid {
                 min-width: 700px;
             }
@@ -404,7 +413,6 @@
     <!-- ハンバーガー展開時のメニューと背景 -->
     <nav class="side-menu" id="side-menu">
         <ul>
-            <!-- ハンバーガーメニュー一覧 -->
             <li><a href="tsuika.html" style="color: #4caf50;">今週の追加予約</a></li>
             <li><a href="yoyaku.html" style="color: #4A90E2;">次週の予約</a></li>
             <li><a href="settings.html" style="color: #666;">パスワード変更</a></li>
@@ -438,6 +446,7 @@
         <div class="grid" id="schedule-grid"></div>
     </div>
 
+    <!-- 予約詳細表示用モーダル -->
     <div class="modal" id="detail-modal">
         <div class="modal-content">
             <h3 id="modal-title">詳細情報</h3>
@@ -449,11 +458,30 @@
         </div>
     </div>
 
+    <!-- ▼ 汎用：確認用モーダル (新規追加) -->
+    <div class="modal" id="confirm-modal" style="z-index: 1050;">
+        <div class="modal-content" style="width: 320px; text-align: center; border-top: 5px solid var(--primary-color);">
+            <h3 id="confirm-modal-title" style="margin-top: 0; border: none; padding-bottom: 0;">確認</h3>
+            <p id="confirm-modal-message" style="color: #555; line-height: 1.5; margin: 15px 0; font-size: 0.95em;"></p>
+            <div class="confirm-actions">
+                <button class="btn btn-nav" id="btn-confirm-cancel">キャンセル</button>
+                <button class="btn" id="btn-confirm-execute">確定する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ▼ 汎用：アラート(完了/エラー)表示用モーダル (新規追加) -->
+    <div class="modal" id="alert-modal" style="z-index: 1100;">
+        <div class="modal-content" id="alert-modal-content" style="width: 300px; text-align: center; border-top: 5px solid #4caf50;">
+            <p id="alert-modal-message" style="color: #333; line-height: 1.5; font-weight: bold; margin: 15px 0; font-size: 1em;"></p>
+            <button class="btn btn-success" id="btn-alert-ok" style="width: 100%;">OK</button>
+        </div>
+    </div>
+
     <script type="module">
         const role = localStorage.getItem('userRole');
         
         import { db } from "./firebase.js";
-        // ▼ 変更点1: onSnapshot を消し、getDocs に変更して読み取りコスト増大を防ぎます
         import { collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
         const days = ['日', '月', '火', '水', '木', '金', '土'];
@@ -462,6 +490,10 @@
         let currentWeekOffset = 0; 
         let dbReservations = [];
         let dbAnnouncements = [];
+
+        // ▼ カスタム確認モーダル用の状態変数
+        let pendingConfirmAction = null;
+        let pendingConfirmData = null;
 
         function getTodayStr() {
             const now = new Date();
@@ -483,13 +515,17 @@
             document.getElementById('btn-logout').onclick = confirmLogout;
             document.getElementById('btn-prev').onclick = () => changeWeek(-1);
             document.getElementById('btn-next').onclick = () => changeWeek(1);
+            
+            // モーダル閉じる系のイベント
             document.getElementById('btn-close-modal').onclick = closeModal;
+            document.getElementById('btn-confirm-cancel').onclick = closeConfirmModal;
+            document.getElementById('btn-confirm-execute').onclick = executeConfirmAction;
+            document.getElementById('btn-alert-ok').onclick = closeAlertModal;
 
             document.getElementById('hamburger-btn').onclick = toggleMenu;
             document.getElementById('menu-overlay').onclick = toggleMenu;
 
             updateWeekButtons(); 
-            // ▼ 変更点2: リアルタイム同期ではなく、画面表示時に1回だけ読み込む関数を実行
             loadData(); 
         };
 
@@ -499,11 +535,16 @@
             document.getElementById('menu-overlay').classList.toggle('open');
         }
 
+        // ▼ 変更点: カスタムモーダルを呼び出すように変更
         function confirmLogout() {
-            if (confirm('ログアウトしますか？')) {
-                localStorage.removeItem('userRole');
-                window.location.href = 'login.html';
-            }
+            showConfirmModal(
+                'ログアウト',
+                'システムからログアウトします。<br>よろしいですか？',
+                'logout',
+                null,
+                'ログアウト',
+                'btn-danger'
+            );
         }
 
         function updateWeekButtons() {
@@ -527,7 +568,6 @@
             renderGrid();
         }
 
-        // ▼ 変更点3: onSnapshotの代わりにgetDocsを使って1度だけデータを取得する（コスト削減）
         async function loadData() {
             try {
                 const resSnap = await getDocs(collection(db, "reservations"));
@@ -750,6 +790,7 @@
                     cancelBtn.className = 'btn btn-warning';
                     cancelBtn.style.marginBottom = '10px';
                     cancelBtn.textContent = 'この予約のキャンセル申請を行う';
+                    // ▼ 変更点: カスタムモーダルを呼び出すように変更
                     cancelBtn.onclick = () => requestCancel(data.id);
                     actionArea.appendChild(cancelBtn);
                 } else if (data.cancelRequested) {
@@ -790,29 +831,113 @@
             document.body.classList.add('modal-open');
         }
 
-        async function requestCancel(docId) {
-            if (confirm('本当にこの予約のキャンセル申請を調整者に送信しますか？')) {
-                try {
-                    const docRef = doc(db, "reservations", docId);
-                    await updateDoc(docRef, {
-                        cancelRequested: true
-                    });
-                    
-                    alert('キャンセル希望を調整者に送信しました。');
-                    closeModal();
-                } catch (error) {
-                    console.error("キャンセル申請エラー:", error);
-                    alert("通信に失敗しました。ネットワーク状態を確認してください。");
-                }
-            }
+        // ▼ 変更点: `confirm()` ではなくカスタムモーダルを呼び出す
+        function requestCancel(docId) {
+            showConfirmModal(
+                'キャンセル申請の確認',
+                '本当にこの予約のキャンセル申請を<br>調整者に送信しますか？',
+                'cancel_reservation',
+                docId,
+                '送信する',
+                'btn-warning'
+            );
         }
 
         function closeModal() {
             document.getElementById('detail-modal').style.display = 'none';
-            document.body.classList.remove('modal-open');
+            // 確認やアラート用モーダルが開いていなければ modal-open を外す
+            if(document.getElementById('confirm-modal').style.display !== 'flex' && document.getElementById('alert-modal').style.display !== 'flex') {
+                document.body.classList.remove('modal-open');
+            }
         }
 
-        // ▼ 変更点4: メニューが開きっぱなしになる不具合（BFCache）の防止と、リンククリック時のリセット処理
+        // -----------------------------------------------------
+        // ▼ カスタム確認モーダル ＆ アラート用 関数の追加 ▼
+        // -----------------------------------------------------
+        function showConfirmModal(title, message, action, data, confirmBtnText, confirmBtnClass) {
+            document.getElementById('confirm-modal-title').textContent = title;
+            document.getElementById('confirm-modal-message').innerHTML = message;
+            
+            const btnExecute = document.getElementById('btn-confirm-execute');
+            btnExecute.textContent = confirmBtnText;
+            btnExecute.className = `btn ${confirmBtnClass}`; // ボタンの色を動的に変更
+
+            pendingConfirmAction = action;
+            pendingConfirmData = data;
+
+            document.getElementById('confirm-modal').style.display = 'flex';
+            document.body.classList.add('modal-open');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').style.display = 'none';
+            if (document.getElementById('detail-modal').style.display !== 'flex') {
+                document.body.classList.remove('modal-open');
+            }
+            pendingConfirmAction = null;
+            pendingConfirmData = null;
+        }
+
+        function customAlert(message, isError = false) {
+            document.getElementById('alert-modal-message').innerHTML = message;
+            const modalContent = document.getElementById('alert-modal-content');
+            const okBtn = document.getElementById('btn-alert-ok');
+            
+            if (isError) {
+                modalContent.style.borderTop = '5px solid #d0021b';
+                okBtn.className = 'btn btn-danger';
+            } else {
+                modalContent.style.borderTop = '5px solid #4caf50';
+                okBtn.className = 'btn btn-success';
+            }
+            
+            document.getElementById('alert-modal').style.display = 'flex';
+            document.body.classList.add('modal-open');
+        }
+
+        function closeAlertModal() {
+            document.getElementById('alert-modal').style.display = 'none';
+            if (document.getElementById('detail-modal').style.display !== 'flex' && document.getElementById('confirm-modal').style.display !== 'flex') {
+                document.body.classList.remove('modal-open');
+            }
+        }
+
+        // 確認モーダルの「確定する」ボタンが押された時の処理
+        async function executeConfirmAction() {
+            const action = pendingConfirmAction;
+            const data = pendingConfirmData;
+            const btnExecute = document.getElementById('btn-confirm-execute');
+            
+            btnExecute.disabled = true;
+            btnExecute.textContent = '処理中...';
+
+            if (action === 'logout') {
+                localStorage.removeItem('userRole');
+                window.location.href = 'login.html';
+            } else if (action === 'cancel_reservation') {
+                try {
+                    const docRef = doc(db, "reservations", data);
+                    await updateDoc(docRef, { cancelRequested: true });
+                    
+                    closeConfirmModal();
+                    closeModal(); // 予約詳細のモーダルも一緒に閉じる
+                    
+                    // データを再読み込みしてカレンダーの表示を更新（取消申請中マークをつけるため）
+                    await loadData(); 
+                    
+                    customAlert('キャンセル希望を調整者に送信しました。');
+                } catch (error) {
+                    console.error("キャンセル申請エラー:", error);
+                    closeConfirmModal();
+                    customAlert('通信に失敗しました。<br>ネットワーク状態を確認してください。', true);
+                }
+            }
+
+            btnExecute.disabled = false;
+        }
+
+        // -----------------------------------------------------
+
         window.addEventListener('pageshow', (event) => {
             if (event.persisted) {
                 document.getElementById('hamburger-btn').classList.remove('open');
