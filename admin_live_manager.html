@@ -72,8 +72,13 @@
         .btn-reject { background: #d0021b; color: white; flex: 1; }
         .btn-reset { background: #9e9e9e; color: white; flex: 1; }
 
-        /* ▼ ID抽出エリア（新設） */
-        .extract-section { background: #fff3e0; border: 2px solid #ffb300; border-radius: 8px; padding: 20px; margin-top: 30px; }
+        /* ▼ 打ち上げ回答期間へ移行エリア */
+        .finalize-section { background: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px; padding: 20px; text-align: center; margin-top: 30px; margin-bottom: 20px; }
+        .btn-finalize { background: #2196f3; color: white; padding: 12px 20px; font-size: 1em; border-radius: 6px; width: 100%; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .btn-finalize:hover { background: #1976d2; }
+
+        /* ID抽出エリア */
+        .extract-section { background: #fff3e0; border: 2px solid #ffb300; border-radius: 8px; padding: 20px; }
         .btn-extract { background: #ffb300; color: white; padding: 12px 20px; font-size: 1em; border-radius: 6px; width: 100%; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
         .btn-extract:hover { background: #ffa000; }
         #extracted-result { display: none; margin-top: 15px; }
@@ -117,7 +122,7 @@
             <button class="btn btn-success" id="btn-open-create-live" style="height: 40px; white-space: nowrap;">➕ 新規ライブ</button>
         </div>
 
-        <!-- ▼ 募集開始/終了コントロールエリア -->
+        <!-- 募集ステータスコントロール -->
         <div class="live-status-area" id="live-status-area" style="display: none;">
             <div>現在の状態: <span id="current-phase-label" class="status-label"></span></div>
             <button class="btn" id="btn-toggle-phase" style="display: none;"></button>
@@ -127,12 +132,20 @@
             <p style="color: #999; text-align: center;">ライブを選択してください</p>
         </div>
 
-        <!-- ▼ 機能しなかったボタンを削除し、ID抽出機能に変更 -->
+        <!-- ▼ 復活：打ち上げ回答期間への移行ボタン -->
+        <div class="finalize-section" id="finalize-section" style="display: none;">
+            <h3 style="margin-top: 0; color: #1565c0; font-size: 1.1em;">🚀 打ち上げ回答期間への移行</h3>
+            <p style="font-size: 0.85em; color: #555; line-height: 1.5; margin: 0;">
+                現在の「承認済み」バンドのメンバーを抽出し、打ち上げ参加の必須対象者として確定します。
+            </p>
+            <button class="btn-finalize" id="btn-finalize">状態を確定し、回答期間へ移行する</button>
+        </div>
+
+        <!-- ID抽出エリア -->
         <div class="extract-section" id="extract-section" style="display: none;">
             <h3 style="margin-top: 0; color: #e65100; font-size: 1.1em;">📋 承認済みメンバーのID取得</h3>
             <p style="font-size: 0.85em; color: #555; line-height: 1.5; margin: 0;">
-                「承認済み」のバンドから、出演する全メンバーの学籍番号（重複なし）を抽出してリスト化します。<br>
-                LINEグループの作成やスプレッドシートの集計などにご利用ください。
+                「承認済み」バンドから、出演メンバーの学籍番号（重複なし）を抽出してリスト化します。<br>
             </p>
             <button class="btn-extract" id="btn-extract-ids">重複なしでIDリストを抽出する</button>
             
@@ -220,7 +233,7 @@
         import { collection, getDocs, doc, getDoc, updateDoc, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
         let currentLiveId = "";
-        let currentLivePhase = ""; // 現在選択しているライブのフェーズ
+        let currentLivePhase = ""; 
         let entriesData = []; 
         let pendingAction = null; 
         let pendingEntryId = null; 
@@ -233,10 +246,12 @@
             document.getElementById('btn-alert-ok').onclick = closeAlertModal;
             document.getElementById('live-select').onchange = handleLiveChange;
 
-            // ボタンイベント
             document.getElementById('btn-toggle-phase').onclick = confirmTogglePhase;
             document.getElementById('btn-extract-ids').onclick = extractIds;
             document.getElementById('btn-copy-ids').onclick = copyIdsToClipboard;
+            
+            // ▼ 回答期間移行ボタンイベント
+            document.getElementById('btn-finalize').onclick = confirmFinalize;
 
             // ライブ作成モーダル
             document.getElementById('btn-open-create-live').onclick = () => {
@@ -262,12 +277,11 @@
             init();
         };
 
-        // 新規ライブ作成
         async function handleCreateLive(e) {
             e.preventDefault();
             const btnExecute = document.getElementById('btn-execute-create');
             btnExecute.disabled = true; btnExecute.textContent = '作成中...';
-            // ... (前回と同じ処理のため省略・維持)
+            
             const name = document.getElementById('new-live-name').value.trim();
             const dateStr = document.getElementById('new-live-date').value.trim();
             const location = document.getElementById('new-live-location').value.trim();
@@ -339,6 +353,7 @@
                     let phaseMark = '';
                     if (data.phase === 'entry') phaseMark = ' 【募集中】';
                     if (data.phase === 'closed') phaseMark = ' 【募集終了】';
+                    if (data.phase === 'rsvp') phaseMark = ' 【回答受付中】';
                     option.textContent = data.name + phaseMark;
                     liveSelect.appendChild(option);
                 });
@@ -349,28 +364,28 @@
             currentLiveId = e.target.value;
             const container = document.getElementById('entries-container');
             const statusArea = document.getElementById('live-status-area');
+            const finalizeSec = document.getElementById('finalize-section');
             const extractSec = document.getElementById('extract-section');
             document.getElementById('extracted-result').style.display = 'none';
             
             if (!currentLiveId) {
                 container.innerHTML = '<p style="color: #999; text-align: center;">ライブを選択してください</p>';
                 statusArea.style.display = 'none';
+                finalizeSec.style.display = 'none';
                 extractSec.style.display = 'none';
                 return;
             }
 
-            // ライブの情報を取得してステータスエリアを更新
             const docRef = doc(db, "lives", currentLiveId);
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
-                currentLivePhase = docSnap.data().phase;
+                currentLivePhase = docSnap.data().phase || 'entry';
                 updateStatusAreaUI();
             }
 
             await loadEntries();
         }
 
-        // ▼ 募集ステータスのUI更新
         function updateStatusAreaUI() {
             const statusArea = document.getElementById('live-status-area');
             const label = document.getElementById('current-phase-label');
@@ -384,15 +399,18 @@
                 label.className = "status-label status-active";
                 btn.textContent = "募集を終了する";
                 btn.className = "btn btn-danger";
-            } else {
+            } else if (currentLivePhase === 'closed') {
                 label.textContent = "募集終了 (審査・確定フェーズ)";
                 label.className = "status-label status-closed";
                 btn.textContent = "募集を再開する";
                 btn.className = "btn btn-success";
+            } else if (currentLivePhase === 'rsvp') {
+                label.textContent = "打ち上げ回答受付中";
+                label.className = "status-label status-active";
+                btn.style.display = 'none'; // 回答受付中は募集トグルは非表示
             }
         }
 
-        // ▼ 募集の開始/終了を切り替える確認
         function confirmTogglePhase() {
             const isEntry = currentLivePhase === 'entry';
             const action = isEntry ? 'close_entry' : 'open_entry';
@@ -406,9 +424,18 @@
             showConfirmModal(title, msg, action, btnText, color);
         }
 
+        // ▼ 回答期間移行の確認
+        function confirmFinalize() {
+            const approvedCount = entriesData.filter(e => e.status === 'approved').length;
+            const msg = `現在の「承認済み」のバンドは <strong>${approvedCount}件</strong> です。<br>このメンバーを打ち上げ回答対象者として確定し、回答受付フェーズへ移行します。よろしいですか？`;
+            
+            showConfirmModal("🚀 打ち上げ回答期間への移行", msg, 'finalize', '確定して移行する', '#2196f3');
+        }
+
         async function loadEntries() {
             const container = document.getElementById('entries-container');
             const extractSec = document.getElementById('extract-section');
+            const finalizeSec = document.getElementById('finalize-section');
             container.innerHTML = '<p style="text-align: center;">データを取得中...</p>';
 
             try {
@@ -424,6 +451,7 @@
                 if (entriesData.length === 0) {
                     container.innerHTML = '<p style="color: #666; text-align: center;">このライブへのエントリーはまだありません。</p>';
                     extractSec.style.display = 'none';
+                    finalizeSec.style.display = 'none';
                     return;
                 }
 
@@ -468,7 +496,15 @@
                     card.appendChild(actions);
                     container.appendChild(card);
                 });
+                
                 extractSec.style.display = 'block';
+                
+                // フェーズがrsvpでなければ、回答期間への移行ボタンを表示する
+                if (currentLivePhase !== 'rsvp') {
+                    finalizeSec.style.display = 'block';
+                } else {
+                    finalizeSec.style.display = 'none';
+                }
 
             } catch (error) {
                 console.error(error);
@@ -493,7 +529,6 @@
             showConfirmModal(title, msg, action, '状態を変更する', color);
         }
 
-        // ▼ 重複なしIDの抽出と表示
         function extractIds() {
             const targetMembersSet = new Set();
             entriesData.forEach(entry => {
@@ -508,8 +543,6 @@
             }
 
             const sortedIds = Array.from(targetMembersSet).sort();
-            
-            // 辞書がある場合は名前もセットで出力する
             let resultText = "";
             sortedIds.forEach(id => {
                 if (nameDictionary[id]) {
@@ -523,7 +556,6 @@
             document.getElementById('extracted-result').style.display = 'block';
         }
 
-        // クリップボードへコピー
         function copyIdsToClipboard() {
             const text = document.getElementById('extracted-text').value;
             navigator.clipboard.writeText(text).then(() => {
@@ -580,7 +612,6 @@
                     setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
                     await loadEntries();
                 } 
-                // ▼ 募集の開始/終了処理の実行
                 else if (action === 'close_entry' || action === 'open_entry') {
                     const newPhase = action === 'close_entry' ? 'closed' : 'entry';
                     await updateDoc(doc(db, "lives", currentLiveId), { phase: newPhase });
@@ -593,9 +624,34 @@
                     successMsg.style.display = 'block';
                     setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
                     
-                    // プルダウンの表示（【募集中】などのマーク）も更新するため再初期化
                     await init();
                     document.getElementById('live-select').value = currentLiveId;
+                }
+                // ▼ 復活：回答期間への移行処理
+                else if (action === 'finalize') {
+                    const targetMembersSet = new Set();
+                    entriesData.forEach(entry => {
+                        if (entry.status === 'approved') {
+                            entry.performerIds.forEach(id => targetMembersSet.add(id));
+                        }
+                    });
+
+                    const targetUserIds = Array.from(targetMembersSet);
+
+                    await updateDoc(doc(db, "lives", currentLiveId), {
+                        phase: 'rsvp',
+                        targetUserIds: targetUserIds
+                    });
+                    
+                    currentLivePhase = 'rsvp';
+                    updateStatusAreaUI();
+
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    customAlert("回答期間への移行が完了しました！<br>対象メンバーへの未回答アラートが有効になりました。");
+                    
+                    await init();
+                    document.getElementById('live-select').value = currentLiveId;
+                    await loadEntries(); // finalizeボタンを隠すために再読み込み
                 }
             } catch (error) {
                 console.error(error);
