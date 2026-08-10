@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打ち上げ回答管理 - 部室予約システム</title>
+
+    <script>
+        if (localStorage.getItem('userRole') !== 'admin') {
+            alert('アクセス権限がありません。');
+            window.location.replace('login.html');
+        }
+    </script>
+
+    <style>
+        :root { --primary-color: #4A90E2; --primary-hover: #357abd; --bg-color: #f5f7fa; --border-color: #ccc; }
+        body.modal-open { overflow: hidden; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); flex-wrap: wrap; gap: 10px; }
+        
+        .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto 20px; }
+        .section-title { margin-top: 0; margin-bottom: 15px; border-left: 5px solid #ff9800; padding-left: 10px; font-size: 1.3em; display: flex; justify-content: space-between; align-items: center; }
+        
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; background-color: var(--primary-color); color: white; font-weight: bold; transition: 0.2s; text-align: center; }
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn-danger { background-color: #d0021b; } .btn-danger:hover { background-color: #a00215; }
+        .btn-nav { background-color: #e0e0e0; color: #333; } .btn-nav:hover { background-color: #d0d0d0; }
+        .btn-info { background-color: #00bcd4; color: white; } .btn-info:hover { background-color: #0097a7; }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
+        select, textarea, input[type="text"] { width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box; background: #fff; font-size: 1em; }
+
+        /* リストテーブル */
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.95em; }
+        .data-table th, .data-table td { border: 1px solid #e0e0e0; padding: 10px; text-align: left; }
+        .data-table th { background: #f5f5f5; font-weight: bold; white-space: nowrap; }
+        
+        .row-yes { background: #e3f2fd; }
+        .row-no { background: #ffebee; }
+        .row-pending { background: #fffaf0; }
+
+        .name-cell { font-weight: bold; }
+        .translated-name { color: #0056b3; }
+
+        .select-status { padding: 6px; font-weight: bold; border-radius: 4px; border: 1px solid #ccc; width: 120px; }
+        .input-comment { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+        .btn-save-row { background: #4caf50; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; white-space: nowrap; }
+        .btn-save-row:hover { background: #388e3c; }
+
+        .success-message { color: #4caf50; font-size: 0.9em; margin-bottom: 15px; display: none; padding: 10px; background: #e8f5e9; border-radius: 4px; font-weight: bold; text-align: center;}
+
+        /* サマリーカード */
+        .summary-box { display: flex; gap: 15px; margin-bottom: 20px; }
+        .summary-item { flex: 1; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #eee; }
+        .summary-item.total { background: #f5f5f5; }
+        .summary-item.yes { background: #e3f2fd; color: #1565c0; border-color: #bbdefb; }
+        .summary-item.no { background: #ffebee; color: #c62828; border-color: #ffcdd2; }
+        .summary-item.pending { background: #fffaf0; color: #e65100; border-color: #ffecb3; }
+        .summary-num { font-size: 2em; font-weight: bold; display: block; margin-top: 5px; }
+
+        /* モーダル */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #fff; padding: 20px; border-radius: 8px; width: 450px; max-width: 95%; max-height: 90vh; overflow-y: auto; text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.2); box-sizing: border-box; }
+        .modal-content.center-text { text-align: center; width: 350px; }
+        .confirm-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .confirm-actions .btn { flex: 1; padding: 12px; }
+        
+        @media (max-width: 768px) {
+            .data-table { display: block; overflow-x: auto; white-space: nowrap; }
+            .summary-box { flex-wrap: wrap; }
+            .summary-item { min-width: 45%; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>打ち上げ回答管理</h1>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-info" id="btn-open-dict">📖 名簿辞書設定</button>
+            <a href="admin.html" class="btn btn-nav" style="text-decoration: none;">← 戻る</a>
+            <button class="btn btn-danger" id="btn-logout">ログアウト</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="section-title"><span>🍻 打ち上げ参加状況の確認・編集</span></div>
+        <p style="font-size: 0.85em; color: #666; margin-top: 0;">ライブの回答状況を一覧で確認し、必要に応じて管理者が代理で変更・保存できます。</p>
+        
+        <div class="success-message" id="main-success-msg"></div>
+
+        <div class="form-group">
+            <label for="live-select">管理するライブイベント</label>
+            <select id="live-select">
+                <option value="">読込中...</option>
+            </select>
+        </div>
+
+        <div id="rsvp-dashboard" style="display: none;">
+            <div class="summary-box">
+                <div class="summary-item total">対象者<span class="summary-num" id="count-total">-</span></div>
+                <div class="summary-item yes">参加<span class="summary-num" id="count-yes">-</span></div>
+                <div class="summary-item no">不参加<span class="summary-num" id="count-no">-</span></div>
+                <div class="summary-item pending">未回答<span class="summary-num" id="count-pending">-</span></div>
+            </div>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>学籍番号 (氏名)</th>
+                        <th>回答状況</th>
+                        <th>備考 (アレルギー等)</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="rsvp-tbody">
+                </tbody>
+            </table>
+        </div>
+        <div id="loading-msg" style="color: #999; text-align: center; margin-top: 20px;">ライブを選択してください</div>
+    </div>
+
+    <!-- 辞書設定モーダル -->
+    <div class="modal" id="dict-modal">
+        <div class="modal-content" style="width: 500px; max-width: 95%;">
+            <h3 style="margin-top: 0; border-bottom: 2px solid #00bcd4; padding-bottom: 5px; color: #0097a7;">📖 ローカル名簿辞書の登録</h3>
+            <div class="form-group">
+                <textarea id="dict-textarea" placeholder="例:&#10;231030&#9;山田太郎&#10;242011&#9;佐藤花子"></textarea>
+            </div>
+            <div class="confirm-actions">
+                <button class="btn btn-nav" id="btn-close-dict">キャンセル</button>
+                <button class="btn btn-info" id="btn-save-dict">辞書を保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 汎用カスタム確認モーダル -->
+    <div class="modal" id="confirm-modal">
+        <div class="modal-content center-text" id="modal-border-color" style="border-top: 5px solid #ff9800;">
+            <h3 id="confirm-modal-title" style="margin-top: 0; border-bottom: 2px solid #ff9800; padding-bottom: 5px;">確認</h3>
+            <p id="confirm-modal-message" style="color: #555; font-size: 0.9em; line-height: 1.5; margin: 15px 0; text-align: left;"></p>
+            <div class="confirm-actions">
+                <button class="btn btn-nav" id="btn-confirm-cancel">キャンセル</button>
+                <button class="btn" id="btn-confirm-execute" style="background-color: #ff9800;">更新する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- アラートモーダル -->
+    <div class="modal" id="alert-modal">
+        <div class="modal-content center-text" id="alert-modal-content" style="border-top: 5px solid #4caf50;">
+            <p id="alert-modal-message" style="color: #333; line-height: 1.5; font-weight: bold; margin: 15px 0; font-size: 1em;"></p>
+            <button class="btn btn-success" id="btn-alert-ok" style="width: 100%;">OK</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from "./firebase.js";
+        import { collection, getDocs, doc, getDoc, setDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+        let currentLiveId = "";
+        let pendingData = null; // { userId, status, comment }
+        let nameDictionary = JSON.parse(localStorage.getItem('adminNameDictionary') || '{}');
+
+        window.onload = function() {
+            document.getElementById('btn-logout').onclick = confirmLogout;
+            document.getElementById('btn-confirm-cancel').onclick = closeConfirmModal;
+            document.getElementById('btn-confirm-execute').onclick = executeConfirmAction;
+            document.getElementById('btn-alert-ok').onclick = closeAlertModal;
+            document.getElementById('live-select').onchange = handleLiveChange;
+
+            document.getElementById('btn-open-dict').onclick = () => {
+                let text = "";
+                for (const [id, name] of Object.entries(nameDictionary)) { text += `${id}\t${name}\n`; }
+                document.getElementById('dict-textarea').value = text;
+                document.getElementById('dict-modal').style.display = 'flex';
+            };
+            document.getElementById('btn-close-dict').onclick = () => { document.getElementById('dict-modal').style.display = 'none'; };
+            document.getElementById('btn-save-dict').onclick = saveDictionary;
+
+            init();
+        };
+
+        function saveDictionary() {
+            const text = document.getElementById('dict-textarea').value;
+            const lines = text.split('\n');
+            const newDict = {};
+            lines.forEach(line => {
+                const parts = line.split(/[\t, , ]+/);
+                if (parts.length >= 2) {
+                    const id = parts[0].trim();
+                    const name = parts.slice(1).join(" ").trim(); 
+                    if (/^\d{6}$/.test(id)) { newDict[id] = name; }
+                }
+            });
+            nameDictionary = newDict;
+            localStorage.setItem('adminNameDictionary', JSON.stringify(nameDictionary));
+            document.getElementById('dict-modal').style.display = 'none';
+            customAlert("名簿辞書を保存しました。");
+            if (currentLiveId) { loadRsvps(); }
+        }
+
+        function translateId(id) {
+            if (nameDictionary[id]) { return `${id} <br><span class="translated-name">${nameDictionary[id]}</span>`; }
+            return id;
+        }
+
+        function confirmLogout() { 
+            document.getElementById('confirm-modal-title').textContent = 'ログアウト';
+            document.getElementById('confirm-modal-message').innerHTML = 'ログアウトしますか？';
+            const executeBtn = document.getElementById('btn-confirm-execute');
+            executeBtn.textContent = 'ログアウト'; executeBtn.style.backgroundColor = '#d0021b';
+            document.getElementById('modal-border-color').style.borderTopColor = '#d0021b';
+            pendingData = { action: 'logout' };
+            document.getElementById('confirm-modal').style.display = 'flex';
+        }
+
+        async function init() {
+            try {
+                const liveSelect = document.getElementById('live-select');
+                const livesQuery = query(collection(db, "lives"));
+                const livesSnap = await getDocs(livesQuery);
+                
+                liveSelect.innerHTML = '<option value="">選択してください</option>';
+                livesSnap.forEach(d => {
+                    const option = document.createElement('option');
+                    option.value = d.id;
+                    option.textContent = d.data().name;
+                    liveSelect.appendChild(option);
+                });
+            } catch (error) { console.error(error); customAlert("データの読み込みに失敗しました。", true); }
+        }
+
+        async function handleLiveChange(e) {
+            currentLiveId = e.target.value;
+            const dashboard = document.getElementById('rsvp-dashboard');
+            const loadingMsg = document.getElementById('loading-msg');
+            
+            if (!currentLiveId) {
+                dashboard.style.display = 'none';
+                loadingMsg.style.display = 'block';
+                loadingMsg.textContent = 'ライブを選択してください';
+                return;
+            }
+            await loadRsvps();
+        }
+
+        async function loadRsvps() {
+            const dashboard = document.getElementById('rsvp-dashboard');
+            const loadingMsg = document.getElementById('loading-msg');
+            const tbody = document.getElementById('rsvp-tbody');
+            
+            dashboard.style.display = 'none';
+            loadingMsg.style.display = 'block';
+            loadingMsg.textContent = 'データを取得中...';
+
+            try {
+                // 1. ライブの対象者リスト (targetUserIds) を取得
+                const liveDoc = await getDoc(doc(db, "lives", currentLiveId));
+                if (!liveDoc.exists() || !liveDoc.data().targetUserIds) {
+                    loadingMsg.textContent = 'このライブには打ち上げ回答の対象者がいません。';
+                    return;
+                }
+                
+                // 学籍番号順にソート
+                const targetUserIds = liveDoc.data().targetUserIds.sort();
+
+                // 2. このライブの回答データをすべて取得
+                const qRsvp = query(collection(db, "rsvps"), where("liveId", "==", currentLiveId));
+                const snapRsvp = await getDocs(qRsvp);
+                
+                const answers = {};
+                snapRsvp.forEach(d => {
+                    const data = d.data();
+                    answers[data.userId] = data;
+                });
+
+                // カウンター
+                let countYes = 0, countNo = 0, countPending = 0;
+
+                tbody.innerHTML = '';
+
+                targetUserIds.forEach(userId => {
+                    const ans = answers[userId];
+                    const currentStatus = ans ? ans.status : 'pending';
+                    const currentComment = ans ? (ans.comment || "") : "";
+
+                    if (currentStatus === 'yes') countYes++;
+                    else if (currentStatus === 'no') countNo++;
+                    else countPending++;
+
+                    let rowClass = 'row-pending';
+                    if (currentStatus === 'yes') rowClass = 'row-yes';
+                    if (currentStatus === 'no') rowClass = 'row-no';
+
+                    const tr = document.createElement('tr');
+                    tr.className = rowClass;
+
+                    tr.innerHTML = `
+                        <td class="name-cell">${translateId(userId)}</td>
+                        <td>
+                            <select class="select-status" id="status-${userId}">
+                                <option value="pending" ${currentStatus === 'pending' ? 'selected' : ''}>❓ 未定</option>
+                                <option value="yes" ${currentStatus === 'yes' ? 'selected' : ''}>⭕ 参加</option>
+                                <option value="no" ${currentStatus === 'no' ? 'selected' : ''}>❌ 不参加</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" class="input-comment" id="comment-${userId}" value="${currentComment}" placeholder="備考を入力">
+                        </td>
+                        <td style="text-align: center;">
+                            <button class="btn-save-row" data-id="${userId}">保存</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+
+                    // 行ごとの保存ボタンイベント
+                    tr.querySelector('.btn-save-row').addEventListener('click', (e) => {
+                        const id = e.target.getAttribute('data-id');
+                        const newStatus = document.getElementById(`status-${id}`).value;
+                        const newComment = document.getElementById(`comment-${id}`).value.trim();
+
+                        const nameStr = nameDictionary[id] ? `${id} (${nameDictionary[id]})` : id;
+                        const statusStr = newStatus === 'yes' ? '⭕ 参加' : newStatus === 'no' ? '❌ 不参加' : '❓ 未定';
+
+                        document.getElementById('confirm-modal-title').textContent = '回答の更新';
+                        document.getElementById('confirm-modal-message').innerHTML = `以下のユーザーの回答を管理者が代理で更新します。<br><br>対象: <strong>${nameStr}</strong><br>状態: <strong>${statusStr}</strong><br>備考: ${newComment || 'なし'}`;
+                        
+                        const executeBtn = document.getElementById('btn-confirm-execute');
+                        executeBtn.textContent = '更新する'; executeBtn.style.backgroundColor = '#ff9800';
+                        document.getElementById('modal-border-color').style.borderTopColor = '#ff9800';
+
+                        pendingData = { action: 'update', userId: id, status: newStatus, comment: newComment };
+                        document.getElementById('confirm-modal').style.display = 'flex';
+                    });
+                });
+
+                // サマリーの更新
+                document.getElementById('count-total').textContent = targetUserIds.length;
+                document.getElementById('count-yes').textContent = countYes;
+                document.getElementById('count-no').textContent = countNo;
+                document.getElementById('count-pending').textContent = countPending;
+
+                loadingMsg.style.display = 'none';
+                dashboard.style.display = 'block';
+
+            } catch (error) {
+                console.error(error);
+                loadingMsg.textContent = 'エラーが発生しました。';
+            }
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').style.display = 'none';
+            pendingData = null;
+        }
+
+        function customAlert(message, isError = false) {
+            document.getElementById('alert-modal-message').innerHTML = message;
+            document.getElementById('alert-modal-content').style.borderTopColor = isError ? '#d0021b' : '#4caf50';
+            document.getElementById('alert-modal').style.display = 'flex';
+        }
+
+        function closeAlertModal() { document.getElementById('alert-modal').style.display = 'none'; }
+
+        async function executeConfirmAction() {
+            if (!pendingData) return;
+            const data = pendingData;
+            closeConfirmModal();
+            
+            if (data.action === 'logout') {
+                localStorage.removeItem('userRole'); window.location.href = 'login.html'; return;
+            }
+
+            if (data.action === 'update') {
+                const successMsg = document.getElementById('main-success-msg');
+                try {
+                    const docId = `${currentLiveId}_${data.userId}`;
+                    await setDoc(doc(db, "rsvps", docId), {
+                        liveId: currentLiveId,
+                        userId: data.userId,
+                        status: data.status,
+                        comment: data.comment,
+                        updatedAt: serverTimestamp()
+                    });
+                    
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    successMsg.textContent = "回答データを更新しました。"; 
+                    successMsg.style.display = 'block';
+                    setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
+                    
+                    await loadRsvps(); // 再計算して再描画
+
+                } catch (error) {
+                    console.error(error);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    customAlert("更新に失敗しました。", true);
+                }
+            }
+            pendingData = null;
+        }
+    </script>
+</body>
+</html>
