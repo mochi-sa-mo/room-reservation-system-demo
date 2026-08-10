@@ -79,6 +79,7 @@
     </header>
 
     <div class="container" id="form-container">
+        <!-- 募集要項カードの表示エリア -->
         <div id="active-lives-info"></div>
 
         <h2 style="margin-top: 0; font-size: 1.2em; border-left: 5px solid #ff9800; padding-left: 8px;">出演エントリー申請</h2>
@@ -97,7 +98,6 @@
                 </select>
             </div>
 
-            <!-- ▼ 変更点：初期状態では disabled を付与 -->
             <div class="form-group">
                 <label for="band-select">出演するバンド</label>
                 <select id="band-select" required disabled>
@@ -165,7 +165,7 @@
         let pendingEntryData = null;
         let pendingDeleteId = null;
 
-        let activeLiveIds = []; // ▼ エントリー受付中のライブIDを保持
+        let activeLiveIds = []; 
 
         const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Other"];
         const typeOptions = ["正規", "サポート", "ゲスト"];
@@ -217,7 +217,6 @@
             const bandSelect = document.getElementById('band-select');
             const currentSelectedBand = bandSelect.value;
             
-            // ▼ 変更点: ライブ未選択時のロック処理
             if (!liveId) {
                 bandSelect.disabled = true;
                 bandSelect.innerHTML = '<option value="">先にライブを選択してください</option>';
@@ -265,17 +264,18 @@
         async function initializeForm() {
             try {
                 const liveSelect = document.getElementById('live-select');
-                const livesQuery = query(collection(db, "lives"), where("isActive", "==", true), where("phase", "==", "entry"));
+                // ▼ 【重要な修正】"phase" == "entry" ではなく、新しいフラグ "isEntryOpen" == true を検索する
+                const livesQuery = query(collection(db, "lives"), where("isActive", "==", true), where("isEntryOpen", "==", true));
                 const livesSnap = await getDocs(livesQuery);
                 
                 liveSelect.innerHTML = '<option value="">ライブを選択してください</option>';
                 const activeInfoArea = document.getElementById('active-lives-info');
                 activeInfoArea.innerHTML = '';
-                activeLiveIds = []; // リセット
+                activeLiveIds = []; 
 
                 livesSnap.forEach(doc => {
                     const data = doc.data();
-                    activeLiveIds.push(doc.id); // アクティブなライブを記録
+                    activeLiveIds.push(doc.id); 
                     
                     const option = document.createElement('option');
                     option.value = doc.id; option.textContent = data.name;
@@ -295,6 +295,13 @@
                     activeInfoArea.appendChild(card);
                 });
 
+                // 表示する募集がない場合のメッセージ
+                if (livesSnap.empty) {
+                    activeInfoArea.innerHTML = '<div style="background:#f5f5f5; padding:15px; border-radius:4px; text-align:center; color:#666;">現在募集中のライブはありません。</div>';
+                    liveSelect.innerHTML = '<option value="">募集中のライブはありません</option>';
+                    liveSelect.disabled = true;
+                }
+
                 const bandsQuery = query(collection(db, "bands"), where("leaders", "array-contains", currentUserId));
                 const bandsSnap = await getDocs(bandsQuery);
                 
@@ -303,7 +310,7 @@
                     userBands[doc.id] = data; 
                 });
 
-                if (!bandsSnap.empty) {
+                if (!bandsSnap.empty && !livesSnap.empty) {
                     document.getElementById('btn-submit').disabled = false;
                 }
 
@@ -330,14 +337,12 @@
 
                 myEntriesList.innerHTML = '';
                 myEntriesData = {}; 
-                
                 let displayedCount = 0;
 
                 entriesSnap.forEach(docSnap => {
                     const data = docSnap.data();
                     const entryId = docSnap.id;
                     
-                    // ▼ 変更点: 募集終了したライブ（activeLiveIdsに含まれない）は表示しない
                     if (!activeLiveIds.includes(data.liveId)) return;
 
                     displayedCount++;
