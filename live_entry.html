@@ -12,6 +12,7 @@
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 0.9em; }
         select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1em; background-color: white; }
+        select:disabled { background-color: #e0e0e0; cursor: not-allowed; }
         
         .member-list { margin-top: 10px; padding: 15px; background: #f9f9f9; border-radius: 4px; border: 1px solid #eee; }
         .member-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
@@ -35,7 +36,7 @@
         .error-message { color: #d0021b; font-size: 0.85em; margin-bottom: 15px; display: none; padding: 10px; background: #ffe8e8; border-radius: 4px;}
         .success-message { color: #4caf50; font-size: 0.9em; margin-bottom: 15px; display: none; padding: 10px; background: #e8f5e9; border-radius: 4px; font-weight: bold; text-align: center;}
 
-        /* ▼ 募集要項カード（新設） */
+        /* 募集要項カード */
         .info-card { background: #fff8e1; border: 2px solid #ffb300; border-radius: 8px; padding: 15px 20px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(255, 152, 0, 0.15); position: relative; overflow: hidden; }
         .info-card::before { content: "募集中"; position: absolute; top: 12px; right: -25px; background: #ff5722; color: white; padding: 2px 30px; font-size: 0.75em; font-weight: bold; transform: rotate(45deg); }
         .info-title { font-size: 1.2em; font-weight: bold; color: #e65100; margin-top: 0; margin-bottom: 10px; border-bottom: 1px dashed #ffcc80; padding-bottom: 5px; }
@@ -48,7 +49,6 @@
         .entry-item { background: #f0f8ff; border-left: 5px solid #4A90E2; padding: 15px; margin-bottom: 10px; border-radius: 4px; }
         .entry-item-title { font-weight: bold; font-size: 1.1em; color: #333; margin-bottom: 5px; }
         .entry-item-detail { font-size: 0.9em; color: #555; line-height: 1.5; }
-        .tag { display: inline-block; background: #4A90E2; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 5px; font-weight: bold;}
         
         .action-buttons { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
         .btn-small { padding: 8px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold; flex: 1; text-align: center; min-width: 80px; }
@@ -63,9 +63,7 @@
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); z-index: 1000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); animation: fadeIn 0.2s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        
         .btn-close-modal { padding: 10px; background: #999; color: white; border: none; border-radius: 4px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 15px; }
-        
         .modal-details { background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.95em; line-height: 1.6; border: 1px solid #ddd; max-height: 50vh; overflow-y: auto; text-align: left; }
         .modal-actions { display: flex; gap: 10px; }
         .btn-modal-cancel { flex: 1; padding: 12px; border: none; border-radius: 4px; background: #999; color: white; font-weight: bold; cursor: pointer; }
@@ -81,13 +79,11 @@
     </header>
 
     <div class="container" id="form-container">
-        <!-- ▼ 自動生成される募集要項カードの表示エリア -->
         <div id="active-lives-info"></div>
 
         <h2 style="margin-top: 0; font-size: 1.2em; border-left: 5px solid #ff9800; padding-left: 8px;">出演エントリー申請</h2>
         <p style="font-size: 0.85em; color: #666; line-height: 1.5;">
-            あなたが代表権限を持つバンドをライブにエントリーさせます。<br>
-            ※代表権限がない場合は、下の「あなたの出演予定」のみ確認できます。
+            あなたが代表権限を持つバンドを募集中のライブにエントリーさせます。
         </p>
 
         <div class="error-message" id="error-msg"></div>
@@ -101,10 +97,11 @@
                 </select>
             </div>
 
+            <!-- ▼ 変更点：初期状態では disabled を付与 -->
             <div class="form-group">
                 <label for="band-select">出演するバンド</label>
-                <select id="band-select" required>
-                    <option value="">読込中...</option>
+                <select id="band-select" required disabled>
+                    <option value="">先にライブを選択してください</option>
                 </select>
             </div>
 
@@ -121,12 +118,12 @@
         </form>
     </div>
 
-    <!-- あなたの出演予定確認エリア -->
+    <!-- エントリー状況確認エリア -->
     <div class="status-container">
-        <h2 style="margin-top: 0; font-size: 1.2em; color: #4A90E2;">🎵 あなたの出演予定</h2>
+        <h2 style="margin-top: 0; font-size: 1.2em; color: #4A90E2;">🎵 エントリー状況（受付中のみ）</h2>
         <p style="font-size: 0.85em; color: #666; margin-bottom: 15px;">
-            あなたがメンバーとして登録されているライブの一覧です。<br>
-            ※代表者は「変更」「削除」から内容を修正できます。
+            あなたが現在エントリーしているライブの一覧です。<br>
+            ※募集が終了したライブの審査状況や打ち上げ回答は、トップページの「審査状況・打ち上げ回答」から確認できます。
         </p>
         <div id="my-entries-list">
             <p style="color: #999; font-size: 0.9em;">読込中...</p>
@@ -167,6 +164,8 @@
         let pendingAction = null; 
         let pendingEntryData = null;
         let pendingDeleteId = null;
+
+        let activeLiveIds = []; // ▼ エントリー受付中のライブIDを保持
 
         const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Other"];
         const typeOptions = ["正規", "サポート", "ゲスト"];
@@ -218,17 +217,17 @@
             const bandSelect = document.getElementById('band-select');
             const currentSelectedBand = bandSelect.value;
             
-            bandSelect.innerHTML = '<option value="">バンドを選択してください</option>';
-            const bandIds = Object.keys(userBands);
-
+            // ▼ 変更点: ライブ未選択時のロック処理
             if (!liveId) {
-                bandIds.forEach(id => {
-                    const option = document.createElement('option');
-                    option.value = id; option.textContent = userBands[id].name;
-                    bandSelect.appendChild(option);
-                });
+                bandSelect.disabled = true;
+                bandSelect.innerHTML = '<option value="">先にライブを選択してください</option>';
+                document.getElementById('performers-section').style.display = 'none';
                 return;
             }
+
+            bandSelect.disabled = false;
+            bandSelect.innerHTML = '<option value="">バンドを選択してください</option>';
+            const bandIds = Object.keys(userBands);
 
             try {
                 const q = query(collection(db, "liveEntries"), where("liveId", "==", liveId));
@@ -266,23 +265,22 @@
         async function initializeForm() {
             try {
                 const liveSelect = document.getElementById('live-select');
-                // phase が entry（募集期間中）で isActive なものだけを取得
                 const livesQuery = query(collection(db, "lives"), where("isActive", "==", true), where("phase", "==", "entry"));
                 const livesSnap = await getDocs(livesQuery);
                 
                 liveSelect.innerHTML = '<option value="">ライブを選択してください</option>';
                 const activeInfoArea = document.getElementById('active-lives-info');
                 activeInfoArea.innerHTML = '';
+                activeLiveIds = []; // リセット
 
                 livesSnap.forEach(doc => {
                     const data = doc.data();
+                    activeLiveIds.push(doc.id); // アクティブなライブを記録
                     
-                    // 1. プルダウンの構築
                     const option = document.createElement('option');
                     option.value = doc.id; option.textContent = data.name;
                     liveSelect.appendChild(option);
 
-                    // 2. 募集要項カードの自動生成
                     const card = document.createElement('div');
                     card.className = 'info-card';
                     card.innerHTML = `
@@ -297,7 +295,6 @@
                     activeInfoArea.appendChild(card);
                 });
 
-                const bandSelect = document.getElementById('band-select');
                 const bandsQuery = query(collection(db, "bands"), where("leaders", "array-contains", currentUserId));
                 const bandsSnap = await getDocs(bandsQuery);
                 
@@ -306,11 +303,7 @@
                     userBands[doc.id] = data; 
                 });
 
-                await updateBandSelectOptions("");
-
-                if (bandsSnap.empty) {
-                    bandSelect.innerHTML = '<option value="">代表権限を持つバンドがありません</option>';
-                } else {
+                if (!bandsSnap.empty) {
                     document.getElementById('btn-submit').disabled = false;
                 }
 
@@ -338,14 +331,16 @@
                 myEntriesList.innerHTML = '';
                 myEntriesData = {}; 
                 
-                if (entriesSnap.empty) {
-                    myEntriesList.innerHTML = '<p style="color: #666; font-size: 0.9em;">現在、あなたがエントリーされているライブはありません。</p>';
-                    return;
-                }
+                let displayedCount = 0;
 
                 entriesSnap.forEach(docSnap => {
                     const data = docSnap.data();
                     const entryId = docSnap.id;
+                    
+                    // ▼ 変更点: 募集終了したライブ（activeLiveIdsに含まれない）は表示しない
+                    if (!activeLiveIds.includes(data.liveId)) return;
+
+                    displayedCount++;
                     myEntriesData[entryId] = data; 
 
                     const myInfo = data.performers.find(p => p.id === currentUserId);
@@ -392,6 +387,10 @@
                     item.appendChild(actionDiv);
                     myEntriesList.appendChild(item);
                 });
+
+                if (displayedCount === 0) {
+                    myEntriesList.innerHTML = '<p style="color: #666; font-size: 0.9em;">現在、エントリー受付中のライブへの出演予定はありません。</p>';
+                }
 
             } catch (error) {
                 console.error("出演予定取得エラー:", error);
@@ -565,7 +564,7 @@
                 liveId: liveId, liveName: liveName,
                 bandId: bandId, bandName: bandName,
                 performers: performers, performerIds: uniqueIds,
-                status: 'pending' // デフォルトは保留
+                status: 'pending'
             };
 
             const titleEl = document.getElementById('confirm-modal-title');
