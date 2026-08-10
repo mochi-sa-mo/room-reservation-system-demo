@@ -37,6 +37,11 @@
         .rejected .badge { background: #9e9e9e; color: white; }
         .approved .badge { background: #4caf50; color: white; }
 
+        .action-buttons { display: flex; justify-content: flex-end; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
+        .btn-small { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold; transition: 0.2s;}
+        .btn-info { background: #e0f7fa; color: #00838f; border: 1px solid #00838f; }
+        .btn-info:hover { background: #b2ebf2; }
+
         /* RSVPフォームエリア */
         .rsvp-form-area { border-top: 1px dashed #ccc; margin-top: 15px; padding-top: 15px; }
         .rsvp-title { font-weight: bold; color: #e65100; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;}
@@ -65,10 +70,13 @@
         /* モーダル */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); z-index: 1000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 350px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); animation: fadeIn 0.2s ease-out; }
+        .modal-content.left-align { text-align: left; max-width: 400px; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
         .confirm-actions { display: flex; gap: 10px; margin-top: 20px; }
         .btn-modal-cancel { flex: 1; padding: 12px; border: none; border-radius: 4px; background: #999; color: white; font-weight: bold; cursor: pointer; }
         .btn-modal-execute { flex: 1; padding: 12px; border: none; border-radius: 4px; background: #ff9800; color: white; font-weight: bold; cursor: pointer; }
+        .btn-close-modal { padding: 10px; background: #999; color: white; border: none; border-radius: 4px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -104,6 +112,15 @@
         </div>
     </div>
 
+    <!-- 詳細確認モーダル -->
+    <div id="details-modal" class="modal-overlay">
+        <div class="modal-content left-align">
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: #333; font-size: 1.1em; border-bottom: 1px solid #ccc; padding-bottom: 5px;">登録内容の詳細</h3>
+            <div id="modal-details-content" style="font-size: 0.95em; line-height: 1.6; color: #444;"></div>
+            <button type="button" class="btn-close-modal" id="btn-close-modal">閉じる</button>
+        </div>
+    </div>
+
     <script type="module">
         import { db, auth } from "./firebase.js";
         import { collection, getDocs, query, where, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
@@ -111,6 +128,7 @@
 
         let currentUserId = "";
         let pendingData = null; 
+        let myEntriesData = {}; // 詳細表示用のデータ保持
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -126,7 +144,6 @@
             container.innerHTML = '<p style="color: #999; text-align: center;">データを確認中...</p>';
 
             try {
-                // 1. 自分がエントリーしている情報を全て取得
                 const qEntries = query(collection(db, "liveEntries"), where("performerIds", "array-contains", currentUserId));
                 const snapEntries = await getDocs(qEntries);
 
@@ -135,7 +152,6 @@
                     return;
                 }
 
-                // 2. ライブ情報のマスタと、自分の過去の回答を取得
                 const liveMaster = {};
                 const snapLives = await getDocs(collection(db, "lives"));
                 snapLives.forEach(d => { liveMaster[d.id] = d.data(); });
@@ -146,12 +162,15 @@
                 snapRsvp.forEach(d => { myAnswers[d.data().liveId] = d.data(); });
 
                 container.innerHTML = '';
+                myEntriesData = {};
 
-                // 3. UIの構築
                 snapEntries.forEach(d => {
                     const entry = d.data();
+                    const entryId = d.id;
+                    myEntriesData[entryId] = entry; // 詳細用に保存
+                    
                     const liveInfo = liveMaster[entry.liveId];
-                    if (!liveInfo) return; // ライブが削除されていた場合は無視
+                    if (!liveInfo) return; 
 
                     const status = entry.status || 'pending';
                     let badgeText = "審査中（保留）"; let cardClass = "pending";
@@ -167,43 +186,70 @@
                         <div class="band-name">🎸 バンド：${entry.bandName}</div>
                     `;
 
-                    // ★承認済み かつ ライブの isRsvpOpen が true の場合のみ回答フォームを展開
-                    if (status === 'approved' && liveInfo.isRsvpOpen === true) {
+                    // ★承認済みバンドの打ち上げ回答エリアの分岐
+                    if (status === 'approved') {
                         const ans = myAnswers[entry.liveId];
                         const currentStatus = ans ? ans.status : "";
                         const currentComment = ans ? (ans.comment || "") : "";
                         
-                        const rsvpBadge = ans ? '<span class="status-badge-rsvp rsvp-answered">回答済み（変更可）</span>' : '<span class="status-badge-rsvp rsvp-unanswered">⚠️ 未回答（必須）</span>';
-
-                        html += `
-                            <div class="rsvp-form-area">
-                                <div class="rsvp-title">🍻 打ち上げ参加回答 ${rsvpBadge}</div>
-                                <form id="form-${entry.liveId}">
-                                    <div class="form-group">
-                                        <div class="radio-group" id="group-${entry.liveId}">
-                                            <label class="radio-label ${currentStatus === 'yes' ? 'selected-yes' : ''}">
-                                                <input type="radio" name="status-${entry.liveId}" value="yes" ${currentStatus === 'yes' ? 'checked' : ''}>⭕ 参加する
-                                            </label>
-                                            <label class="radio-label ${currentStatus === 'no' ? 'selected-no' : ''}">
-                                                <input type="radio" name="status-${entry.liveId}" value="no" ${currentStatus === 'no' ? 'checked' : ''}>❌ 参加しない
-                                            </label>
+                        if (liveInfo.isRsvpOpen === true) {
+                            // 受付中の場合：フォームを表示
+                            const rsvpBadge = ans ? '<span class="status-badge-rsvp rsvp-answered">回答済み（変更可）</span>' : '<span class="status-badge-rsvp rsvp-unanswered">⚠️ 未回答（必須）</span>';
+                            html += `
+                                <div class="rsvp-form-area">
+                                    <div class="rsvp-title">🍻 打ち上げ参加回答 ${rsvpBadge}</div>
+                                    <form id="form-${entry.liveId}">
+                                        <div class="form-group">
+                                            <div class="radio-group" id="group-${entry.liveId}">
+                                                <label class="radio-label ${currentStatus === 'yes' ? 'selected-yes' : ''}">
+                                                    <input type="radio" name="status-${entry.liveId}" value="yes" ${currentStatus === 'yes' ? 'checked' : ''}>⭕ 参加する
+                                                </label>
+                                                <label class="radio-label ${currentStatus === 'no' ? 'selected-no' : ''}">
+                                                    <input type="radio" name="status-${entry.liveId}" value="no" ${currentStatus === 'no' ? 'checked' : ''}>❌ 参加しない
+                                                </label>
+                                            </div>
                                         </div>
+                                        <div class="form-group">
+                                            <label>備考 (アレルギー・未成年・遅刻早退など)</label>
+                                            <textarea id="comment-${entry.liveId}" placeholder="例: エビアレルギーがあります。／未成年です。">${currentComment}</textarea>
+                                        </div>
+                                        <button type="submit" class="btn-submit">回答を送信する</button>
+                                    </form>
+                                </div>
+                            `;
+                        } else {
+                            // 受付終了の場合：結果のみをテキストで表示
+                            let statusStr = "❓ 未定（未回答）";
+                            if (currentStatus === 'yes') statusStr = "⭕ 参加する";
+                            if (currentStatus === 'no') statusStr = "❌ 参加しない";
+                            
+                            html += `
+                                <div class="rsvp-form-area">
+                                    <div class="rsvp-title">🍻 打ち上げ参加状況 <span class="status-badge-rsvp" style="background:#999;">受付終了</span></div>
+                                    <div style="background:#f9f9f9; padding: 15px; border-radius:4px; border:1px solid #ddd;">
+                                        <div style="margin-bottom: 8px;"><strong>あなたの回答：</strong> ${statusStr}</div>
+                                        <div><strong>備考：</strong> ${currentComment ? currentComment.replace(/\n/g, '<br>') : 'なし'}</div>
                                     </div>
-                                    <div class="form-group">
-                                        <label>備考 (アレルギー・未成年・遅刻早退など)</label>
-                                        <textarea id="comment-${entry.liveId}" placeholder="例: エビアレルギーがあります。／未成年です。">${currentComment}</textarea>
-                                    </div>
-                                    <button type="submit" class="btn-submit">回答を送信する</button>
-                                </form>
-                            </div>
-                        `;
-                    } else if (status === 'approved' && !liveInfo.isRsvpOpen) {
-                        // 承認されているが、まだ回答が始まっていない場合
-                        html += `<div style="font-size: 0.85em; color: #666; margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">※現在、打ち上げの参加回答は受け付けていません。管理者の案内をお待ちください。</div>`;
+                                </div>
+                            `;
+                        }
                     }
+
+                    // ▼ 変更点: エントリー詳細を確認できるボタンを追加
+                    html += `
+                        <div class="action-buttons">
+                            <button class="btn-small btn-info btn-show-detail" data-id="${entryId}">📄 エントリー詳細</button>
+                        </div>
+                    `;
 
                     card.innerHTML = html;
                     container.appendChild(card);
+
+                    // 詳細ボタンのイベント
+                    card.querySelector('.btn-show-detail').addEventListener('click', (e) => {
+                        const id = e.target.getAttribute('data-id');
+                        showDetailsModal(id);
+                    });
 
                     // フォームイベントのバインド（フォームが存在する場合のみ）
                     const form = card.querySelector(`#form-${entry.liveId}`);
@@ -245,30 +291,62 @@
             }
         }
 
+        function showDetailsModal(entryId) {
+            const data = myEntriesData[entryId];
+            let html = `<p style="margin-bottom: 5px;"><strong>🎵 ライブ:</strong> ${data.liveName}</p>`;
+            html += `<p style="margin-bottom: 15px;"><strong>🎸 バンド:</strong> ${data.bandName}</p>`;
+            html += `<p style="margin-bottom: 5px; background: #eee; padding: 5px; border-radius: 4px;"><strong>【演奏メンバー構成】</strong></p>`;
+            html += `<ul style="margin-top: 5px; padding-left: 20px;">`;
+            data.performers.forEach(p => {
+                let role = p.type === "正規" ? "" : ` <span style="font-size: 0.8em; color: #ff9800; font-weight: bold;">(${p.type})</span>`;
+                html += `<li><strong>${p.part}</strong>： ${p.id} ${role}</li>`;
+            });
+            html += `</ul>`;
+            
+            document.getElementById('modal-details-content').innerHTML = html;
+            document.getElementById('details-modal').style.display = 'flex';
+            document.body.classList.add('modal-open');
+        }
+
+        document.getElementById('btn-close-modal').addEventListener('click', () => {
+            document.getElementById('details-modal').style.display = 'none';
+            document.body.classList.remove('modal-open');
+        });
+
+        // モーダルキャンセル
         document.getElementById('btn-confirm-cancel').addEventListener('click', () => {
             document.getElementById('confirm-modal').style.display = 'none';
             document.body.classList.remove('modal-open');
             pendingData = null;
         });
 
+        // モーダル実行（データベースへの書き込み）
         document.getElementById('btn-confirm-execute').addEventListener('click', async () => {
             if (!pendingData) return;
             const data = pendingData;
+            
             document.getElementById('confirm-modal').style.display = 'none';
             document.body.classList.remove('modal-open');
 
             const successMsg = document.getElementById('main-success-msg');
+            
             try {
                 await setDoc(doc(db, "rsvps", data.docId), {
                     liveId: data.liveId, userId: data.userId, status: data.status, comment: data.comment, updatedAt: serverTimestamp()
                 });
+
                 window.scrollTo({ top: 0, behavior: 'smooth' }); 
                 successMsg.textContent = "回答を送信しました！";
                 successMsg.style.display = 'block';
+                
                 setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
+                
                 await loadStatuses(); 
+
             } catch (error) {
-                console.error(error); window.scrollTo({ top: 0, behavior: 'smooth' }); alert("保存に失敗しました。");
+                console.error("送信エラー:", error);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                alert("データの保存に失敗しました。");
             }
             pendingData = null;
         });
