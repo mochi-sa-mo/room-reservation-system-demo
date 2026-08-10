@@ -42,6 +42,8 @@
 
         .name-cell { font-weight: bold; }
         .translated-name { color: #0056b3; }
+        .role-tag { font-size: 0.75em; padding: 2px 6px; border-radius: 12px; margin-left: 5px; background: #9e9e9e; color: white; }
+        .role-performer { background: #ff9800; }
 
         .select-status { padding: 6px; font-weight: bold; border-radius: 4px; border: 1px solid #ccc; width: 120px; }
         .input-comment { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
@@ -160,7 +162,7 @@
         import { collection, getDocs, doc, getDoc, setDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
         let currentLiveId = "";
-        let pendingData = null; // { userId, status, comment }
+        let pendingData = null; 
         let nameDictionary = JSON.parse(localStorage.getItem('adminNameDictionary') || '{}');
 
         window.onload = function() {
@@ -256,17 +258,17 @@
             loadingMsg.textContent = 'データを取得中...';
 
             try {
-                // 1. ライブの対象者リスト (targetUserIds) を取得
                 const liveDoc = await getDoc(doc(db, "lives", currentLiveId));
-                if (!liveDoc.exists() || !liveDoc.data().targetUserIds) {
-                    loadingMsg.textContent = 'このライブには打ち上げ回答の対象者がいません。';
+                if (!liveDoc.exists()) {
+                    loadingMsg.textContent = 'ライブデータが見つかりません。';
                     return;
                 }
                 
-                // 学籍番号順にソート
-                const targetUserIds = liveDoc.data().targetUserIds.sort();
+                // ★出演メンバー（必須対象者）をSetに格納
+                const targetUserIds = liveDoc.data().targetUserIds || [];
+                const allUserSet = new Set(targetUserIds);
 
-                // 2. このライブの回答データをすべて取得
+                // 全回答データを取得
                 const qRsvp = query(collection(db, "rsvps"), where("liveId", "==", currentLiveId));
                 const snapRsvp = await getDocs(qRsvp);
                 
@@ -274,15 +276,23 @@
                 snapRsvp.forEach(d => {
                     const data = d.data();
                     answers[data.userId] = data;
+                    // ★回答をくれた人は出演者でなくてもリストに追加
+                    allUserSet.add(data.userId);
                 });
 
-                // カウンター
-                let countYes = 0, countNo = 0, countPending = 0;
+                if (allUserSet.size === 0) {
+                    loadingMsg.textContent = 'このライブには打ち上げ回答の対象者（および回答者）がいません。';
+                    return;
+                }
 
+                const sortedUserIds = Array.from(allUserSet).sort();
+
+                let countYes = 0, countNo = 0, countPending = 0;
                 tbody.innerHTML = '';
 
-                targetUserIds.forEach(userId => {
+                sortedUserIds.forEach(userId => {
                     const ans = answers[userId];
+                    const isTarget = targetUserIds.includes(userId); // 出演者かどうかのフラグ
                     const currentStatus = ans ? ans.status : 'pending';
                     const currentComment = ans ? (ans.comment || "") : "";
 
@@ -297,8 +307,10 @@
                     const tr = document.createElement('tr');
                     tr.className = rowClass;
 
+                    const roleTag = isTarget ? '<span class="role-tag role-performer">出演者</span>' : '<span class="role-tag">一般参加</span>';
+
                     tr.innerHTML = `
-                        <td class="name-cell">${translateId(userId)}</td>
+                        <td class="name-cell">${translateId(userId)}<br>${roleTag}</td>
                         <td>
                             <select class="select-status" id="status-${userId}">
                                 <option value="pending" ${currentStatus === 'pending' ? 'selected' : ''}>❓ 未定</option>
@@ -315,7 +327,6 @@
                     `;
                     tbody.appendChild(tr);
 
-                    // 行ごとの保存ボタンイベント
                     tr.querySelector('.btn-save-row').addEventListener('click', (e) => {
                         const id = e.target.getAttribute('data-id');
                         const newStatus = document.getElementById(`status-${id}`).value;
@@ -336,8 +347,7 @@
                     });
                 });
 
-                // サマリーの更新
-                document.getElementById('count-total').textContent = targetUserIds.length;
+                document.getElementById('count-total').textContent = sortedUserIds.length;
                 document.getElementById('count-yes').textContent = countYes;
                 document.getElementById('count-no').textContent = countNo;
                 document.getElementById('count-pending').textContent = countPending;
@@ -390,7 +400,7 @@
                     successMsg.style.display = 'block';
                     setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
                     
-                    await loadRsvps(); // 再計算して再描画
+                    await loadRsvps(); 
 
                 } catch (error) {
                     console.error(error);
