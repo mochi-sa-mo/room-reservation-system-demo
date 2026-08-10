@@ -29,6 +29,7 @@
         header {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color);
+            flex-wrap: wrap; gap: 10px;
         }
         .container {
             background: #fff; padding: 20px; border-radius: 8px;
@@ -47,10 +48,13 @@
         .btn-danger:hover { background-color: #a00215; }
         .btn-nav { background-color: #e0e0e0; color: #333; }
         .btn-nav:hover { background-color: #d0d0d0; }
+        .btn-info { background-color: #00bcd4; color: white; }
+        .btn-info:hover { background-color: #0097a7; }
 
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
-        select { width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box; background: #fff; font-size: 1em; }
+        select, textarea { width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box; background: #fff; font-size: 1em; }
+        textarea { resize: vertical; min-height: 150px; font-family: monospace; }
 
         /* エントリーカード */
         .entry-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 10px; }
@@ -65,7 +69,8 @@
         .rejected .status-badge { background: #d0021b; color: white; }
         .pending .status-badge { background: #ff9800; color: white; }
         
-        .member-list { font-size: 0.9em; color: #555; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #ddd; line-height: 1.5; }
+        .member-list { font-size: 0.95em; color: #333; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #ddd; line-height: 1.6; }
+        .translated-name { color: #0056b3; font-weight: bold; } /* 翻訳された名前の文字色 */
         
         .action-buttons { display: flex; gap: 10px; margin-top: 5px; }
         .btn-approve { background: #4caf50; color: white; flex: 1; }
@@ -86,15 +91,16 @@
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: #fff; padding: 20px; border-radius: 8px; width: 350px; max-width: 90%; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); box-sizing: border-box; }
         .confirm-actions { display: flex; gap: 10px; margin-top: 20px; }
-        .confirm-actions .btn { flex: 1; }
+        .confirm-actions .btn { flex: 1; padding: 12px; }
     </style>
 </head>
 <body>
 
     <header>
         <h1>ライブエントリー管理</h1>
-        <div style="display: flex; gap: 10px;">
-            <a href="admin.html" class="btn btn-nav" style="text-decoration: none; line-height: normal; display: inline-flex; align-items: center;">← 管理者パネルに戻る</a>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-info" id="btn-open-dict">📖 名簿辞書設定</button>
+            <a href="admin.html" class="btn btn-nav" style="text-decoration: none; line-height: normal; display: inline-flex; align-items: center;">← 戻る</a>
             <button class="btn btn-danger" id="btn-logout">ログアウト</button>
         </div>
     </header>
@@ -125,11 +131,29 @@
         </div>
     </div>
 
+    <!-- ▼ 辞書設定モーダル -->
+    <div class="modal" id="dict-modal">
+        <div class="modal-content" style="width: 500px; max-width: 95%; text-align: left;">
+            <h3 style="margin-top: 0; border-bottom: 2px solid #00bcd4; padding-bottom: 5px; color: #0097a7;">📖 ローカル名簿辞書の登録</h3>
+            <p style="font-size: 0.85em; color: #555; line-height: 1.5;">
+                Excelやスプレッドシートから「学籍番号」と「氏名」の列をコピーして、下の枠に貼り付けてください。<br>
+                <span style="color: #d0021b; font-weight: bold;">※このデータはあなたのブラウザ（端末）内にのみ保存され、クラウド上には一切送信されません。</span>
+            </p>
+            <div class="form-group">
+                <textarea id="dict-textarea" placeholder="例:&#10;231030&#9;山田太郎&#10;242011&#9;佐藤花子"></textarea>
+            </div>
+            <div class="confirm-actions">
+                <button class="btn btn-nav" id="btn-close-dict">キャンセル</button>
+                <button class="btn btn-info" id="btn-save-dict">辞書を保存して翻訳</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 汎用カスタム確認モーダル -->
     <div class="modal" id="confirm-modal">
         <div class="modal-content" id="modal-border-color" style="border-top: 5px solid #4A90E2;">
             <h3 id="confirm-modal-title" style="margin-top: 0; border-bottom: 2px solid var(--primary-color); padding-bottom: 5px;">確認</h3>
-            <p id="confirm-modal-message" style="color: #555; font-size: 0.9em; line-height: 1.5; margin: 15px 0;"></p>
+            <p id="confirm-modal-message" style="color: #555; font-size: 0.9em; line-height: 1.5; margin: 15px 0; text-align: left;"></p>
             <div class="confirm-actions">
                 <button class="btn btn-nav" id="btn-confirm-cancel">キャンセル</button>
                 <button class="btn" id="btn-confirm-execute">実行する</button>
@@ -154,6 +178,9 @@
         let pendingAction = null; 
         let pendingEntryId = null; 
 
+        // ▼ 名簿辞書（ローカルストレージから読み込み）
+        let nameDictionary = JSON.parse(localStorage.getItem('adminNameDictionary') || '{}');
+
         window.onload = function() {
             document.getElementById('btn-logout').onclick = confirmLogout;
             document.getElementById('btn-confirm-cancel').onclick = closeConfirmModal;
@@ -161,8 +188,63 @@
             document.getElementById('btn-alert-ok').onclick = closeAlertModal;
             document.getElementById('live-select').onchange = handleLiveChange;
 
+            // 辞書モーダル関連のイベント
+            document.getElementById('btn-open-dict').onclick = () => {
+                // 現在保存されている辞書をテキストエリアに復元表示
+                let text = "";
+                for (const [id, name] of Object.entries(nameDictionary)) {
+                    text += `${id}\t${name}\n`;
+                }
+                document.getElementById('dict-textarea').value = text;
+                document.getElementById('dict-modal').style.display = 'flex';
+                document.body.classList.add('modal-open');
+            };
+            document.getElementById('btn-close-dict').onclick = () => {
+                document.getElementById('dict-modal').style.display = 'none';
+                document.body.classList.remove('modal-open');
+            };
+            document.getElementById('btn-save-dict').onclick = saveDictionary;
+
             init();
         };
+
+        // ▼ 辞書の保存と解析処理
+        function saveDictionary() {
+            const text = document.getElementById('dict-textarea').value;
+            const lines = text.split('\n');
+            const newDict = {};
+            
+            lines.forEach(line => {
+                // タブ、カンマ、全角・半角スペースで区切る
+                const parts = line.split(/[\t, , ]+/);
+                if (parts.length >= 2) {
+                    const id = parts[0].trim();
+                    const name = parts.slice(1).join(" ").trim(); // 名前が複数パーツに分かれていた場合結合
+                    if (/^\d{6}$/.test(id)) { // 学籍番号の形式(6桁)に合致するものだけ保存
+                        newDict[id] = name;
+                    }
+                }
+            });
+
+            nameDictionary = newDict;
+            localStorage.setItem('adminNameDictionary', JSON.stringify(nameDictionary));
+            
+            document.getElementById('dict-modal').style.display = 'none';
+            document.body.classList.remove('modal-open');
+            
+            customAlert("名簿辞書を保存しました。<br>画面の表示を翻訳して更新します。");
+            if (currentLiveId) {
+                loadEntries(); // 表示を即座に更新
+            }
+        }
+
+        // ▼ 学籍番号を名前に翻訳するヘルパー関数
+        function translateId(id) {
+            if (nameDictionary[id]) {
+                return `${id} <span class="translated-name">(${nameDictionary[id]})</span>`;
+            }
+            return id;
+        }
 
         function confirmLogout() {
             showConfirmModal('ログアウト', 'システムからログアウトしますか？', 'logout', 'ログアウト', '#d0021b');
@@ -208,7 +290,6 @@
             container.innerHTML = '<p style="text-align: center;">データを取得中...</p>';
 
             try {
-                // クライアント側で現在のライブに該当するものを抽出
                 const snap = await getDocs(collection(db, "liveEntries"));
                 
                 entriesData = [];
@@ -241,7 +322,8 @@
                     let memberHtml = "";
                     entry.performers.forEach(p => {
                         let role = p.type === "正規" ? "" : ` (${p.type})`;
-                        memberHtml += `<strong>${p.part}</strong>: ${p.id}${role}&nbsp;&nbsp;`;
+                        // ▼ ここで翻訳関数を通す
+                        memberHtml += `<div><strong>${p.part}</strong>: ${translateId(p.id)}${role}</div>`;
                     });
 
                     card.innerHTML = `
@@ -258,17 +340,17 @@
                     if (status === 'pending') {
                         const btnApp = document.createElement('button');
                         btnApp.className = 'btn btn-approve'; btnApp.textContent = '承認';
-                        btnApp.onclick = () => requestStatusChange(entry.id, entry.bandName, 'approve');
+                        btnApp.onclick = () => requestStatusChange(entry.id, entry, 'approve');
                         
                         const btnRej = document.createElement('button');
                         btnRej.className = 'btn btn-reject'; btnRej.textContent = '却下';
-                        btnRej.onclick = () => requestStatusChange(entry.id, entry.bandName, 'reject');
+                        btnRej.onclick = () => requestStatusChange(entry.id, entry, 'reject');
                         
                         actions.appendChild(btnApp); actions.appendChild(btnRej);
                     } else {
                         const btnReset = document.createElement('button');
                         btnReset.className = 'btn btn-reset'; btnReset.textContent = '保留に戻す';
-                        btnReset.onclick = () => requestStatusChange(entry.id, entry.bandName, 'reset');
+                        btnReset.onclick = () => requestStatusChange(entry.id, entry, 'reset');
                         actions.appendChild(btnReset);
                     }
 
@@ -284,24 +366,34 @@
             }
         }
 
-        function requestStatusChange(entryId, bandName, action) {
+        // ▼ 状態変更の確認モーダル（表示時にも翻訳を通す）
+        function requestStatusChange(entryId, entryData, action) {
             pendingEntryId = entryId;
 
             let title, msg, color;
             if (action === 'approve') {
-                title = "承認の確認"; msg = `「${bandName}」の出演を承認しますか？`; color = "#4caf50";
+                title = "承認の確認"; msg = `以下のバンドの出演を承認しますか？`; color = "#4caf50";
             } else if (action === 'reject') {
-                title = "却下の確認"; msg = `「${bandName}」の出演を却下しますか？`; color = "#d0021b";
+                title = "却下の確認"; msg = `以下のバンドの出演を却下しますか？`; color = "#d0021b";
             } else {
-                title = "保留に戻す"; msg = `「${bandName}」の状態を未審査（保留）に戻しますか？`; color = "#ff9800";
+                title = "保留に戻す"; msg = `以下のバンドの状態を未審査（保留）に戻しますか？`; color = "#ff9800";
             }
+
+            // モーダル内でも翻訳された名前を表示
+            msg += `<div style="background: #eee; padding: 10px; margin-top: 10px; border-radius: 4px;">`;
+            msg += `<strong>${entryData.bandName}</strong><br>`;
+            entryData.performers.forEach(p => {
+                let role = p.type === "正規" ? "" : ` (${p.type})`;
+                msg += `<div style="font-size: 0.9em;">・${p.part}: ${translateId(p.id)}${role}</div>`;
+            });
+            msg += `</div>`;
 
             showConfirmModal(title, msg, action, '状態を変更する', color);
         }
 
         document.getElementById('btn-finalize').addEventListener('click', () => {
             const approvedCount = entriesData.filter(e => e.status === 'approved').length;
-            const msg = `現在の「承認済み」のバンドは <strong>${approvedCount}件</strong> です。<br>このメンバーを打ち上げ回答対象者として確定し、回答受付フェーズへ移行しますか？`;
+            const msg = `現在の「承認済み」のバンドは <strong>${approvedCount}件</strong> です。<br><br>このメンバーを打ち上げ回答対象者として確定し、回答受付フェーズへ移行しますか？`;
             
             showConfirmModal("🚀 回答期間への移行", msg, 'finalize', '確定して移行する', '#2196f3');
         });
@@ -340,11 +432,10 @@
         }
 
         async function executeConfirmAction() {
-            // ▼ ここが修正ポイント：モーダルを閉じる前に、変数の中身を安全な場所に退避（コピー）する
             const action = pendingAction;
             const targetEntryId = pendingEntryId;
 
-            closeConfirmModal(); // ここで pendingAction や pendingEntryId は null にリセットされます
+            closeConfirmModal();
 
             const successMsg = document.getElementById('main-success-msg');
             
@@ -360,7 +451,6 @@
                     if (action === 'approve') newStatus = 'approved';
                     if (action === 'rejected' || action === 'reject') newStatus = 'rejected';
 
-                    // ▼ 退避させておいた targetEntryId を使ってデータベースを更新する
                     await updateDoc(doc(db, "liveEntries", targetEntryId), { status: newStatus });
                     
                     window.scrollTo({ top: 0, behavior: 'smooth' });
