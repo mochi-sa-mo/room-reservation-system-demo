@@ -21,41 +21,44 @@
         .btn-back { background-color: #999; color: white; padding: 10px 15px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .btn-back:hover { background-color: #888; }
         
-        .section-title { margin-top: 0; margin-bottom: 15px; border-left: 5px solid #ff9800; padding-left: 10px; font-size: 1.3em; }
+        .section-title { margin-top: 0; margin-bottom: 15px; padding-left: 10px; font-size: 1.3em; }
 
-        /* ステータスカード */
-        .status-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        /* エントリー状況カード */
+        .status-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .status-card.pending { border-left: 5px solid #ff9800; }
         .status-card.rejected { border-left: 5px solid #9e9e9e; background: #f5f5f5; opacity: 0.8; }
         .status-card.approved { border-left: 5px solid #4caf50; background: #f1f8e9; }
         
-        .live-name { font-weight: bold; font-size: 1.2em; color: #333; margin-bottom: 5px; }
-        .band-name { font-size: 0.95em; color: #555; margin-bottom: 15px; font-weight: bold;}
+        .live-name { font-weight: bold; font-size: 1.1em; color: #333; margin-bottom: 5px; }
+        .band-name { font-size: 0.9em; color: #555; margin-bottom: 10px; font-weight: bold;}
         
-        .badge { display: inline-block; font-size: 0.8em; font-weight: bold; padding: 4px 8px; border-radius: 12px; margin-bottom: 15px; }
+        .badge { display: inline-block; font-size: 0.8em; font-weight: bold; padding: 4px 8px; border-radius: 12px; margin-bottom: 10px; }
         .pending .badge { background: #ff9800; color: white; }
         .rejected .badge { background: #9e9e9e; color: white; }
         .approved .badge { background: #4caf50; color: white; }
 
-        .action-buttons { display: flex; justify-content: flex-end; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
+        .action-buttons { display: flex; justify-content: flex-end; margin-top: 5px; border-top: 1px solid #eee; padding-top: 10px; }
         .btn-small { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold; transition: 0.2s;}
         .btn-info { background: #e0f7fa; color: #00838f; border: 1px solid #00838f; }
         .btn-info:hover { background: #b2ebf2; }
 
-        /* RSVPフォームエリア */
-        .rsvp-form-area { border-top: 1px dashed #ccc; margin-top: 15px; padding-top: 15px; }
-        .rsvp-title { font-weight: bold; color: #e65100; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;}
+        /* 打ち上げ回答カード */
+        .rsvp-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .rsvp-card.unanswered { border-left: 5px solid #d0021b; background: #fffafb; } 
+        .rsvp-card.unanswered-opt { border-left: 5px solid #9e9e9e; } 
+        .rsvp-card.answered { border-left: 5px solid #4caf50; background: #f1f8e9; } 
         
-        .status-badge-rsvp { font-size: 0.8em; padding: 3px 8px; border-radius: 12px; }
-        .rsvp-unanswered { background: #d0021b; color: white; animation: blink 1.5s infinite; }
-        .rsvp-answered { background: #4caf50; color: white; }
+        .status-badge-rsvp { display: inline-block; font-size: 0.8em; font-weight: bold; padding: 4px 8px; border-radius: 12px; margin-bottom: 10px; }
+        .rsvp-unanswered .status-badge-rsvp { background: #d0021b; color: white; animation: blink 1.5s infinite; }
+        .rsvp-unanswered-opt .status-badge-rsvp { background: #9e9e9e; color: white; }
+        .rsvp-answered .status-badge-rsvp { background: #4caf50; color: white; }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 0.9em; }
         
-        .radio-group { display: flex; gap: 15px; margin-bottom: 10px; }
-        .radio-label { display: flex; align-items: center; cursor: pointer; font-size: 1em; background: #fff; border: 1px solid #ccc; padding: 10px 15px; border-radius: 4px; flex: 1; justify-content: center; font-weight: bold; transition: 0.2s; }
+        .radio-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        .radio-label { display: flex; align-items: center; cursor: pointer; font-size: 0.95em; background: #fff; border: 1px solid #ccc; padding: 10px; border-radius: 4px; flex: 1; justify-content: center; font-weight: bold; transition: 0.2s; text-align: center; }
         .radio-label input[type="radio"] { display: none; }
         .radio-label.selected-yes { background: #e3f2fd; border-color: #2196f3; color: #1565c0; }
         .radio-label.selected-no { background: #ffebee; border-color: #f44336; color: #c62828; }
@@ -82,21 +85,30 @@
 <body>
 
     <header>
-        <h1>審査状況・打ち上げ回答</h1>
+        <h1>審査・打ち上げ回答</h1>
         <button class="btn-back" onclick="window.location.href='index.html'">トップへ</button>
     </header>
 
     <div class="container">
-        <div class="section-title">🎸 あなたのエントリー状況</div>
-        <p style="font-size: 0.85em; color: #666; margin-top: 0; margin-bottom: 20px;">
-            エントリーしたライブの審査結果（承認・保留・却下）を確認できます。<br>
-            ※「承認済み」かつ管理者が回答受付を開始している場合のみ、打ち上げ回答フォームが表示されます。
-        </p>
-
         <div class="success-message" id="main-success-msg"></div>
 
-        <div id="status-container">
-            <p style="color: #999; text-align: center;">読込中...</p>
+        <!-- ▼ 上段：エントリー審査状況エリア -->
+        <div class="section-title" style="border-left-color: #ff9800;">🎸 あなたのエントリー状況</div>
+        <p style="font-size: 0.85em; color: #666; margin-top: 0; margin-bottom: 15px;">
+            エントリーしたライブの審査結果（承認・保留・却下）です。
+        </p>
+        <div id="entry-container">
+            <p style="color: #999; text-align: center; font-size: 0.9em;">読込中...</p>
+        </div>
+
+        <!-- ▼ 下段：打ち上げ回答エリア -->
+        <div class="section-title" style="border-left-color: #4caf50; margin-top: 40px;">🍻 ライブの打ち上げ参加回答</div>
+        <p style="font-size: 0.85em; color: #666; margin-top: 0; margin-bottom: 15px;">
+            ライブに出演しない方も打ち上げ参加大歓迎です！<br>
+            ※出演確定メンバーは回答が<strong style="color:#d0021b;">必須</strong>となります。
+        </p>
+        <div id="rsvp-container">
+            <p style="color: #999; text-align: center; font-size: 0.9em;">読込中...</p>
         </div>
     </div>
 
@@ -123,142 +135,161 @@
 
     <script type="module">
         import { db, auth } from "./firebase.js";
-        import { collection, getDocs, query, where, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        import { collection, getDocs, query, where, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
         let currentUserId = "";
         let pendingData = null; 
-        let myEntriesData = {}; // 詳細表示用のデータ保持
+        let myEntriesData = {}; 
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUserId = user.email.split('@')[0];
-                loadStatuses();
+                loadData();
             } else {
                 window.location.href = "login.html";
             }
         });
 
-        async function loadStatuses() {
-            const container = document.getElementById('status-container');
-            container.innerHTML = '<p style="color: #999; text-align: center;">データを確認中...</p>';
-
+        async function loadData() {
+            const entryContainer = document.getElementById('entry-container');
+            const rsvpContainer = document.getElementById('rsvp-container');
+            
             try {
-                const qEntries = query(collection(db, "liveEntries"), where("performerIds", "array-contains", currentUserId));
-                const snapEntries = await getDocs(qEntries);
-
-                if (snapEntries.empty) {
-                    container.innerHTML = '<p style="color: #666; text-align: center;">現在、あなたがエントリーしているライブはありません。</p>';
-                    return;
-                }
+                // 1. 各種データの並列取得
+                const [snapEntries, snapLives, snapRsvps] = await Promise.all([
+                    getDocs(query(collection(db, "liveEntries"), where("performerIds", "array-contains", currentUserId))),
+                    getDocs(query(collection(db, "lives"), where("isActive", "==", true))),
+                    getDocs(query(collection(db, "rsvps"), where("userId", "==", currentUserId)))
+                ]);
 
                 const liveMaster = {};
-                const snapLives = await getDocs(collection(db, "lives"));
                 snapLives.forEach(d => { liveMaster[d.id] = d.data(); });
 
                 const myAnswers = {};
-                const qRsvp = query(collection(db, "rsvps"), where("userId", "==", currentUserId));
-                const snapRsvp = await getDocs(qRsvp);
-                snapRsvp.forEach(d => { myAnswers[d.data().liveId] = d.data(); });
+                snapRsvps.forEach(d => { myAnswers[d.data().liveId] = d.data(); });
 
-                container.innerHTML = '';
+                // ==========================================
+                // 【上段】エントリー状況の描画
+                // ==========================================
+                entryContainer.innerHTML = '';
                 myEntriesData = {};
 
-                snapEntries.forEach(d => {
-                    const entry = d.data();
-                    const entryId = d.id;
-                    myEntriesData[entryId] = entry; // 詳細用に保存
-                    
-                    const liveInfo = liveMaster[entry.liveId];
-                    if (!liveInfo) return; 
-
-                    const status = entry.status || 'pending';
-                    let badgeText = "審査中（保留）"; let cardClass = "pending";
-                    if (status === 'approved') { badgeText = "✓ 出演承認済み"; cardClass = "approved"; }
-                    if (status === 'rejected') { badgeText = "✕ 出演却下"; cardClass = "rejected"; }
-
-                    const card = document.createElement('div');
-                    card.className = `status-card ${cardClass}`;
-
-                    let html = `
-                        <div class="badge">${badgeText}</div>
-                        <div class="live-name">${entry.liveName}</div>
-                        <div class="band-name">🎸 バンド：${entry.bandName}</div>
-                    `;
-
-                    // ★承認済みバンドの打ち上げ回答エリアの分岐
-                    if (status === 'approved') {
-                        const ans = myAnswers[entry.liveId];
-                        const currentStatus = ans ? ans.status : "";
-                        const currentComment = ans ? (ans.comment || "") : "";
+                if (snapEntries.empty) {
+                    entryContainer.innerHTML = '<p style="color: #666; font-size: 0.9em; text-align: center;">現在、あなたがエントリーしているライブはありません。</p>';
+                } else {
+                    snapEntries.forEach(d => {
+                        const entry = d.data();
+                        const entryId = d.id;
+                        myEntriesData[entryId] = entry; 
                         
-                        if (liveInfo.isRsvpOpen === true) {
-                            // 受付中の場合：フォームを表示
-                            const rsvpBadge = ans ? '<span class="status-badge-rsvp rsvp-answered">回答済み（変更可）</span>' : '<span class="status-badge-rsvp rsvp-unanswered">⚠️ 未回答（必須）</span>';
-                            html += `
-                                <div class="rsvp-form-area">
-                                    <div class="rsvp-title">🍻 打ち上げ参加回答 ${rsvpBadge}</div>
-                                    <form id="form-${entry.liveId}">
-                                        <div class="form-group">
-                                            <div class="radio-group" id="group-${entry.liveId}">
-                                                <label class="radio-label ${currentStatus === 'yes' ? 'selected-yes' : ''}">
-                                                    <input type="radio" name="status-${entry.liveId}" value="yes" ${currentStatus === 'yes' ? 'checked' : ''}>⭕ 参加する
-                                                </label>
-                                                <label class="radio-label ${currentStatus === 'no' ? 'selected-no' : ''}">
-                                                    <input type="radio" name="status-${entry.liveId}" value="no" ${currentStatus === 'no' ? 'checked' : ''}>❌ 参加しない
-                                                </label>
-                                            </div>
-                                        </div>
-                                        <div class="form-group">
-                                            <label>備考 (アレルギー・未成年・遅刻早退など)</label>
-                                            <textarea id="comment-${entry.liveId}" placeholder="例: エビアレルギーがあります。／未成年です。">${currentComment}</textarea>
-                                        </div>
-                                        <button type="submit" class="btn-submit">回答を送信する</button>
-                                    </form>
-                                </div>
-                            `;
-                        } else {
-                            // 受付終了の場合：結果のみをテキストで表示
-                            let statusStr = "❓ 未定（未回答）";
-                            if (currentStatus === 'yes') statusStr = "⭕ 参加する";
-                            if (currentStatus === 'no') statusStr = "❌ 参加しない";
-                            
-                            html += `
-                                <div class="rsvp-form-area">
-                                    <div class="rsvp-title">🍻 打ち上げ参加状況 <span class="status-badge-rsvp" style="background:#999;">受付終了</span></div>
-                                    <div style="background:#f9f9f9; padding: 15px; border-radius:4px; border:1px solid #ddd;">
-                                        <div style="margin-bottom: 8px;"><strong>あなたの回答：</strong> ${statusStr}</div>
-                                        <div><strong>備考：</strong> ${currentComment ? currentComment.replace(/\n/g, '<br>') : 'なし'}</div>
-                                    </div>
-                                </div>
-                            `;
-                        }
+                        const status = entry.status || 'pending';
+                        let badgeText = "審査中（保留）"; let cardClass = "pending";
+                        if (status === 'approved') { badgeText = "✓ 出演承認済み"; cardClass = "approved"; }
+                        if (status === 'rejected') { badgeText = "✕ 出演却下"; cardClass = "rejected"; }
+
+                        const card = document.createElement('div');
+                        card.className = `status-card ${cardClass}`;
+                        card.innerHTML = `
+                            <div class="badge">${badgeText}</div>
+                            <div class="live-name">${entry.liveName}</div>
+                            <div class="band-name">🎸 バンド：${entry.bandName}</div>
+                            <div class="action-buttons">
+                                <button class="btn-small btn-info btn-show-detail" data-id="${entryId}">📄 エントリー詳細</button>
+                            </div>
+                        `;
+                        entryContainer.appendChild(card);
+
+                        card.querySelector('.btn-show-detail').addEventListener('click', (e) => {
+                            const id = e.target.getAttribute('data-id');
+                            showDetailsModal(id);
+                        });
+                    });
+                }
+
+                // ==========================================
+                // 【下段】打ち上げ回答エリアの描画
+                // ==========================================
+                rsvpContainer.innerHTML = '';
+                let rsvpDisplayed = 0;
+
+                // アクティブなライブをすべて走査
+                for (const [liveId, liveInfo] of Object.entries(liveMaster)) {
+                    const ans = myAnswers[liveId];
+                    const isTarget = liveInfo.targetUserIds && liveInfo.targetUserIds.includes(currentUserId);
+                    
+                    // 表示条件：回答受付中であるか、過去に自分が回答したことがある場合
+                    if (!liveInfo.isRsvpOpen && !ans) continue;
+
+                    rsvpDisplayed++;
+                    const currentStatus = ans ? ans.status : "";
+                    const currentComment = ans ? (ans.comment || "") : "";
+                    
+                    // バッジのデザイン決定
+                    let badgeText = "", cardClass = "";
+                    if (ans) {
+                        badgeText = "回答済み"; cardClass = "answered";
+                    } else if (isTarget) {
+                        badgeText = "⚠️ 未回答（必須）"; cardClass = "unanswered";
+                    } else {
+                        badgeText = "ℹ️ 未回答（任意）"; cardClass = "unanswered-opt";
                     }
 
-                    // ▼ 変更点: エントリー詳細を確認できるボタンを追加
-                    html += `
-                        <div class="action-buttons">
-                            <button class="btn-small btn-info btn-show-detail" data-id="${entryId}">📄 エントリー詳細</button>
-                        </div>
+                    const card = document.createElement('div');
+                    card.className = `rsvp-card ${cardClass}`;
+
+                    let html = `
+                        <div class="status-badge-rsvp">${badgeText}</div>
+                        <div class="live-name">${liveInfo.name} の打ち上げ</div>
                     `;
 
+                    if (liveInfo.isRsvpOpen) {
+                        // フォーム表示
+                        html += `
+                            <form id="form-${liveId}">
+                                <div class="form-group" style="margin-top: 10px;">
+                                    <div class="radio-group" id="group-${liveId}">
+                                        <label class="radio-label ${currentStatus === 'yes' ? 'selected-yes' : ''}">
+                                            <input type="radio" name="status-${liveId}" value="yes" ${currentStatus === 'yes' ? 'checked' : ''}>⭕ 参加する
+                                        </label>
+                                        <label class="radio-label ${currentStatus === 'no' ? 'selected-no' : ''}">
+                                            <input type="radio" name="status-${liveId}" value="no" ${currentStatus === 'no' ? 'checked' : ''}>❌ 参加しない
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>備考 (アレルギー・未成年・遅刻早退など)</label>
+                                    <textarea id="comment-${liveId}" placeholder="例: エビアレルギーがあります。／未成年です。">${currentComment}</textarea>
+                                </div>
+                                <button type="submit" class="btn-submit">回答を送信する</button>
+                            </form>
+                        `;
+                    } else {
+                        // 締め切り後の結果表示
+                        let statusStr = "❓ 未定（未回答）";
+                        if (currentStatus === 'yes') statusStr = "⭕ 参加する";
+                        if (currentStatus === 'no') statusStr = "❌ 参加しない";
+                        
+                        html += `
+                            <div style="background:#f9f9f9; padding: 15px; border-radius:4px; border:1px solid #ddd; margin-top: 10px; font-size: 0.95em;">
+                                <div style="margin-bottom: 8px;"><strong>あなたの回答：</strong> ${statusStr}</div>
+                                <div><strong>備考：</strong> ${currentComment ? currentComment.replace(/\n/g, '<br>') : 'なし'}</div>
+                            </div>
+                            <div style="font-size: 0.8em; color: #999; margin-top: 10px; text-align: right;">※回答は締め切られました</div>
+                        `;
+                    }
+
                     card.innerHTML = html;
-                    container.appendChild(card);
+                    rsvpContainer.appendChild(card);
 
-                    // 詳細ボタンのイベント
-                    card.querySelector('.btn-show-detail').addEventListener('click', (e) => {
-                        const id = e.target.getAttribute('data-id');
-                        showDetailsModal(id);
-                    });
-
-                    // フォームイベントのバインド（フォームが存在する場合のみ）
-                    const form = card.querySelector(`#form-${entry.liveId}`);
+                    // フォームイベントのバインド
+                    const form = card.querySelector(`#form-${liveId}`);
                     if (form) {
-                        const radios = card.querySelectorAll(`input[name="status-${entry.liveId}"]`);
+                        const radios = card.querySelectorAll(`input[name="status-${liveId}"]`);
                         radios.forEach(radio => {
                             radio.addEventListener('change', (e) => {
                                 const val = e.target.value;
-                                const labels = card.querySelectorAll(`#group-${entry.liveId} .radio-label`);
+                                const labels = card.querySelectorAll(`#group-${liveId} .radio-label`);
                                 labels[0].className = `radio-label ${val === 'yes' ? 'selected-yes' : ''}`;
                                 labels[1].className = `radio-label ${val === 'no' ? 'selected-no' : ''}`;
                             });
@@ -266,28 +297,33 @@
 
                         form.addEventListener('submit', (e) => {
                             e.preventDefault();
-                            const selectedStatus = form.querySelector(`input[name="status-${entry.liveId}"]:checked`);
+                            const selectedStatus = form.querySelector(`input[name="status-${liveId}"]:checked`);
                             if (!selectedStatus) return alert("「参加する」か「参加しない」を選択してください。");
 
                             const statusVal = selectedStatus.value;
-                            const commentVal = card.querySelector(`#comment-${entry.liveId}`).value.trim();
-                            const docId = `${entry.liveId}_${currentUserId}`;
+                            const commentVal = card.querySelector(`#comment-${liveId}`).value.trim();
+                            const docId = `${liveId}_${currentUserId}`;
 
-                            pendingData = { docId, liveId: entry.liveId, userId: currentUserId, status: statusVal, comment: commentVal, liveName: entry.liveName };
+                            pendingData = { docId, liveId: liveId, userId: currentUserId, status: statusVal, comment: commentVal, liveName: liveInfo.name };
 
                             const statusStr = statusVal === 'yes' ? '<span style="color:#2196f3; font-weight:bold;">⭕ 参加する</span>' : '<span style="color:#f44336; font-weight:bold;">❌ 参加しない</span>';
-                            let msgHtml = `<strong>【ライブ名】</strong><br>${entry.liveName}<br><br><strong>【回答内容】</strong><br>${statusStr}<br><br><strong>【備考】</strong><br>${commentVal ? commentVal.replace(/\n/g, '<br>') : 'なし'}`;
+                            let msgHtml = `<strong>【ライブ名】</strong><br>${liveInfo.name}<br><br><strong>【回答内容】</strong><br>${statusStr}<br><br><strong>【備考】</strong><br>${commentVal ? commentVal.replace(/\n/g, '<br>') : 'なし'}`;
                             
                             document.getElementById('confirm-modal-message').innerHTML = msgHtml;
                             document.getElementById('confirm-modal').style.display = 'flex';
                             document.body.classList.add('modal-open');
                         });
                     }
-                });
+                }
+
+                if (rsvpDisplayed === 0) {
+                    rsvpContainer.innerHTML = '<p style="color: #666; font-size: 0.9em; text-align: center;">現在、回答受付中の打ち上げはありません。</p>';
+                }
 
             } catch (error) {
                 console.error("データ取得エラー:", error);
-                container.innerHTML = '<p style="color: #d0021b; text-align: center;">通信エラーが発生しました。</p>';
+                entryContainer.innerHTML = '<p style="color: #d0021b; text-align: center;">通信エラーが発生しました。</p>';
+                rsvpContainer.innerHTML = '<p style="color: #d0021b; text-align: center;">通信エラーが発生しました。</p>';
             }
         }
 
@@ -313,40 +349,30 @@
             document.body.classList.remove('modal-open');
         });
 
-        // モーダルキャンセル
         document.getElementById('btn-confirm-cancel').addEventListener('click', () => {
             document.getElementById('confirm-modal').style.display = 'none';
             document.body.classList.remove('modal-open');
             pendingData = null;
         });
 
-        // モーダル実行（データベースへの書き込み）
         document.getElementById('btn-confirm-execute').addEventListener('click', async () => {
             if (!pendingData) return;
             const data = pendingData;
-            
             document.getElementById('confirm-modal').style.display = 'none';
             document.body.classList.remove('modal-open');
 
             const successMsg = document.getElementById('main-success-msg');
-            
             try {
                 await setDoc(doc(db, "rsvps", data.docId), {
                     liveId: data.liveId, userId: data.userId, status: data.status, comment: data.comment, updatedAt: serverTimestamp()
                 });
-
                 window.scrollTo({ top: 0, behavior: 'smooth' }); 
                 successMsg.textContent = "回答を送信しました！";
                 successMsg.style.display = 'block';
-                
                 setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
-                
-                await loadStatuses(); 
-
+                await loadData(); 
             } catch (error) {
-                console.error("送信エラー:", error);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                alert("データの保存に失敗しました。");
+                console.error(error); window.scrollTo({ top: 0, behavior: 'smooth' }); alert("保存に失敗しました。");
             }
             pendingData = null;
         });
