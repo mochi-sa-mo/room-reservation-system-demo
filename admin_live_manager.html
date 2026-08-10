@@ -165,7 +165,7 @@
         };
 
         function confirmLogout() {
-            showConfirmModal('ログアウト', 'システムからログアウトしますか？', 'logout', null, 'ログアウト', 'btn-danger', '#d0021b');
+            showConfirmModal('ログアウト', 'システムからログアウトしますか？', 'logout', 'ログアウト', '#d0021b');
         }
 
         async function init() {
@@ -208,7 +208,7 @@
             container.innerHTML = '<p style="text-align: center;">データを取得中...</p>';
 
             try {
-                // すべてのエントリーを取得してクライアント側でフィルタリング (インデックスエラー回避)
+                // クライアント側で現在のライブに該当するものを抽出
                 const snap = await getDocs(collection(db, "liveEntries"));
                 
                 entriesData = [];
@@ -286,7 +286,6 @@
 
         function requestStatusChange(entryId, bandName, action) {
             pendingEntryId = entryId;
-            pendingAction = action;
 
             let title, msg, color;
             if (action === 'approve') {
@@ -341,22 +340,28 @@
         }
 
         async function executeConfirmAction() {
-            closeConfirmModal();
+            // ▼ ここが修正ポイント：モーダルを閉じる前に、変数の中身を安全な場所に退避（コピー）する
+            const action = pendingAction;
+            const targetEntryId = pendingEntryId;
+
+            closeConfirmModal(); // ここで pendingAction や pendingEntryId は null にリセットされます
+
             const successMsg = document.getElementById('main-success-msg');
             
             try {
-                if (pendingAction === 'logout') {
+                if (action === 'logout') {
                     localStorage.removeItem('userRole');
                     window.location.href = 'login.html';
                     return;
                 }
 
-                if (pendingAction === 'approve' || pendingAction === 'reject' || pendingAction === 'reset') {
+                if (action === 'approve' || action === 'reject' || action === 'reset') {
                     let newStatus = 'pending';
-                    if (pendingAction === 'approve') newStatus = 'approved';
-                    if (pendingAction === 'rejected' || pendingAction === 'reject') newStatus = 'rejected';
+                    if (action === 'approve') newStatus = 'approved';
+                    if (action === 'rejected' || action === 'reject') newStatus = 'rejected';
 
-                    await updateDoc(doc(db, "liveEntries", pendingEntryId), { status: newStatus });
+                    // ▼ 退避させておいた targetEntryId を使ってデータベースを更新する
+                    await updateDoc(doc(db, "liveEntries", targetEntryId), { status: newStatus });
                     
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                     successMsg.textContent = "状態を更新しました。";
@@ -365,7 +370,7 @@
                     
                     await loadEntries();
 
-                } else if (pendingAction === 'finalize') {
+                } else if (action === 'finalize') {
                     const targetMembersSet = new Set();
                     entriesData.forEach(entry => {
                         if (entry.status === 'approved') {
@@ -392,8 +397,6 @@
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 customAlert("処理に失敗しました。通信環境を確認してください。", true);
             }
-
-            pendingAction = null; pendingEntryId = null;
         }
     </script>
 </body>
