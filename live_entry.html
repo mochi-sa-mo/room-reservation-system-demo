@@ -35,14 +35,21 @@
         .error-message { color: #d0021b; font-size: 0.85em; margin-bottom: 15px; display: none; padding: 10px; background: #ffe8e8; border-radius: 4px;}
         .success-message { color: #4caf50; font-size: 0.9em; margin-bottom: 15px; display: none; padding: 10px; background: #e8f5e9; border-radius: 4px; font-weight: bold; text-align: center;}
 
-        /* ▼ エントリー状況確認エリア */
+        /* ▼ 募集要項カード（新設） */
+        .info-card { background: #fff8e1; border: 2px solid #ffb300; border-radius: 8px; padding: 15px 20px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(255, 152, 0, 0.15); position: relative; overflow: hidden; }
+        .info-card::before { content: "募集中"; position: absolute; top: 12px; right: -25px; background: #ff5722; color: white; padding: 2px 30px; font-size: 0.75em; font-weight: bold; transform: rotate(45deg); }
+        .info-title { font-size: 1.2em; font-weight: bold; color: #e65100; margin-top: 0; margin-bottom: 10px; border-bottom: 1px dashed #ffcc80; padding-bottom: 5px; }
+        .info-details { font-size: 0.9em; color: #555; line-height: 1.6; }
+        .info-details strong { color: #d84315; }
+        .info-conditions { background: #fff; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 0.85em; border: 1px solid #ffe082; white-space: pre-wrap; }
+
+        /* エントリー状況確認エリア */
         .status-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
         .entry-item { background: #f0f8ff; border-left: 5px solid #4A90E2; padding: 15px; margin-bottom: 10px; border-radius: 4px; }
         .entry-item-title { font-weight: bold; font-size: 1.1em; color: #333; margin-bottom: 5px; }
         .entry-item-detail { font-size: 0.9em; color: #555; line-height: 1.5; }
         .tag { display: inline-block; background: #4A90E2; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 5px; font-weight: bold;}
         
-        /* ▼ 詳細・変更・削除ボタン */
         .action-buttons { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
         .btn-small { padding: 8px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold; flex: 1; text-align: center; min-width: 80px; }
         .btn-info { background: #e0f7fa; color: #00838f; border: 1px solid #00838f; flex: 2; }
@@ -52,32 +59,18 @@
         .btn-delete { background: #ffebee; color: #c62828; border: 1px solid #c62828; flex: 1; }
         .btn-delete:hover { background: #ffcdd2; }
 
-        /* ▼ モーダル全般 */
-        .modal-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.6); z-index: 1000; justify-content: center; align-items: center;
-        }
-        .modal-content {
-            background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3); animation: fadeIn 0.2s ease-out;
-        }
+        /* モーダル */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); animation: fadeIn 0.2s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* ▼ 詳細表示専用 */
         .btn-close-modal { padding: 10px; background: #999; color: white; border: none; border-radius: 4px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 15px; }
         
-        /* ▼ アクション確認専用 */
-        .modal-details {
-            background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; 
-            font-size: 0.95em; line-height: 1.6; border: 1px solid #ddd; max-height: 50vh; overflow-y: auto;
-        }
+        .modal-details { background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.95em; line-height: 1.6; border: 1px solid #ddd; max-height: 50vh; overflow-y: auto; text-align: left; }
         .modal-actions { display: flex; gap: 10px; }
         .btn-modal-cancel { flex: 1; padding: 12px; border: none; border-radius: 4px; background: #999; color: white; font-weight: bold; cursor: pointer; }
-        .btn-modal-cancel:hover { background: #888; }
         .btn-modal-confirm { flex: 1; padding: 12px; border: none; border-radius: 4px; background: #ff9800; color: white; font-weight: bold; cursor: pointer; }
-        .btn-modal-confirm:hover { background: #e68a00; }
         .btn-modal-danger { background: #c62828 !important; }
-        .btn-modal-danger:hover { background: #b71c1c !important; }
     </style>
 </head>
 <body>
@@ -88,7 +81,10 @@
     </header>
 
     <div class="container" id="form-container">
-        <h2 style="margin-top: 0; font-size: 1.2em;">出演エントリー申請</h2>
+        <!-- ▼ 自動生成される募集要項カードの表示エリア -->
+        <div id="active-lives-info"></div>
+
+        <h2 style="margin-top: 0; font-size: 1.2em; border-left: 5px solid #ff9800; padding-left: 8px;">出演エントリー申請</h2>
         <p style="font-size: 0.85em; color: #666; line-height: 1.5;">
             あなたが代表権限を持つバンドをライブにエントリーさせます。<br>
             ※代表権限がない場合は、下の「あなたの出演予定」のみ確認できます。
@@ -137,11 +133,11 @@
         </div>
     </div>
 
-    <!-- 単なる詳細確認モーダル -->
+    <!-- 詳細確認モーダル -->
     <div id="details-modal" class="modal-overlay">
         <div class="modal-content">
             <h3 style="margin-top: 0; margin-bottom: 15px; color: #333; font-size: 1.1em; border-bottom: 1px solid #ccc; padding-bottom: 5px;">登録内容の詳細</h3>
-            <div id="modal-details-content" style="font-size: 0.95em; line-height: 1.6; color: #444;"></div>
+            <div id="modal-details-content" style="font-size: 0.95em; line-height: 1.6; color: #444; text-align: left;"></div>
             <button type="button" class="btn-close-modal" id="btn-close-modal">閉じる</button>
         </div>
     </div>
@@ -168,7 +164,6 @@
         let myEntriesData = {}; 
         let editingEntryId = null; 
 
-        // モーダル制御用の状態変数
         let pendingAction = null; 
         let pendingEntryData = null;
         let pendingDeleteId = null;
@@ -219,7 +214,6 @@
             return row;
         }
 
-        // ▼ 追加: すでにエントリー済みのバンドを選択不可にするための関数
         async function updateBandSelectOptions(liveId, editingBandIdToAllow = null) {
             const bandSelect = document.getElementById('band-select');
             const currentSelectedBand = bandSelect.value;
@@ -237,13 +231,11 @@
             }
 
             try {
-                // 選択されたライブにおける全エントリーを取得
                 const q = query(collection(db, "liveEntries"), where("liveId", "==", liveId));
                 const snap = await getDocs(q);
                 
                 const enteredBandIds = [];
                 snap.forEach(docSnap => {
-                    // 編集中のエントリー自身のbandIdは除外対象から外す（自分の枠だから）
                     if (docSnap.id !== editingEntryId) {
                         enteredBandIds.push(docSnap.data().bandId);
                     }
@@ -254,7 +246,6 @@
                     option.value = id;
                     
                     if (enteredBandIds.includes(id) && id !== editingBandIdToAllow) {
-                        // 重複エントリーを防ぐための処理
                         option.textContent = `${userBands[id].name} (エントリー済み)`;
                         option.disabled = true;
                     } else {
@@ -275,14 +266,35 @@
         async function initializeForm() {
             try {
                 const liveSelect = document.getElementById('live-select');
-                const livesQuery = query(collection(db, "lives"), where("isActive", "==", true));
+                // phase が entry（募集期間中）で isActive なものだけを取得
+                const livesQuery = query(collection(db, "lives"), where("isActive", "==", true), where("phase", "==", "entry"));
                 const livesSnap = await getDocs(livesQuery);
                 
                 liveSelect.innerHTML = '<option value="">ライブを選択してください</option>';
+                const activeInfoArea = document.getElementById('active-lives-info');
+                activeInfoArea.innerHTML = '';
+
                 livesSnap.forEach(doc => {
+                    const data = doc.data();
+                    
+                    // 1. プルダウンの構築
                     const option = document.createElement('option');
-                    option.value = doc.id; option.textContent = doc.data().name;
+                    option.value = doc.id; option.textContent = data.name;
                     liveSelect.appendChild(option);
+
+                    // 2. 募集要項カードの自動生成
+                    const card = document.createElement('div');
+                    card.className = 'info-card';
+                    card.innerHTML = `
+                        <h3 class="info-title">🎸 ${data.name} のエントリー受付中！</h3>
+                        <div class="info-details">
+                            ・<strong>日時</strong>：${data.eventDate || '未定'}<br>
+                            ・<strong>場所</strong>：${data.location || '未定'}<br>
+                            ・<strong>募集期限</strong>：${data.deadline ? data.deadline.replace(/-/g, '/') + ' 24時まで' : '未定'}
+                        </div>
+                        <div class="info-conditions">${data.conditions || '条件は特にありません'}</div>
+                    `;
+                    activeInfoArea.appendChild(card);
                 });
 
                 const bandSelect = document.getElementById('band-select');
@@ -311,7 +323,6 @@
             }
         }
 
-        // ▼ 追加: ライブ選択が変わったときに、重複防止チェックを走らせる
         document.getElementById('live-select').addEventListener('change', async (e) => {
             const liveId = e.target.value;
             await updateBandSelectOptions(liveId);
@@ -435,8 +446,6 @@
             editingEntryId = entryId;
 
             document.getElementById('live-select').value = data.liveId;
-            
-            // ▼ 追加: 編集モード時は、自分のバンドのdisabledを解除してからセットする
             await updateBandSelectOptions(data.liveId, data.bandId);
             document.getElementById('band-select').value = data.bandId;
             
@@ -469,7 +478,6 @@
             document.getElementById('error-msg').style.display = 'none';
             document.getElementById('success-msg').style.display = 'none';
 
-            // リセットしたのでバンドの選択肢も再構築
             await updateBandSelectOptions(document.getElementById('live-select').value);
         });
 
@@ -556,7 +564,8 @@
             pendingEntryData = {
                 liveId: liveId, liveName: liveName,
                 bandId: bandId, bandName: bandName,
-                performers: performers, performerIds: uniqueIds
+                performers: performers, performerIds: uniqueIds,
+                status: 'pending' // デフォルトは保留
             };
 
             const titleEl = document.getElementById('confirm-modal-title');
@@ -583,9 +592,7 @@
 
         document.getElementById('btn-confirm-cancel').addEventListener('click', () => {
             document.getElementById('confirm-modal').style.display = 'none';
-            pendingAction = null;
-            pendingEntryData = null;
-            pendingDeleteId = null;
+            pendingAction = null; pendingEntryData = null; pendingDeleteId = null;
         });
 
         document.getElementById('btn-confirm-execute').addEventListener('click', async () => {
@@ -596,7 +603,6 @@
             if (pendingAction === 'delete') {
                 try {
                     await deleteDoc(doc(db, "liveEntries", pendingDeleteId));
-                    // ▼ 画面の一番上に遷移してサクセスメッセージを表示
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                     successMsg.textContent = "エントリーを削除しました。";
                     successMsg.style.display = 'block';
@@ -622,14 +628,12 @@
                     if (pendingAction === 'update') {
                         pendingEntryData.updatedAt = serverTimestamp();
                         await updateDoc(doc(db, "liveEntries", editingEntryId), pendingEntryData);
-                        // ▼ 画面の一番上に遷移してサクセスメッセージを表示
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                         successMsg.textContent = "エントリー内容を変更しました！";
                     } else {
                         pendingEntryData.enteredBy = currentUserId;
                         pendingEntryData.createdAt = serverTimestamp();
                         await addDoc(collection(db, "liveEntries"), pendingEntryData);
-                        // ▼ 画面の一番上に遷移してサクセスメッセージを表示
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                         successMsg.textContent = "エントリーが完了しました！";
                     }
@@ -656,9 +660,7 @@
                 btnSubmit.disabled = false;
             }
 
-            pendingAction = null;
-            pendingEntryData = null;
-            pendingDeleteId = null;
+            pendingAction = null; pendingEntryData = null; pendingDeleteId = null;
         });
     </script>
 </body>
