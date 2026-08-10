@@ -259,19 +259,35 @@
             const text = document.getElementById('dict-textarea').value;
             const lines = text.split('\n');
             const newDict = {};
+            let count = 0; // 保存できた件数をカウント
+
             lines.forEach(line => {
+                // タブ、カンマ、半角スペース、全角スペースで分割
                 const parts = line.split(/[\t, , ]+/);
                 if (parts.length >= 2) {
                     const id = parts[0].trim();
                     const name = parts.slice(1).join(" ").trim(); 
-                    if (/^\d{6}$/.test(id)) { newDict[id] = name; }
+                    
+                    // 【修正】6桁縛りをやめ、空文字でなければ登録する
+                    if (id.length > 0 && name.length > 0) { 
+                        newDict[id] = name; 
+                        count++;
+                    }
                 }
             });
+
             nameDictionary = newDict;
             localStorage.setItem('adminNameDictionary', JSON.stringify(nameDictionary));
             document.getElementById('dict-modal').style.display = 'none';
-            customAlert("名簿辞書を保存しました。");
-            if (currentLiveId) { loadEntries(); }
+            
+            // 何件保存できたかアラートで通知
+            customAlert(`名簿辞書を ${count} 件保存しました。`);
+            
+            // 画面の再描画（ファイルによって呼ぶ関数が異なるため両方判定）
+            if (currentLiveId) {
+                if (typeof loadEntries === 'function') loadEntries();
+                if (typeof loadRsvps === 'function') loadRsvps();
+            }
         }
 
         function translateId(id) {
