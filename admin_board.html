@@ -66,7 +66,6 @@
         <h1>掲示板の審査・管理</h1>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <a href="admin.html" class="btn btn-nav" style="text-decoration: none; line-height: normal; display: inline-flex; align-items: center;">← 戻る</a>
-            <button class="btn btn-danger" id="btn-logout">ログアウト</button>
         </div>
     </header>
 
@@ -112,14 +111,6 @@
         let targetPostId = null;
 
         window.onload = () => {
-            document.getElementById('btn-logout').onclick = () => {
-                if (confirm('ログアウトしますか？')) {
-                    localStorage.removeItem('userRole');
-                    sessionStorage.removeItem('adminNameDictionary');
-                    window.location.href = 'login.html';
-                }
-            };
-            
             document.getElementById('tab-pending').onclick = () => switchTab('pending');
             document.getElementById('tab-approved').onclick = () => switchTab('approved');
             document.getElementById('tab-rejected').onclick = () => switchTab('rejected');
