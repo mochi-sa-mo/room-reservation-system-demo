@@ -51,19 +51,18 @@
         .hamburger.open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
 
         .side-menu {
-            position: fixed; top: 0; right: -250px; width: 250px; height: 100%; /* 100vhから変更 */
+            position: fixed; top: 0; right: -250px; width: 250px; height: 100%;
             background-color: #fff; box-shadow: -2px 0 5px rgba(0,0,0,0.1);
             transition: right 0.3s ease; z-index: 1005; 
             padding-top: 60px; padding-bottom: 30px;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
-            box-sizing: border-box; /* ▼ 追加：はみ出し防止 */
+            box-sizing: border-box;
         }
         .side-menu.open { right: 0; }
         .side-menu ul { list-style: none; padding: 0; margin: 0; }
         .side-menu li { border-bottom: 1px solid #eee; }
         
-        /* ▼ 変更：見出しの配色とデザインを調整 */
         .side-menu li.menu-category { 
             background-color: #f0f4f8; 
             color: #555; 
@@ -175,14 +174,12 @@
     <header>
         <h1>部室予約システム</h1>
         <div class="header-actions">
-            <!-- ハンバーガーアイコン -->
             <div class="hamburger" id="hamburger-btn">
                 <span></span><span></span><span></span>
             </div>
         </div>
     </header>
 
-    <!-- ハンバーガー展開時のメニューと背景 -->
     <nav class="side-menu" id="side-menu">
         <ul>
             <li class="menu-category">部室予約</li>
@@ -200,12 +197,12 @@
             
             <li class="menu-category">アカウント</li>
             <li><a href="settings.html" style="color: #666;">パスワード変更</a></li>
-            <li><a href="javascript:void(0)" id="btn-logout" style="color: #d0021b;">ログアウト</a></li>
+            <!-- ▼ 変更：href="javascript:void(0)" を削除し、カーソル設定を追加してエラー表示をなくす -->
+            <li><a id="btn-logout" style="color: #d0021b; cursor: pointer;">ログアウト</a></li>
         </ul>
     </nav>
     <div class="menu-overlay" id="menu-overlay"></div>
 
-    <!-- ▼ 未回答アラートの表示コンテナ -->
     <div id="rsvp-alert-container" style="display: none;"></div>
 
     <div class="announcements">
@@ -229,7 +226,6 @@
         <div class="grid" id="schedule-grid"></div>
     </div>
 
-    <!-- 予約詳細表示用モーダル -->
     <div class="modal" id="detail-modal">
         <div class="modal-content">
             <h3 id="modal-title">詳細情報</h3>
@@ -241,7 +237,6 @@
         </div>
     </div>
 
-    <!-- 汎用：確認用モーダル -->
     <div class="modal" id="confirm-modal" style="z-index: 1050;">
         <div class="modal-content" style="width: 320px; text-align: center; border-top: 5px solid var(--primary-color);">
             <h3 id="confirm-modal-title" style="margin-top: 0; border: none; padding-bottom: 0;">確認</h3>
@@ -253,7 +248,6 @@
         </div>
     </div>
 
-    <!-- 汎用：アラート(完了/エラー)表示用モーダル -->
     <div class="modal" id="alert-modal" style="z-index: 1100;">
         <div class="modal-content" id="alert-modal-content" style="width: 300px; text-align: center; border-top: 5px solid #4caf50;">
             <p id="alert-modal-message" style="color: #333; line-height: 1.5; font-weight: bold; margin: 15px 0; font-size: 1em;"></p>
@@ -360,7 +354,22 @@
         }
 
         window.onload = function() {
-            document.getElementById('btn-logout').onclick = confirmLogout;
+            // ▼ 変更：ログアウトボタンの処理を、メニューを閉じる動作と競合しないように明示的に指定
+            document.getElementById('btn-logout').onclick = () => {
+                document.getElementById('hamburger-btn').classList.remove('open');
+                document.getElementById('side-menu').classList.remove('open');
+                document.getElementById('menu-overlay').classList.remove('open');
+                
+                showConfirmModal(
+                    'ログアウト',
+                    'システムからログアウトします。<br>よろしいですか？',
+                    'logout',
+                    null,
+                    'ログアウト',
+                    'btn-danger'
+                );
+            };
+
             document.getElementById('btn-prev').onclick = () => changeWeek(-1);
             document.getElementById('btn-next').onclick = () => changeWeek(1);
             
@@ -372,7 +381,6 @@
             document.getElementById('hamburger-btn').onclick = toggleMenu;
             document.getElementById('menu-overlay').onclick = toggleMenu;
 
-            // スクロール貫通防止 (iOS対策)
             document.getElementById('menu-overlay').addEventListener('touchmove', (e) => {
                 e.preventDefault();
             }, { passive: false });
@@ -386,17 +394,6 @@
             document.getElementById('side-menu').classList.toggle('open');
             document.getElementById('menu-overlay').classList.toggle('open');
             document.body.classList.toggle('modal-open');
-        }
-
-        function confirmLogout() {
-            showConfirmModal(
-                'ログアウト',
-                'システムからログアウトします。<br>よろしいですか？',
-                'logout',
-                null,
-                'ログアウト',
-                '#d0021b'
-            );
         }
 
         function updateWeekButtons() {
@@ -707,7 +704,7 @@
                 'cancel_reservation',
                 docId,
                 '送信する',
-                '#ff9800'
+                'btn-warning'
             );
         }
 
@@ -718,15 +715,13 @@
             }
         }
 
-        function showConfirmModal(title, message, action, data, btnText, color) {
+        function showConfirmModal(title, message, action, data, confirmBtnText, confirmBtnClass) {
             document.getElementById('confirm-modal-title').textContent = title;
             document.getElementById('confirm-modal-message').innerHTML = message;
             
             const btnExecute = document.getElementById('btn-confirm-execute');
-            btnExecute.textContent = btnText;
-            btnExecute.style.backgroundColor = color;
-            document.getElementById('modal-border-color').style.borderTopColor = color;
-            document.getElementById('confirm-modal-title').style.borderBottomColor = color;
+            btnExecute.textContent = confirmBtnText;
+            btnExecute.className = `btn ${confirmBtnClass}`; 
 
             pendingConfirmAction = action;
             pendingConfirmData = data;
@@ -751,10 +746,10 @@
             
             if (isError) {
                 modalContent.style.borderTop = '5px solid #d0021b';
-                okBtn.style.backgroundColor = '#d0021b';
+                okBtn.className = 'btn btn-danger';
             } else {
                 modalContent.style.borderTop = '5px solid #4caf50';
-                okBtn.style.backgroundColor = '#4caf50';
+                okBtn.className = 'btn btn-success';
             }
             
             document.getElementById('alert-modal').style.display = 'flex';
@@ -796,9 +791,7 @@
                 }
             }
 
-            if (btnExecute) {
-                btnExecute.disabled = false;
-            }
+            if (btnExecute) btnExecute.disabled = false;
         }
 
         window.addEventListener('pageshow', (event) => {
@@ -812,6 +805,9 @@
 
         document.querySelectorAll('#side-menu a').forEach(link => {
             link.addEventListener('click', () => {
+                // ▼ 変更: ログアウトボタンの場合はここで処理を止め、後続の onclick に任せる
+                if (link.id === 'btn-logout') return;
+                
                 document.getElementById('hamburger-btn').classList.remove('open');
                 document.getElementById('side-menu').classList.remove('open');
                 document.getElementById('menu-overlay').classList.remove('open');
