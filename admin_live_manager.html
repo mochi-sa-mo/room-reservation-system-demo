@@ -276,7 +276,7 @@
                 };
                 const docRef = await addDoc(collection(db, "lives"), liveData);
 
-                const messageText = `お疲れ様です\n${name}の出演バンドの募集を開始します\n出演を希望するバンドは、システムのエントリー画面から申請してください！\n\n場所・日時\n・場所 ${location}\n・日時 ${dateStr}\n ※時間に関しては出演バンド数を鑑みてリハーサルの時間等を考慮するので後ほど連絡いたします\n\n募集期間は ${deadline.replace(/-/g, '/')} 24時まで\n\n募集の条件\n${conditions}\n\n出たいけれどバンドが組めていない人等いれば気軽にご相談ください！`;
+                const messageText = `お疲れ様です\n${name}の出演バンドの募集を開始します\n出演を希望するバンドは、システムのエントリー画面から申請してください。\n\n【場所・日時】\n・場所： ${location}\n・日時： ${dateStr}\n\n募集期間： ${deadline.replace(/-/g, '/')} 24時まで\n\n【募集の条件】\n${conditions}`;
                 
                 await addDoc(collection(db, "announcements"), {
                     type: 'deadline', title: `【${name}】出演バンド募集`,
@@ -477,9 +477,9 @@
                     // ★変更：機材情報の表示を追加
                     let equipmentHtml = `
                         <div class="equipment-info">
-                            <strong>🎤 マイク:</strong> ${entry.micCount || 0} 本 
-                            <strong>🎹 キーボード:</strong> ${entry.keyboardType || '使用しない'} <br>
-                            <strong>📝 備考:</strong> ${entry.entryNotes ? entry.entryNotes.replace(/\n/g, '<br>') : 'なし'}
+                            <strong>マイク:</strong> ${entry.micCount || 0} 本 
+                            <strong>キーボード:</strong> ${entry.keyboardType || '使用しない'} <br>
+                            <strong>備考:</strong> ${entry.entryNotes ? entry.entryNotes.replace(/\n/g, '<br>') : 'なし'}
                         </div>
                     `;
 
@@ -524,7 +524,7 @@
             let title, msg, color;
             if (action === 'approve') { title = "承認の確認"; msg = `以下のバンドを承認しますか？`; color = "#4caf50"; } 
             else if (action === 'reject') { title = "却下の確認"; msg = `以下のバンドを却下しますか？`; color = "#d0021b"; } 
-            else { title = "保留に戻す"; msg = `以下のバンドを未審査に戻しますか？`; color = "#ff9800"; }
+            else { title = "保留に戻す"; msg = `以下のバンドを調整中に戻しますか？`; color = "#ff9800"; }
 
             msg += `<div style="background: #eee; padding: 10px; margin-top: 10px; border-radius: 4px;"><strong>${entryData.bandName}</strong><br>`;
             entryData.performers.forEach(p => { msg += `<div style="font-size: 0.9em;">・${p.part}: ${translateId(p.id)}</div>`; });
