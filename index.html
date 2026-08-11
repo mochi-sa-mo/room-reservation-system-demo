@@ -246,6 +246,9 @@
         let dbReservations = [];
         let dbAnnouncements = [];
         let currentUserId = ""; 
+        
+        // ▼ アクセス制御用の集合変数
+        let myBandIds = [];
 
         let pendingConfirmAction = null;
         let pendingConfirmData = null;
@@ -266,12 +269,27 @@
             return dates;
         }
 
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUserId = user.email.split('@')[0];
+                await loadMyBands(); // バンド情報を取得
                 checkUnansweredRsvps();
             }
         });
+
+        // ▼ 自分が所属しているバンドのID集合を取得する関数
+        async function loadMyBands() {
+            try {
+                const q = query(collection(db, "bands"), where("memberIds", "array-contains", currentUserId));
+                const snap = await getDocs(q);
+                myBandIds = [];
+                snap.forEach(d => {
+                    myBandIds.push(d.id);
+                });
+            } catch (error) {
+                console.error("所属バンド情報の取得エラー:", error);
+            }
+        }
 
         async function checkUnansweredRsvps() {
             try {
@@ -594,21 +612,37 @@
                     { label: '状態', value: statusMsg }
                 ];
 
-                if (!data.cancelRequested && !data.rejected) {
-                    const cancelBtn = document.createElement('button');
-                    cancelBtn.className = 'btn btn-warning';
-                    cancelBtn.style.marginBottom = '10px';
-                    cancelBtn.textContent = 'この予約のキャンセル申請を行う';
-                    cancelBtn.onclick = () => requestCancel(data.id);
-                    actionArea.appendChild(cancelBtn);
-                } else if (data.cancelRequested) {
-                    const statusText = document.createElement('div');
-                    statusText.style.color = '#c62828';
-                    statusText.style.fontWeight = 'bold';
-                    statusText.style.textAlign = 'center';
-                    statusText.style.marginBottom = '10px';
-                    statusText.textContent = '⚠️ 取消申請が送信されています';
-                    actionArea.appendChild(statusText);
+                // ▼ 変更点: 新しいデータベース構造に合わせて bandId で所属を判定
+                const isMyBand = data.bandId && myBandIds.includes(data.bandId);
+
+                if (isMyBand) {
+                    if (!data.cancelRequested && !data.rejected) {
+                        const cancelBtn = document.createElement('button');
+                        cancelBtn.className = 'btn btn-warning';
+                        cancelBtn.style.marginBottom = '10px';
+                        cancelBtn.textContent = 'この予約のキャンセル申請を行う';
+                        cancelBtn.onclick = () => requestCancel(data.id);
+                        actionArea.appendChild(cancelBtn);
+                    } else if (data.cancelRequested) {
+                        const statusText = document.createElement('div');
+                        statusText.style.color = '#c62828';
+                        statusText.style.fontWeight = 'bold';
+                        statusText.style.textAlign = 'center';
+                        statusText.style.marginBottom = '10px';
+                        statusText.textContent = '⚠️ 取消申請が送信されています';
+                        actionArea.appendChild(statusText);
+                    }
+                } else {
+                    // 所属していない場合はキャンセル不可のメッセージを表示
+                    if (!data.cancelRequested && !data.rejected) {
+                        const noAuthText = document.createElement('div');
+                        noAuthText.style.color = '#999';
+                        noAuthText.style.fontSize = '0.85em';
+                        noAuthText.style.textAlign = 'center';
+                        noAuthText.style.marginBottom = '10px';
+                        noAuthText.textContent = '※この予約をキャンセルできるのは、バンドのメンバーのみです。';
+                        actionArea.appendChild(noAuthText);
+                    }
                 }
             }
 
