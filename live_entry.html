@@ -11,7 +11,8 @@
         
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 0.9em; }
-        select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1em; background-color: white; }
+        select, input[type="number"], textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1em; background-color: white; font-family: inherit; }
+        textarea { resize: vertical; min-height: 80px; }
         select:disabled { background-color: #e0e0e0; cursor: not-allowed; }
         
         .member-list { margin-top: 10px; padding: 15px; background: #f9f9f9; border-radius: 4px; border: 1px solid #eee; }
@@ -105,10 +106,37 @@
                 </select>
             </div>
 
-            <div class="form-group" id="performers-section" style="display: none;">
-                <label>このライブでの実際の演奏メンバー</label>
-                <div class="member-list" id="members-container"></div>
-                <button type="button" class="btn-add" id="btn-add-member">＋ サポートメンバーを追加</button>
+            <div id="performers-section" style="display: none;">
+                <div class="form-group">
+                    <label>このライブでの実際の演奏メンバー</label>
+                    <div class="member-list" id="members-container"></div>
+                    <button type="button" class="btn-add" id="btn-add-member">＋ サポートメンバーを追加</button>
+                </div>
+
+                <!-- ▼ 追加：機材・備考入力エリア -->
+                <div style="background: #fff3e0; padding: 15px; border-radius: 8px; border: 1px solid #ffb300; margin-top: 25px;">
+                    <h3 style="margin-top: 0; font-size: 1em; color: #e65100; border-bottom: 1px dashed #ffb300; padding-bottom: 5px;">🎤 機材・セッティング情報</h3>
+                    
+                    <div class="form-group">
+                        <label for="mic-count">使用するマイクの本数</label>
+                        <input type="number" id="mic-count" min="0" max="10" value="0" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="keyboard-type">キーボードの使用</label>
+                        <select id="keyboard-type" required>
+                            <option value="使用しない">使用しない</option>
+                            <option value="88鍵盤のみ">88鍵盤のみ</option>
+                            <option value="それ以外(持参等)のみ">それ以外(持参等)のみ</option>
+                            <option value="2台両方">2台両方</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="entry-notes">備考・その他セッティングの要望</label>
+                        <textarea id="entry-notes" placeholder="立ち位置の希望、持参アンプの有無など"></textarea>
+                    </div>
+                </div>
             </div>
 
             <div style="display: flex; gap: 10px; margin-top: 20px;">
@@ -264,7 +292,6 @@
         async function initializeForm() {
             try {
                 const liveSelect = document.getElementById('live-select');
-                // ▼ 【重要な修正】"phase" == "entry" ではなく、新しいフラグ "isEntryOpen" == true を検索する
                 const livesQuery = query(collection(db, "lives"), where("isActive", "==", true), where("isEntryOpen", "==", true));
                 const livesSnap = await getDocs(livesQuery);
                 
@@ -295,7 +322,6 @@
                     activeInfoArea.appendChild(card);
                 });
 
-                // 表示する募集がない場合のメッセージ
                 if (livesSnap.empty) {
                     activeInfoArea.innerHTML = '<div style="background:#f5f5f5; padding:15px; border-radius:4px; text-align:center; color:#666;">現在募集中のライブはありません。</div>';
                     liveSelect.innerHTML = '<option value="">募集中のライブはありません</option>';
@@ -425,11 +451,20 @@
             document.getElementById('confirm-modal').style.display = 'flex';
         }
 
+        // ▼ モーダルでの機材・備考の表示を追加
         function showDetailsModal(entryId) {
             const data = myEntriesData[entryId];
             let html = `<p style="margin-bottom: 5px;"><strong>🎵 ライブ:</strong> ${data.liveName}</p>`;
             html += `<p style="margin-bottom: 15px;"><strong>🎸 バンド:</strong> ${data.bandName}</p>`;
-            html += `<p style="margin-bottom: 5px; background: #eee; padding: 5px; border-radius: 4px;"><strong>【演奏メンバー構成】</strong></p>`;
+            
+            html += `<p style="margin-bottom: 5px; background: #eee; padding: 5px; border-radius: 4px;"><strong>🎤 機材・セッティング</strong></p>`;
+            html += `<ul style="margin-top: 5px; padding-left: 20px; font-size: 0.9em;">`;
+            html += `<li><strong>マイク:</strong> ${data.micCount || 0} 本</li>`;
+            html += `<li><strong>キーボード:</strong> ${data.keyboardType || '使用しない'}</li>`;
+            html += `<li><strong>備考:</strong><br>${data.entryNotes ? data.entryNotes.replace(/\n/g, '<br>') : 'なし'}</li>`;
+            html += `</ul>`;
+
+            html += `<p style="margin-bottom: 5px; background: #eee; padding: 5px; border-radius: 4px; margin-top: 15px;"><strong>【演奏メンバー構成】</strong></p>`;
             html += `<ul style="margin-top: 5px; padding-left: 20px;">`;
             data.performers.forEach(p => {
                 let role = p.type === "正規" ? "" : ` <span style="font-size: 0.8em; color: #ff9800; font-weight: bold;">(${p.type})</span>`;
@@ -453,6 +488,11 @@
             await updateBandSelectOptions(data.liveId, data.bandId);
             document.getElementById('band-select').value = data.bandId;
             
+            // ▼ 編集時にフォームに値を復元
+            document.getElementById('mic-count').value = data.micCount || 0;
+            document.getElementById('keyboard-type').value = data.keyboardType || '使用しない';
+            document.getElementById('entry-notes').value = data.entryNotes || '';
+
             const container = document.getElementById('members-container');
             container.innerHTML = '';
             data.performers.forEach(p => {
@@ -524,6 +564,11 @@
             const liveName = liveSelect.options[liveSelect.selectedIndex].text;
             const bandName = bandSelect.options[bandSelect.selectedIndex].text;
 
+            // ▼ 追加：機材情報の取得
+            const micCount = parseInt(document.getElementById('mic-count').value, 10);
+            const keyboardType = document.getElementById('keyboard-type').value;
+            const entryNotes = document.getElementById('entry-notes').value.trim();
+
             const errorMsg = document.getElementById('error-msg');
             errorMsg.style.display = 'none';
 
@@ -569,6 +614,10 @@
                 liveId: liveId, liveName: liveName,
                 bandId: bandId, bandName: bandName,
                 performers: performers, performerIds: uniqueIds,
+                // ▼ 追加：機材情報をデータに含める
+                micCount: micCount,
+                keyboardType: keyboardType,
+                entryNotes: entryNotes,
                 status: 'pending'
             };
 
@@ -578,6 +627,14 @@
             
             let confirmHtml = `<div style="margin-bottom: 10px;"><strong>【ライブ】</strong><br>${liveName}</div>`;
             confirmHtml += `<div style="margin-bottom: 10px;"><strong>【バンド】</strong><br>${bandName}</div>`;
+            
+            // ▼ モーダルでの確認画面に機材情報を追加
+            confirmHtml += `<div style="margin-bottom: 10px; background:#f9f9f9; padding:5px; border-radius:4px; font-size:0.9em;">`;
+            confirmHtml += `<strong>🎤 マイク:</strong> ${micCount} 本<br>`;
+            confirmHtml += `<strong>🎹 キーボード:</strong> ${keyboardType}<br>`;
+            confirmHtml += `<strong>📝 備考:</strong> ${entryNotes ? entryNotes.replace(/\n/g, '<br>') : 'なし'}`;
+            confirmHtml += `</div>`;
+
             confirmHtml += `<div><strong>【メンバー構成】</strong><br>`;
             performers.forEach(p => {
                 let roleText = p.type === "正規" ? "" : ` <span style="color:#ff9800; font-weight:bold;">(${p.type})</span>`;
