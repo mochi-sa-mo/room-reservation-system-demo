@@ -58,6 +58,8 @@
         .side-menu.open { right: 0; }
         .side-menu ul { list-style: none; padding: 0; margin: 0; }
         .side-menu li { border-bottom: 1px solid #eee; }
+        /* ▼ 追加：メニューの見出し用スタイル */
+        .side-menu li.menu-category { border-bottom: none; padding: 20px 20px 5px; font-size: 0.8em; color: #999; font-weight: bold; }
         .side-menu a { display: block; padding: 15px 20px; text-decoration: none; color: #333; font-weight: bold; transition: background-color 0.2s; }
         .side-menu a:hover { background-color: #f5f7fa; }
 
@@ -164,13 +166,21 @@
     <!-- ハンバーガー展開時のメニューと背景 -->
     <nav class="side-menu" id="side-menu">
         <ul>
+            <!-- ▼ 変更：見出しを追加し、関連する機能をグループ化 -->
+            <li class="menu-category">部室予約</li>
             <li><a href="tsuika.html" style="color: #4caf50;">今週の追加予約</a></li>
             <li><a href="yoyaku.html" style="color: #4A90E2;">次週の予約</a></li>
-            <li><a href="settings.html" style="color: #666;">パスワード変更</a></li>
+            
+            <li class="menu-category">バンド管理</li>
             <li><a href="band_register.html" style="color: #ff9800;">新規バンド登録</a></li>
             <li><a href="my_bands.html" style="color: #8e44ad;">所属バンドの確認・管理</a></li>
+            
+            <li class="menu-category">ライブ関連</li>
             <li><a href="live_entry.html" style="color: #e91e63;">🎸 ライブ出演エントリー</a></li>
             <li><a href="status_rsvp.html" style="color: #e65100;">🍻 審査結果・打ち上げ回答</a></li>
+            
+            <li class="menu-category">アカウント</li>
+            <li><a href="settings.html" style="color: #666;">パスワード変更</a></li>
             <li><a href="javascript:void(0)" id="btn-logout" style="color: #d0021b;">ログアウト</a></li>
         </ul>
     </nav>
@@ -247,7 +257,6 @@
         let dbAnnouncements = [];
         let currentUserId = ""; 
         
-        // ▼ アクセス制御用の集合変数
         let myBandIds = [];
 
         let pendingConfirmAction = null;
@@ -272,12 +281,11 @@
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUserId = user.email.split('@')[0];
-                await loadMyBands(); // バンド情報を取得
+                await loadMyBands();
                 checkUnansweredRsvps();
             }
         });
 
-        // ▼ 自分が所属しているバンドのID集合を取得する関数
         async function loadMyBands() {
             try {
                 const q = query(collection(db, "bands"), where("memberIds", "array-contains", currentUserId));
@@ -293,14 +301,12 @@
 
         async function checkUnansweredRsvps() {
             try {
-                // 1. 自分が回答必須対象(U_target)に含まれているライブを検索
                 const livesQ = query(collection(db, "lives"), where("targetUserIds", "array-contains", currentUserId));
                 const livesSnap = await getDocs(livesQ);
                 
                 const activeRsvpLives = [];
                 livesSnap.forEach(d => {
                     const data = d.data();
-                    // isRsvpOpen または phase が rsvp の場合のみ
                     if (data.isRsvpOpen === true || data.phase === 'rsvp') {
                         activeRsvpLives.push({ id: d.id, name: data.name });
                     }
@@ -308,13 +314,11 @@
 
                 if (activeRsvpLives.length === 0) return;
 
-                // 2. 自分が過去に回答したデータ(R_answered)を取得
                 const rsvpsQ = query(collection(db, "rsvps"), where("userId", "==", currentUserId));
                 const rsvpsSnap = await getDocs(rsvpsQ);
                 const answeredLiveIds = [];
                 rsvpsSnap.forEach(d => { answeredLiveIds.push(d.data().liveId); });
 
-                // 3. 差集合 (未回答のライブ) を抽出
                 const unansweredLives = activeRsvpLives.filter(live => !answeredLiveIds.includes(live.id));
 
                 if (unansweredLives.length > 0) {
@@ -612,7 +616,6 @@
                     { label: '状態', value: statusMsg }
                 ];
 
-                // ▼ 変更点: 新しいデータベース構造に合わせて bandId で所属を判定
                 const isMyBand = data.bandId && myBandIds.includes(data.bandId);
 
                 if (isMyBand) {
@@ -633,7 +636,6 @@
                         actionArea.appendChild(statusText);
                     }
                 } else {
-                    // 所属していない場合はキャンセル不可のメッセージを表示
                     if (!data.cancelRequested && !data.rejected) {
                         const noAuthText = document.createElement('div');
                         noAuthText.style.color = '#999';
