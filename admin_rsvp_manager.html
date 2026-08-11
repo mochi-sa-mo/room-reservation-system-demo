@@ -23,7 +23,6 @@
         
         .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; background-color: var(--primary-color); color: white; font-weight: bold; transition: 0.2s; text-align: center; }
         .btn:hover { background-color: var(--primary-hover); }
-        .btn-danger { background-color: #d0021b; } .btn-danger:hover { background-color: #a00215; }
         .btn-nav { background-color: #e0e0e0; color: #333; } .btn-nav:hover { background-color: #d0d0d0; }
         .btn-info { background-color: #00bcd4; color: white; } .btn-info:hover { background-color: #0097a7; }
 
@@ -82,7 +81,6 @@
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <button class="btn btn-info" id="btn-open-dict">📖 名簿辞書設定</button>
             <a href="admin.html" class="btn btn-nav" style="text-decoration: none;">← 戻る</a>
-            <button class="btn btn-danger" id="btn-logout">ログアウト</button>
         </div>
     </header>
 
@@ -163,10 +161,9 @@
 
         let currentLiveId = "";
         let pendingData = null; 
-        let nameDictionary = JSON.parse(localStorage.getItem('adminNameDictionary') || '{}');
+        let nameDictionary = JSON.parse(sessionStorage.getItem('adminNameDictionary') || '{}');
 
         window.onload = function() {
-            document.getElementById('btn-logout').onclick = confirmLogout;
             document.getElementById('btn-confirm-cancel').onclick = closeConfirmModal;
             document.getElementById('btn-confirm-execute').onclick = executeConfirmAction;
             document.getElementById('btn-alert-ok').onclick = closeAlertModal;
@@ -188,16 +185,14 @@
             const text = document.getElementById('dict-textarea').value;
             const lines = text.split('\n');
             const newDict = {};
-            let count = 0; // 保存できた件数をカウント
+            let count = 0;
 
             lines.forEach(line => {
-                // タブ、カンマ、半角スペース、全角スペースで分割
                 const parts = line.split(/[\t, , ]+/);
                 if (parts.length >= 2) {
                     const id = parts[0].trim();
                     const name = parts.slice(1).join(" ").trim(); 
                     
-                    // 【修正】6桁縛りをやめ、空文字でなければ登録する
                     if (id.length > 0 && name.length > 0) { 
                         newDict[id] = name; 
                         count++;
@@ -206,13 +201,11 @@
             });
 
             nameDictionary = newDict;
-            localStorage.setItem('adminNameDictionary', JSON.stringify(nameDictionary));
+            sessionStorage.setItem('adminNameDictionary', JSON.stringify(nameDictionary));
             document.getElementById('dict-modal').style.display = 'none';
             
-            // 何件保存できたかアラートで通知
             customAlert(`名簿辞書を ${count} 件保存しました。`);
             
-            // 画面の再描画（ファイルによって呼ぶ関数が異なるため両方判定）
             if (currentLiveId) {
                 if (typeof loadEntries === 'function') loadEntries();
                 if (typeof loadRsvps === 'function') loadRsvps();
@@ -222,16 +215,6 @@
         function translateId(id) {
             if (nameDictionary[id]) { return `${id} <br><span class="translated-name">${nameDictionary[id]}</span>`; }
             return id;
-        }
-
-        function confirmLogout() { 
-            document.getElementById('confirm-modal-title').textContent = 'ログアウト';
-            document.getElementById('confirm-modal-message').innerHTML = 'ログアウトしますか？';
-            const executeBtn = document.getElementById('btn-confirm-execute');
-            executeBtn.textContent = 'ログアウト'; executeBtn.style.backgroundColor = '#d0021b';
-            document.getElementById('modal-border-color').style.borderTopColor = '#d0021b';
-            pendingData = { action: 'logout' };
-            document.getElementById('confirm-modal').style.display = 'flex';
         }
 
         async function init() {
@@ -280,11 +263,9 @@
                     return;
                 }
                 
-                // ★出演メンバー（必須対象者）をSetに格納
                 const targetUserIds = liveDoc.data().targetUserIds || [];
                 const allUserSet = new Set(targetUserIds);
 
-                // 全回答データを取得
                 const qRsvp = query(collection(db, "rsvps"), where("liveId", "==", currentLiveId));
                 const snapRsvp = await getDocs(qRsvp);
                 
@@ -292,7 +273,6 @@
                 snapRsvp.forEach(d => {
                     const data = d.data();
                     answers[data.userId] = data;
-                    // ★回答をくれた人は出演者でなくてもリストに追加
                     allUserSet.add(data.userId);
                 });
 
@@ -308,7 +288,7 @@
 
                 sortedUserIds.forEach(userId => {
                     const ans = answers[userId];
-                    const isTarget = targetUserIds.includes(userId); // 出演者かどうかのフラグ
+                    const isTarget = targetUserIds.includes(userId); 
                     const currentStatus = ans ? ans.status : 'pending';
                     const currentComment = ans ? (ans.comment || "") : "";
 
@@ -395,10 +375,6 @@
             const data = pendingData;
             closeConfirmModal();
             
-            if (data.action === 'logout') {
-                localStorage.removeItem('userRole'); window.location.href = 'login.html'; return;
-            }
-
             if (data.action === 'update') {
                 const successMsg = document.getElementById('main-success-msg');
                 try {
