@@ -35,6 +35,35 @@
             padding-bottom: 10px;
             border-bottom: 2px solid var(--border-color);
         }
+
+        /* --- ハンバーガーメニュー --- */
+        .header-actions { display: flex; align-items: center; }
+        .hamburger {
+            width: 25px; height: 18px; cursor: pointer; display: flex; flex-direction: column;
+            justify-content: space-between; z-index: 1010; position: relative;
+        }
+        .hamburger span { display: block; height: 3px; width: 100%; background-color: #333; border-radius: 3px; transition: all 0.3s ease; }
+        .hamburger.open span:nth-child(1) { transform: translateY(7.5px) rotate(45deg); }
+        .hamburger.open span:nth-child(2) { opacity: 0; }
+        .hamburger.open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
+
+        .side-menu {
+            position: fixed; top: 0; right: -250px; width: 250px; height: 100vh;
+            background-color: #fff; box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+            transition: right 0.3s ease; z-index: 1005; padding-top: 70px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .side-menu.open { right: 0; }
+        .side-menu ul { list-style: none; padding: 0; margin: 0; }
+        .side-menu li { border-bottom: 1px solid #eee; }
+        .side-menu li.menu-category { border-bottom: none; padding: 20px 20px 5px; font-size: 0.8em; color: #999; font-weight: bold; }
+        .side-menu a { display: block; padding: 15px 20px; text-decoration: none; color: #333; font-weight: bold; transition: background-color 0.2s; }
+        .side-menu a:hover { background-color: #f5f7fa; }
+
+        .menu-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .menu-overlay.open { display: block; }
+        /* --------------------------------- */
         
         .admin-layout {
             display: flex;
@@ -348,8 +377,8 @@
         .btn-danger { background-color: #d0021b; }
         .btn-danger:hover { background-color: #a00215; }
         .btn-action { padding: 4px 8px; font-size: 0.85em; margin-right: 2px;}
-        .btn-warning { background-color: #f5a623; color: white;} /* 追加：隠すボタン用 */
-        .btn-success { background-color: #4caf50; color: white;} /* 追加：表示ボタン用 */
+        .btn-warning { background-color: #f5a623; color: white;}
+        .btn-success { background-color: #4caf50; color: white;}
         
         .btn-block-toggle {
             background: #666;
@@ -489,8 +518,11 @@
         }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: #fff; padding: 20px; border-radius: 8px; width: 450px; max-height: 90vh; overflow-y: auto; }
+        .modal-content { background: #fff; padding: 20px; border-radius: 8px; width: 450px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .modal-content.center-text { text-align: center; width: 350px; border-top: 5px solid var(--primary-color); }
         .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+        .confirm-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .confirm-actions .btn { flex: 1; padding: 12px; }
 
         @media (max-width: 768px) {
             body { padding: 10px; }
@@ -503,12 +535,31 @@
 
     <header>
         <h1>部室予約システム 管理者パネル</h1>
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <a href="admin_live_manager.html" class="btn" style="background: #e91e63; text-decoration: none; font-size: 0.9em;">ライブ審査・管理へ</a>
-            <a href="admin_rsvp_manager.html" class="btn" style="background: #e91e63; text-decoration: none; font-size: 0.9em;">打ち上げ参加状況の確認・編集</a>
-            <button class="btn btn-danger" id="btn-logout">ログアウト</button>
+        <div class="header-actions">
+            <!-- ハンバーガーアイコン -->
+            <div class="hamburger" id="hamburger-btn">
+                <span></span><span></span><span></span>
+            </div>
         </div>
     </header>
+
+    <!-- ハンバーガー展開時のメニューと背景 -->
+    <nav class="side-menu" id="side-menu">
+        <ul>
+            <li class="menu-category">管理者メニュー</li>
+            <li><a href="admin_live_manager.html" style="color: #e91e63;">ライブ審査・管理</a></li>
+            <li><a href="admin_rsvp_manager.html" style="color: #4caf50;">打ち上げ参加状況管理</a></li>
+            <li><a href="admin_board.html" style="color: #ff9800;">掲示板の審査・管理</a></li>
+            
+            <li class="menu-category">一般メニュー</li>
+            <li><a href="index.html" style="color: #4A90E2;">トップページへ戻る</a></li>
+            <li><a href="board.html" style="color: #8e44ad;">掲示板 (ユーザー表示)</a></li>
+            
+            <li class="menu-category">アカウント</li>
+            <li><a href="javascript:void(0)" id="btn-logout" style="color: #d0021b;">ログアウト</a></li>
+        </ul>
+    </nav>
+    <div class="menu-overlay" id="menu-overlay"></div>
 
     <div class="admin-layout">
         
@@ -576,7 +627,7 @@
         </div>
     </div>
 
-    <!-- ★編集用モーダル -->
+    <!-- 編集用モーダル -->
     <div class="modal" id="edit-modal">
         <div class="modal-content">
             <h3 style="margin-top:0;">登録内容の編集</h3>
@@ -588,7 +639,7 @@
         </div>
     </div>
 
-    <!-- ★追加：画像長押し保存用モーダル (iOS対応) -->
+    <!-- 画像長押し保存用モーダル (iOS対応) -->
     <div class="modal" id="image-modal">
         <div class="modal-content" style="text-align:center; width: auto; max-width: 95%;">
             <h3 style="margin-top:0; font-size:1.1em;">画像を長押しして「写真に追加」や「保存」を選んでください</h3>
@@ -599,9 +650,20 @@
         </div>
     </div>
 
+    <!-- 汎用アクション確認モーダル (ログアウト・削除用) -->
+    <div class="modal" id="confirm-modal">
+        <div class="modal-content center-text" id="modal-border-color">
+            <h3 id="confirm-modal-title" style="margin-top: 0; padding-bottom: 5px; border-bottom: 2px solid var(--primary-color);">確認</h3>
+            <p id="confirm-modal-message" style="color: #555; font-size: 0.95em; line-height: 1.5; margin: 15px 0; text-align: left;"></p>
+            <div class="confirm-actions">
+                <button class="btn btn-nav" id="btn-confirm-cancel">キャンセル</button>
+                <button class="btn" id="btn-confirm-execute">実行する</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { db } from "./firebase.js";
-        // ▼ 変更点： deleteDoc をインポートに追加
         import { collection, onSnapshot, addDoc, doc, updateDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
         const days = ['日', '月', '火', '水', '木', '金', '土'];
@@ -624,8 +686,10 @@
         
         let currentEditingId = null;
         let currentEditingType = null; 
-        
         let currentWeekOffset = 1; 
+
+        let pendingConfirmAction = null;
+        let pendingConfirmData = null;
 
         function getTodayStr() {
             const now = new Date();
@@ -651,7 +715,18 @@
                 return;
             }
 
+            document.getElementById('hamburger-btn').onclick = toggleMenu;
+            document.getElementById('menu-overlay').onclick = toggleMenu;
+
+            // スクロール貫通防止 (iOS対策)
+            document.getElementById('menu-overlay').addEventListener('touchmove', (e) => {
+                e.preventDefault();
+            }, { passive: false });
+
             document.getElementById('btn-logout').onclick = confirmLogout;
+            document.getElementById('btn-confirm-cancel').onclick = closeConfirmModal;
+            document.getElementById('btn-confirm-execute').onclick = executeConfirmAction;
+
             document.getElementById('tab-event').onclick = () => switchTab('event');
             document.getElementById('tab-deadline').onclick = () => switchTab('deadline');
             document.getElementById('form-event').onsubmit = (e) => submitAnnouncement(e, 'event');
@@ -666,7 +741,83 @@
             startRealtimeSync();
         };
 
-        function confirmLogout() { if (confirm('ログアウトしますか？')) { localStorage.removeItem('userRole'); window.location.href = 'login.html'; } }
+        function toggleMenu() {
+            document.getElementById('hamburger-btn').classList.toggle('open');
+            document.getElementById('side-menu').classList.toggle('open');
+            document.getElementById('menu-overlay').classList.toggle('open');
+            document.body.classList.toggle('modal-open');
+        }
+
+        function confirmLogout() {
+            showConfirmModal(
+                'ログアウト',
+                'システムからログアウトします。<br>よろしいですか？',
+                'logout',
+                null,
+                'ログアウト',
+                '#d0021b'
+            );
+        }
+
+        function showConfirmModal(title, message, action, data, btnText, color) {
+            document.getElementById('confirm-modal-title').textContent = title;
+            document.getElementById('confirm-modal-message').innerHTML = message;
+            
+            const btnExecute = document.getElementById('btn-confirm-execute');
+            btnExecute.textContent = btnText;
+            btnExecute.style.backgroundColor = color;
+            document.getElementById('modal-border-color').style.borderTopColor = color;
+            document.getElementById('confirm-modal-title').style.borderBottomColor = color;
+
+            pendingConfirmAction = action;
+            pendingConfirmData = data;
+
+            document.getElementById('confirm-modal').style.display = 'flex';
+            document.body.classList.add('modal-open');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').style.display = 'none';
+            document.body.classList.remove('modal-open');
+            pendingConfirmAction = null;
+            pendingConfirmData = null;
+        }
+
+        async function executeConfirmAction() {
+            const action = pendingConfirmAction;
+            const data = pendingConfirmData;
+            
+            const execBtn = document.getElementById('btn-confirm-execute');
+            execBtn.disabled = true;
+            execBtn.textContent = '処理中...';
+
+            if (action === 'logout') {
+                localStorage.removeItem('userRole');
+                sessionStorage.removeItem('adminNameDictionary');
+                window.location.href = 'login.html';
+            } else if (action === 'delete_announcement') {
+                const id = data;
+                const target = dbAnnouncements.find(a => a.id === id);
+                const title = target ? target.title : "不明な案内";
+                const annType = target ? target.type : "unknown";
+                try {
+                    await deleteDoc(doc(db, "announcements", id));
+                    await addDoc(collection(db, "logs"), {
+                        timestamp: new Date().toISOString(),
+                        category: "announcement",
+                        annType: annType,
+                        opType: "delete",
+                        title: title,
+                        detail: `管理者が${annType === 'event' ? 'イベント' : '締め切り'}「${title}」を完全に削除しました`
+                    });
+                } catch (error) { console.error("削除エラー:", error); }
+                closeConfirmModal();
+            }
+
+            if(execBtn) {
+                execBtn.disabled = false;
+            }
+        }
         
         function changeWeek(offset) {
             currentWeekOffset = offset;
@@ -764,23 +915,19 @@
             }
         }
 
-        // ▼ 変更点： deleted も含めて全件表示し、手動で隠す/表示を切り替えるボタンを追加
         function renderAnnouncements() {
             const tbody = document.getElementById('announcement-tbody'); 
             tbody.innerHTML = '';
-            // 削除済みのものも含めて表示（ソートだけする）
             const sortedData = dbAnnouncements.sort((a, b) => a.expire < b.expire ? -1 : a.expire > b.expire ? 1 : 0);
             
             sortedData.forEach(item => {
                 const tr = document.createElement('tr');
                 
-                // 非表示状態のものは背景を少し暗くする
                 if (item.deleted) {
                     tr.style.backgroundColor = '#f5f5f5';
                 }
 
                 const typeTd = document.createElement('td'); 
-                // 非表示の場合は(非表示)ラベルを付ける
                 typeTd.innerHTML = (item.type === 'event' ? 'イベント' : '締め切り') + 
                                    (item.deleted ? '<br><span style="color:#d0021b; font-size:0.8em; font-weight:bold;">(非表示)</span>' : '');
                 
@@ -789,7 +936,6 @@
                 
                 const opTd = document.createElement('td');
                 
-                // ▼ 追加：表示・非表示のトグルボタン
                 const toggleBtn = document.createElement('button');
                 toggleBtn.className = 'btn btn-action ' + (item.deleted ? 'btn-success' : 'btn-warning');
                 toggleBtn.textContent = item.deleted ? '表示' : '隠す';
@@ -820,24 +966,15 @@
             });
         }
 
-        // ▼ 変更点：削除ボタンを「物理削除」に変更
-        async function deleteAnnouncement(id) {
-            if (confirm('この案内を完全に削除しますか？\n※一時的に隠したい場合は「隠す」ボタンを使用してください。')) {
-                const target = dbAnnouncements.find(a => a.id === id);
-                const title = target ? target.title : "不明な案内";
-                const annType = target ? target.type : "unknown";
-                try {
-                    await deleteDoc(doc(db, "announcements", id)); // 物理削除
-                    await addDoc(collection(db, "logs"), {
-                        timestamp: new Date().toISOString(),
-                        category: "announcement",
-                        annType: annType,
-                        opType: "delete",
-                        title: title,
-                        detail: `管理者が${annType === 'event' ? 'イベント' : '締め切り'}「${title}」を完全に削除しました`
-                    });
-                } catch (error) { console.error("削除エラー:", error); }
-            }
+        function deleteAnnouncement(id) {
+            showConfirmModal(
+                '削除の確認', 
+                'この案内を完全に削除しますか？<br>※一時的に隠したい場合は「隠す」ボタンを使用してください。', 
+                'delete_announcement', 
+                id, 
+                '削除する', 
+                '#d0021b'
+            );
         }
 
         function openEditModal(item) {
@@ -1155,6 +1292,24 @@
                 captureTitle.style.display = 'none'; 
             }); 
         }
+
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                document.getElementById('hamburger-btn').classList.remove('open');
+                document.getElementById('side-menu').classList.remove('open');
+                document.getElementById('menu-overlay').classList.remove('open');
+                document.body.classList.remove('modal-open');
+            }
+        });
+
+        document.querySelectorAll('#side-menu a').forEach(link => {
+            link.addEventListener('click', () => {
+                document.getElementById('hamburger-btn').classList.remove('open');
+                document.getElementById('side-menu').classList.remove('open');
+                document.getElementById('menu-overlay').classList.remove('open');
+                document.body.classList.remove('modal-open');
+            });
+        });
     </script>
 </body>
 </html>
