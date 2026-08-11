@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>メンバー募集・掲示板 - 部室予約システム</title>
+
+    <script>
+        if (!localStorage.getItem('userRole')) {
+            window.location.replace('login.html');
+        }
+    </script>
+
+    <style>
+        :root { --primary-color: #4A90E2; --primary-hover: #357abd; --bg-color: #f5f7fa; --border-color: #ccc; }
+        body.modal-open { overflow: hidden; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); }
+        .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 700px; margin: 0 auto 20px; }
+        
+        .btn-back { background-color: #999; color: white; padding: 10px 15px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-back:hover { background-color: #888; }
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; text-align: center; }
+        .btn-success { background-color: #4caf50; color: white; } .btn-success:hover { background-color: #388e3c; }
+        .btn-info { background-color: #00bcd4; color: white; } .btn-info:hover { background-color: #0097a7; }
+        .btn-warning { background-color: #ff9800; color: white; } .btn-warning:hover { background-color: #e68a00; }
+        .btn-danger { background-color: #d0021b; color: white; } .btn-danger:hover { background-color: #a00215; }
+        .btn-cancel { background-color: #999; color: white; } .btn-cancel:hover { background-color: #888; }
+
+        .tabs { display: flex; gap: 10px; border-bottom: 2px solid var(--primary-color); margin-bottom: 20px; }
+        .tab { padding: 10px 20px; cursor: pointer; border-radius: 6px 6px 0 0; background: #e0e0e0; font-weight: bold; color: #555; transition: 0.2s; }
+        .tab.active { background: var(--primary-color); color: white; }
+        
+        .panel { display: none; }
+        .panel.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 掲示板カードのスタイル */
+        .board-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .board-card.my-post-pending { border-left: 5px solid #ff9800; background: #fff8e1; }
+        .board-card.my-post-approved { border-left: 5px solid #4caf50; }
+        .board-card.my-post-rejected { border-left: 5px solid #d0021b; background: #ffebee; opacity: 0.8; }
+        
+        .post-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; border-bottom: 1px dashed #ccc; padding-bottom: 8px;}
+        .post-title { font-weight: bold; font-size: 1.15em; color: #333; margin: 0; }
+        .post-meta { font-size: 0.8em; color: #777; text-align: right; }
+        
+        .post-content { font-size: 0.95em; color: #444; line-height: 1.6; white-space: pre-wrap; background: #f9f9f9; padding: 10px; border-radius: 4px; }
+        
+        .status-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.75em; font-weight: bold; color: white; margin-bottom: 5px; }
+        .bg-pending { background: #ff9800; } .bg-approved { background: #4caf50; } .bg-rejected { background: #d0021b; }
+
+        .card-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+
+        /* フォームのスタイル */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9em; }
+        .form-group label .req { color: red; margin-left: 4px; }
+        .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 1em; }
+        .form-group textarea { resize: vertical; min-height: 120px; }
+        .caption { font-size: 0.8em; color: #666; margin-top: 3px; }
+
+        /* モーダル */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #fff; padding: 20px; border-radius: 8px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .modal-actions button { flex: 1; padding: 12px; }
+
+        .success-message { color: #4caf50; font-size: 0.9em; margin-bottom: 15px; display: none; padding: 10px; background: #e8f5e9; border-radius: 4px; font-weight: bold; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>掲示板</h1>
+        <button class="btn-back" onclick="window.location.href='index.html'">トップへ</button>
+    </header>
+
+    <div class="container">
+        <div class="success-message" id="main-success-msg"></div>
+
+        <div class="tabs">
+            <div class="tab active" id="tab-public">📢 募集を見る</div>
+            <div class="tab" id="tab-mypost">📝 自分の投稿</div>
+        </div>
+
+        <!-- ▼ パネル：公開中の募集一覧 -->
+        <div id="panel-public" class="panel active">
+            <p style="font-size: 0.85em; color: #666; margin-top: 0;">※管理者の承認を受けた募集のみが表示されています。</p>
+            <div id="public-list-container">
+                <p style="text-align: center; color: #999;">読込中...</p>
+            </div>
+        </div>
+
+        <!-- ▼ パネル：自分の投稿管理 -->
+        <div id="panel-mypost" class="panel">
+            <p style="font-size: 0.85em; color: #666; margin-top: 0;">※投稿・編集した内容は、管理者の承認後に「募集を見る」に公開されます。</p>
+            <button class="btn btn-success" id="btn-open-create" style="width: 100%; margin-bottom: 20px; padding: 12px; font-size: 1.05em;">＋ 新規募集を作成する</button>
+            <div id="mypost-list-container"></div>
+        </div>
+    </div>
+
+    <!-- 投稿・編集フォーム用モーダル -->
+    <div id="form-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="form-modal-title" style="margin-top: 0; border-bottom: 2px solid var(--primary-color); padding-bottom: 5px;">新規募集の作成</h3>
+            <p style="font-size: 0.85em; color: #d0021b; margin-top: -10px; font-weight: bold; display: none;" id="re-approval-warning">
+                ※内容を編集して保存すると、ステータスが「審査中」に戻り、再承認されるまで一時的に非公開になります。
+            </p>
+            
+            <form id="post-form">
+                <div class="form-group">
+                    <label>件名 (タイトル) <span class="req">*</span></label>
+                    <input type="text" id="post-title" placeholder="例: 【急募】ギター募集！" required>
+                </div>
+                <div class="form-group">
+                    <label>募集内容・連絡先 <span class="req">*</span></label>
+                    <textarea id="post-content" placeholder="活動ペース、やりたい曲のジャンル、連絡先（LINEのIDやSNSなど）を記載してください" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>掲載終了日 <span class="req">*</span></label>
+                    <input type="date" id="post-expire" required>
+                    <div class="caption">※この日付を過ぎると自動的に一覧から消えます。</div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-cancel" id="btn-cancel-form">キャンセル</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-form" style="background-color: var(--primary-color); color: white;">送信する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 削除確認モーダル -->
+    <div id="delete-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 350px; text-align: center; border-top: 5px solid #d0021b;">
+            <h3 style="margin-top: 0;">削除の確認</h3>
+            <p style="color: #333; font-size: 0.95em;">この投稿を完全に削除しますか？<br>（この操作は元に戻せません）</p>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" id="btn-cancel-delete">やめる</button>
+                <button class="btn btn-danger" id="btn-execute-delete">削除する</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, auth } from "./firebase.js";
+        import { collection, onSnapshot, query, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+
+        let currentUserId = "";
+        let dbPosts = [];
+        let editingPostId = null;
+        let deletingPostId = null;
+
+        function getTodayStr() {
+            const now = new Date();
+            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUserId = user.email.split('@')[0];
+                startRealtimeSync();
+            } else {
+                window.location.href = "login.html";
+            }
+        });
+
+        window.onload = () => {
+            document.getElementById('tab-public').onclick = () => switchTab('public');
+            document.getElementById('tab-mypost').onclick = () => switchTab('mypost');
+            
+            document.getElementById('btn-open-create').onclick = openCreateModal;
+            document.getElementById('btn-cancel-form').onclick = closeFormModal;
+            document.getElementById('post-form').onsubmit = handleFormSubmit;
+            
+            document.getElementById('btn-cancel-delete').onclick = () => {
+                document.getElementById('delete-modal').style.display = 'none';
+                deletingPostId = null;
+            };
+            document.getElementById('btn-execute-delete').onclick = executeDelete;
+        };
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            document.getElementById(`panel-${tabName}`).classList.add('active');
+        }
+
+        function startRealtimeSync() {
+            const q = query(collection(db, "boardPosts"));
+            onSnapshot(q, (snapshot) => {
+                dbPosts = [];
+                snapshot.forEach(doc => {
+                    dbPosts.push({ id: doc.id, ...doc.data() });
+                });
+                renderPublicList();
+                renderMyPosts();
+            });
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        // ==========================================
+        // 公開中の募集一覧を描画
+        // ==========================================
+        function renderPublicList() {
+            const container = document.getElementById('public-list-container');
+            container.innerHTML = '';
+            const todayStr = getTodayStr();
+
+            // 承認済み かつ 期限内のものを抽出して、作成日の新しい順に並べる
+            const publicPosts = dbPosts.filter(p => p.status === 'approved' && p.expireDate >= todayStr)
+                                       .sort((a, b) => b.createdAt - a.createdAt);
+
+            if (publicPosts.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#999; padding: 20px;">現在、公開中の募集はありません。</p>';
+                return;
+            }
+
+            publicPosts.forEach(post => {
+                const card = document.createElement('div');
+                card.className = 'board-card';
+                card.innerHTML = `
+                    <div class="post-header">
+                        <h3 class="post-title">${escapeHTML(post.title)}</h3>
+                        <div class="post-meta">
+                            投稿者: <strong>${post.authorId}</strong><br>
+                            期限: ${post.expireDate.replace(/-/g, '/')}
+                        </div>
+                    </div>
+                    <div class="post-content">${escapeHTML(post.content)}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // ==========================================
+        // 自分の投稿一覧を描画
+        // ==========================================
+        function renderMyPosts() {
+            const container = document.getElementById('mypost-list-container');
+            container.innerHTML = '';
+            const todayStr = getTodayStr();
+
+            // 自分の投稿を抽出
+            const myPosts = dbPosts.filter(p => p.authorId === currentUserId)
+                                   .sort((a, b) => b.createdAt - a.createdAt);
+
+            if (myPosts.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#999; padding: 20px;">あなたの投稿はまだありません。</p>';
+                return;
+            }
+
+            myPosts.forEach(post => {
+                const card = document.createElement('div');
+                
+                let badgeHtml = "", cardClass = "";
+                if (post.status === 'approved') {
+                    if (post.expireDate < todayStr) {
+                        badgeHtml = `<span class="status-badge bg-rejected">期限切れ</span>`;
+                        cardClass = 'my-post-rejected';
+                    } else {
+                        badgeHtml = `<span class="status-badge bg-approved">公開中</span>`;
+                        cardClass = 'my-post-approved';
+                    }
+                } else if (post.status === 'rejected') {
+                    badgeHtml = `<span class="status-badge bg-rejected">管理者に却下されました</span>`;
+                    cardClass = 'my-post-rejected';
+                } else {
+                    badgeHtml = `<span class="status-badge bg-pending">審査中 (公開待ち)</span>`;
+                    cardClass = 'my-post-pending';
+                }
+
+                card.className = `board-card ${cardClass}`;
+                card.innerHTML = `
+                    ${badgeHtml}
+                    <div class="post-header" style="margin-top:5px;">
+                        <h3 class="post-title">${escapeHTML(post.title)}</h3>
+                        <div class="post-meta">期限: ${post.expireDate.replace(/-/g, '/')}</div>
+                    </div>
+                    <div class="post-content">${escapeHTML(post.content)}</div>
+                    <div class="card-actions">
+                        <button class="btn btn-warning btn-edit-post" data-id="${post.id}">✏️ 編集</button>
+                        <button class="btn btn-danger btn-del-post" data-id="${post.id}">🗑️ 削除</button>
+                    </div>
+                `;
+                
+                // イベントリスナーの付与
+                card.querySelector('.btn-edit-post').addEventListener('click', (e) => openEditModal(e.target.dataset.id));
+                card.querySelector('.btn-del-post').addEventListener('click', (e) => confirmDelete(e.target.dataset.id));
+                
+                container.appendChild(card);
+            });
+        }
+
+        // ==========================================
+        // フォーム（モーダル）の制御
+        // ==========================================
+        function openCreateModal() {
+            editingPostId = null;
+            document.getElementById('post-form').reset();
+            document.getElementById('form-modal-title').textContent = '新規募集の作成';
+            document.getElementById('re-approval-warning').style.display = 'none';
+            
+            // デフォルト期限を1ヶ月後に設定
+            const d = new Date();
+            d.setMonth(d.getMonth() + 1);
+            document.getElementById('post-expire').value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+            document.getElementById('form-modal').style.display = 'flex';
+        }
+
+        function openEditModal(id) {
+            editingPostId = id;
+            const post = dbPosts.find(p => p.id === id);
+            if (!post) return;
+
+            document.getElementById('post-title').value = post.title;
+            document.getElementById('post-content').value = post.content;
+            document.getElementById('post-expire').value = post.expireDate;
+            
+            document.getElementById('form-modal-title').textContent = '募集内容の編集';
+            // すでに公開中のものを編集する場合は警告を出す
+            if (post.status === 'approved') {
+                document.getElementById('re-approval-warning').style.display = 'block';
+            } else {
+                document.getElementById('re-approval-warning').style.display = 'none';
+            }
+
+            document.getElementById('form-modal').style.display = 'flex';
+        }
+
+        function closeFormModal() {
+            document.getElementById('form-modal').style.display = 'none';
+            editingPostId = null;
+        }
+
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            const btnSubmit = document.getElementById('btn-submit-form');
+            btnSubmit.disabled = true;
+            btnSubmit.textContent = '送信中...';
+
+            const title = document.getElementById('post-title').value.trim();
+            const content = document.getElementById('post-content').value.trim();
+            const expireDate = document.getElementById('post-expire').value;
+
+            try {
+                if (editingPostId) {
+                    // 編集（更新）：セキュリティのためステータスを強制的に保留（pending）に戻す
+                    await updateDoc(doc(db, "boardPosts", editingPostId), {
+                        title: title,
+                        content: content,
+                        expireDate: expireDate,
+                        status: 'pending', 
+                        updatedAt: serverTimestamp()
+                    });
+                    showSuccessMsg("編集内容を保存し、再審査に提出しました。");
+                } else {
+                    // 新規作成
+                    await addDoc(collection(db, "boardPosts"), {
+                        authorId: currentUserId,
+                        title: title,
+                        content: content,
+                        expireDate: expireDate,
+                        status: 'pending',
+                        createdAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
+                    });
+                    showSuccessMsg("募集を送信しました。管理者の承認をお待ちください！");
+                }
+                closeFormModal();
+            } catch (error) {
+                console.error("送信エラー:", error);
+                alert("送信に失敗しました。ネットワークを確認してください。");
+            }
+            btnSubmit.disabled = false;
+            btnSubmit.textContent = '送信する';
+        }
+
+        // ==========================================
+        // 削除の制御
+        // ==========================================
+        function confirmDelete(id) {
+            deletingPostId = id;
+            document.getElementById('delete-modal').style.display = 'flex';
+        }
+
+        async function executeDelete() {
+            if (!deletingPostId) return;
+            const btn = document.getElementById('btn-execute-delete');
+            btn.disabled = true;
+            btn.textContent = '処理中...';
+
+            try {
+                await deleteDoc(doc(db, "boardPosts", deletingPostId));
+                showSuccessMsg("投稿を削除しました。");
+            } catch (error) {
+                console.error("削除エラー:", error);
+                alert("削除に失敗しました。");
+            }
+            document.getElementById('delete-modal').style.display = 'none';
+            deletingPostId = null;
+            btn.disabled = false;
+            btn.textContent = '削除する';
+        }
+
+        function showSuccessMsg(msg) {
+            const el = document.getElementById('main-success-msg');
+            el.textContent = msg;
+            el.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => { el.style.display = 'none'; }, 4000);
+        }
+    </script>
+</body>
+</html>
