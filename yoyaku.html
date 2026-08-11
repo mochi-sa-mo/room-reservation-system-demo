@@ -175,12 +175,16 @@
             color: red;
             margin-left: 4px;
         }
-        .form-group input, .form-group textarea {
+        /* ▼ 変更点： select を追加 */
+        .form-group input, .form-group textarea, .form-group select {
             width: 100%;
             padding: 8px;
             border: 1px solid var(--border-color);
             border-radius: 4px;
             box-sizing: border-box;
+            font-family: inherit;
+            font-size: 1em;
+            background-color: #fff;
         }
         .form-group textarea {
             resize: vertical;
@@ -214,6 +218,30 @@
         .btn-back { background-color: #999; }
         .btn-back:hover { background-color: #888; }
         .btn-submit { width: 100%; padding: 10px; font-size: 1em; margin-top: 5px; }
+        .btn-submit:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        /* ▼ 汎用アラートモーダル用 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            width: 320px;
+            max-width: 90%;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            animation: fadeIn 0.2s ease-out;
+            border-top: 5px solid #4caf50;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
         @media (max-width: 768px) {
             body { padding: 10px; }
@@ -252,9 +280,12 @@
                 選択されていません（カレンダーから選んでください）
             </div>
             
+            <!-- ▼ 変更点：プルダウンに変更 -->
             <div class="form-group">
-                <label for="band-name">バンド名<span class="required-badge">*</span></label>
-                <input type="text" id="band-name" placeholder="例: cist_keion">
+                <label for="band-select">バンド名<span class="required-badge">*</span></label>
+                <select id="band-select">
+                    <option value="">バンド情報を読み込み中...</option>
+                </select>
             </div>
             
             <div class="form-group">
@@ -262,7 +293,15 @@
                 <textarea id="notes" placeholder="未記入でもOK"></textarea>
             </div>
             
-            <button class="btn btn-submit" id="btn-submit-req">予約希望を送信する</button>
+            <button class="btn btn-submit" id="btn-submit-req" disabled>予約希望を送信する</button>
+        </div>
+    </div>
+
+    <!-- カスタムアラートモーダル -->
+    <div class="modal" id="alert-modal">
+        <div class="modal-content" id="alert-modal-content">
+            <p id="alert-modal-message" style="color: #333; line-height: 1.5; font-weight: bold; margin: 15px 0; font-size: 1em;"></p>
+            <button class="btn btn-success" id="btn-alert-ok" style="width: 100%; background: #4caf50;">OK</button>
         </div>
     </div>
 
@@ -272,8 +311,10 @@
             window.location.href = 'login.html';
         }
 
-        import { db } from "./firebase.js";
-        import { collection, onSnapshot, addDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        import { db, auth } from "./firebase.js";
+        // ▼ 変更点: onAuthStateChanged, getDocs, query, where を追加
+        import { collection, onSnapshot, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
         const days = ['日', '月', '火', '水', '木', '金', '土'];
         const periods = ['1限', '2限', '昼休み', '3限', '4限', '5限', '放課後1', '放課後2'];
@@ -281,6 +322,10 @@
         let selectedSlots = [];
         let dbConfirmedReservations = [];
         let dbDisabledSlots = [];
+
+        // ▼ 追加: バンド情報保持用
+        let currentUserId = "";
+        let myBands = {};
 
         function getNextWeekDates() {
             const now = new Date();
@@ -295,9 +340,57 @@
 
         const nextWeekDates = getNextWeekDates(); 
 
+        // ▼ 追加: 自分が所属しているバンドをロードする
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUserId = user.email.split('@')[0];
+                await loadMyBands();
+            }
+        });
+
+        async function loadMyBands() {
+            const bandSelect = document.getElementById('band-select');
+            const submitBtn = document.getElementById('btn-submit-req');
+            
+            try {
+                // 自分が memberIds に含まれるバンドを検索
+                const q = query(collection(db, "bands"), where("memberIds", "array-contains", currentUserId));
+                const snap = await getDocs(q);
+                
+                bandSelect.innerHTML = '<option value="">バンドを選択してください</option>';
+                myBands = {};
+
+                if (snap.empty) {
+                    bandSelect.innerHTML = '<option value="">所属しているバンドがありません</option>';
+                    bandSelect.disabled = true;
+                    return;
+                }
+
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    myBands[doc.id] = data.name;
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = data.name;
+                    bandSelect.appendChild(option);
+                });
+
+                submitBtn.disabled = false; // バンドがあれば送信ボタンを有効化
+
+            } catch (error) {
+                console.error("バンド取得エラー:", error);
+                bandSelect.innerHTML = '<option value="">エラーが発生しました</option>';
+            }
+        }
+
         window.onload = function() {
             document.getElementById('btn-back-top').onclick = () => window.location.href = 'index.html';
             document.getElementById('btn-submit-req').onclick = submitReservationRequest;
+            document.getElementById('btn-alert-ok').onclick = () => {
+                document.getElementById('alert-modal').style.display = 'none';
+                document.body.classList.remove('modal-open');
+                window.location.href = 'index.html'; // OKを押したらトップへ戻る
+            };
 
             startRealtimeSync();
         };
@@ -411,18 +504,38 @@
             }
         }
 
+        function customAlert(message, isError = false) {
+            document.getElementById('alert-modal-message').innerHTML = message;
+            const content = document.getElementById('alert-modal-content');
+            if (isError) {
+                content.style.borderTopColor = '#d0021b';
+                document.getElementById('btn-alert-ok').className = 'btn btn-danger';
+            } else {
+                content.style.borderTopColor = '#4caf50';
+                document.getElementById('btn-alert-ok').className = 'btn btn-success';
+            }
+            document.getElementById('alert-modal').style.display = 'flex';
+            document.body.classList.add('modal-open');
+        }
+
         async function submitReservationRequest() {
-            const bandName = document.getElementById('band-name').value.trim();
+            const bandSelect = document.getElementById('band-select');
+            const bandId = bandSelect.value;
             const notes = document.getElementById('notes').value.trim();
 
             if (selectedSlots.length === 0) {
                 alert('予約希望する時間帯をカレンダーから1つ以上選択してください。');
                 return;
             }
-            if (!bandName) {
-                alert('バンド名は必ず入力してください。');
+            if (!bandId) {
+                alert('バンドを選択してください。');
                 return;
             }
+
+            const bandName = myBands[bandId]; // IDからバンド名を取得
+            const btnSubmit = document.getElementById('btn-submit-req');
+            btnSubmit.disabled = true;
+            btnSubmit.textContent = '送信中...';
 
             try {
                 const promises = selectedSlots.map(slot => {
@@ -430,7 +543,8 @@
                         date: nextWeekDates[slot.day], 
                         day: slot.day,
                         period: slot.period,
-                        bandName: bandName,
+                        bandId: bandId,       // ★ 新規追加: バンドID
+                        bandName: bandName,   // ★ 既存: バンド名
                         notes: notes,
                         confirmed: false,       
                         cancelRequested: false,
@@ -451,13 +565,15 @@
                     detail: "一般ユーザーより新規予約希望が送信されました"
                 });
 
-                alert(`【送信完了】\n${bandName} の予約希望を ${selectedSlots.length} 件送信しました。`);
-                
                 selectedSlots = [];
-                window.location.href = 'index.html';
+                // 送信完了時にカスタムアラートを表示（OKを押すとトップに戻る）
+                customAlert(`【送信完了】<br>${bandName} の予約希望を ${promises.length} 件送信しました。`);
+                
             } catch (error) {
                 console.error("予約送信エラー:", error);
                 alert("データベースへの送信に失敗しました。ネットワーク状態を確認してください。");
+                btnSubmit.disabled = false;
+                btnSubmit.textContent = '予約希望を送信する';
             }
         }
     </script>
