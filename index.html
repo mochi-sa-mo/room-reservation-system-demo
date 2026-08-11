@@ -54,11 +54,13 @@
             position: fixed; top: 0; right: -250px; width: 250px; height: 100vh;
             background-color: #fff; box-shadow: -2px 0 5px rgba(0,0,0,0.1);
             transition: right 0.3s ease; z-index: 1005; padding-top: 70px;
+            /* ▼ 追加: メニュー自体のスクロールを許可し、iPhoneでも滑らかに動くようにする */
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
         .side-menu.open { right: 0; }
         .side-menu ul { list-style: none; padding: 0; margin: 0; }
         .side-menu li { border-bottom: 1px solid #eee; }
-        /* ▼ 追加：メニューの見出し用スタイル */
         .side-menu li.menu-category { border-bottom: none; padding: 20px 20px 5px; font-size: 0.8em; color: #999; font-weight: bold; }
         .side-menu a { display: block; padding: 15px 20px; text-decoration: none; color: #333; font-weight: bold; transition: background-color 0.2s; }
         .side-menu a:hover { background-color: #f5f7fa; }
@@ -166,7 +168,6 @@
     <!-- ハンバーガー展開時のメニューと背景 -->
     <nav class="side-menu" id="side-menu">
         <ul>
-            <!-- ▼ 変更：見出しを追加し、関連する機能をグループ化 -->
             <li class="menu-category">部室予約</li>
             <li><a href="tsuika.html" style="color: #4caf50;">今週の追加予約</a></li>
             <li><a href="yoyaku.html" style="color: #4A90E2;">次週の予約</a></li>
@@ -353,6 +354,11 @@
             document.getElementById('hamburger-btn').onclick = toggleMenu;
             document.getElementById('menu-overlay').onclick = toggleMenu;
 
+            // ▼ 追加: オーバーレイでのスクロールを無効化し、背景がスクロールするのを防ぐ (iOS対策)
+            document.getElementById('menu-overlay').addEventListener('touchmove', (e) => {
+                e.preventDefault();
+            }, { passive: false });
+
             updateWeekButtons(); 
             loadData(); 
         };
@@ -361,6 +367,8 @@
             document.getElementById('hamburger-btn').classList.toggle('open');
             document.getElementById('side-menu').classList.toggle('open');
             document.getElementById('menu-overlay').classList.toggle('open');
+            // ▼ 追加: メニューが開いているときは body のスクロールをロック
+            document.body.classList.toggle('modal-open');
         }
 
         function confirmLogout() {
@@ -772,11 +780,13 @@
             btnExecute.disabled = false;
         }
 
+        // ▼ 追加: メニュー項目クリック時や「戻る」ボタン等でメニューを閉じる際にスクロールロックを解除
         window.addEventListener('pageshow', (event) => {
             if (event.persisted) {
                 document.getElementById('hamburger-btn').classList.remove('open');
                 document.getElementById('side-menu').classList.remove('open');
                 document.getElementById('menu-overlay').classList.remove('open');
+                document.body.classList.remove('modal-open');
             }
         });
 
@@ -785,6 +795,7 @@
                 document.getElementById('hamburger-btn').classList.remove('open');
                 document.getElementById('side-menu').classList.remove('open');
                 document.getElementById('menu-overlay').classList.remove('open');
+                document.body.classList.remove('modal-open');
             });
         });
     </script>
