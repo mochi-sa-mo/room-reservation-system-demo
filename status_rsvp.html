@@ -183,10 +183,17 @@
                         const entryId = d.id;
                         myEntriesData[entryId] = entry; 
                         
-                        const status = entry.status || 'pending';
+                        const liveInfo = liveMaster[entry.liveId];
+                        
+                        // ★変更：管理者が結果を「公開（isResultOpen: true）」にしていない場合は一律で「保留」として表示する
+                        let displayStatus = entry.status || 'pending';
+                        if (liveInfo && liveInfo.isResultOpen !== true) {
+                            displayStatus = 'pending';
+                        }
+
                         let badgeText = "審査中（保留）"; let cardClass = "pending";
-                        if (status === 'approved') { badgeText = "✓ 出演承認済み"; cardClass = "approved"; }
-                        if (status === 'rejected') { badgeText = "✕ 出演却下"; cardClass = "rejected"; }
+                        if (displayStatus === 'approved') { badgeText = "✓ 出演承認済み"; cardClass = "approved"; }
+                        if (displayStatus === 'rejected') { badgeText = "✕ 出演却下"; cardClass = "rejected"; }
 
                         const card = document.createElement('div');
                         card.className = `status-card ${cardClass}`;
@@ -213,19 +220,16 @@
                 rsvpContainer.innerHTML = '';
                 let rsvpDisplayed = 0;
 
-                // アクティブなライブをすべて走査
                 for (const [liveId, liveInfo] of Object.entries(liveMaster)) {
                     const ans = myAnswers[liveId];
                     const isTarget = liveInfo.targetUserIds && liveInfo.targetUserIds.includes(currentUserId);
                     
-                    // 表示条件：回答受付中であるか、過去に自分が回答したことがある場合
                     if (!liveInfo.isRsvpOpen && !ans) continue;
 
                     rsvpDisplayed++;
                     const currentStatus = ans ? ans.status : "";
                     const currentComment = ans ? (ans.comment || "") : "";
                     
-                    // バッジのデザイン決定
                     let badgeText = "", cardClass = "";
                     if (ans) {
                         badgeText = "回答済み"; cardClass = "answered";
@@ -244,7 +248,6 @@
                     `;
 
                     if (liveInfo.isRsvpOpen) {
-                        // フォーム表示
                         html += `
                             <form id="form-${liveId}">
                                 <div class="form-group" style="margin-top: 10px;">
@@ -265,7 +268,6 @@
                             </form>
                         `;
                     } else {
-                        // 締め切り後の結果表示
                         let statusStr = "❓ 未定（未回答）";
                         if (currentStatus === 'yes') statusStr = "⭕ 参加する";
                         if (currentStatus === 'no') statusStr = "❌ 参加しない";
@@ -282,7 +284,6 @@
                     card.innerHTML = html;
                     rsvpContainer.appendChild(card);
 
-                    // フォームイベントのバインド
                     const form = card.querySelector(`#form-${liveId}`);
                     if (form) {
                         const radios = card.querySelectorAll(`input[name="status-${liveId}"]`);
@@ -327,11 +328,20 @@
             }
         }
 
+        // ▼ 変更：モーダルに機材・備考情報を追加
         function showDetailsModal(entryId) {
             const data = myEntriesData[entryId];
             let html = `<p style="margin-bottom: 5px;"><strong>🎵 ライブ:</strong> ${data.liveName}</p>`;
             html += `<p style="margin-bottom: 15px;"><strong>🎸 バンド:</strong> ${data.bandName}</p>`;
-            html += `<p style="margin-bottom: 5px; background: #eee; padding: 5px; border-radius: 4px;"><strong>【演奏メンバー構成】</strong></p>`;
+            
+            html += `<p style="margin-bottom: 5px; background: #eee; padding: 5px; border-radius: 4px;"><strong>🎤 機材・セッティング</strong></p>`;
+            html += `<ul style="margin-top: 5px; padding-left: 20px; font-size: 0.9em;">`;
+            html += `<li><strong>マイク:</strong> ${data.micCount || 0} 本</li>`;
+            html += `<li><strong>キーボード:</strong> ${data.keyboardType || '使用しない'}</li>`;
+            html += `<li><strong>備考:</strong><br>${data.entryNotes ? data.entryNotes.replace(/\n/g, '<br>') : 'なし'}</li>`;
+            html += `</ul>`;
+
+            html += `<p style="margin-bottom: 5px; background: #eee; padding: 5px; border-radius: 4px; margin-top: 15px;"><strong>【演奏メンバー構成】</strong></p>`;
             html += `<ul style="margin-top: 5px; padding-left: 20px;">`;
             data.performers.forEach(p => {
                 let role = p.type === "正規" ? "" : ` <span style="font-size: 0.8em; color: #ff9800; font-weight: bold;">(${p.type})</span>`;
