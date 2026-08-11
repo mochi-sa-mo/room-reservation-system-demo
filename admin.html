@@ -348,6 +348,8 @@
         .btn-danger { background-color: #d0021b; }
         .btn-danger:hover { background-color: #a00215; }
         .btn-action { padding: 4px 8px; font-size: 0.85em; margin-right: 2px;}
+        .btn-warning { background-color: #f5a623; color: white;} /* 追加：隠すボタン用 */
+        .btn-success { background-color: #4caf50; color: white;} /* 追加：表示ボタン用 */
         
         .btn-block-toggle {
             background: #666;
@@ -502,7 +504,6 @@
     <header>
         <h1>部室予約システム 管理者パネル</h1>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <!-- ▼ 追加: ライブエントリー管理画面への遷移ボタン -->
             <a href="admin_live_manager.html" class="btn" style="background: #e91e63; text-decoration: none; font-size: 0.9em;">ライブ審査・管理へ</a>
             <a href="admin_rsvp_manager.html" class="btn" style="background: #e91e63; text-decoration: none; font-size: 0.9em;">打ち上げ参加状況の確認・編集</a>
             <button class="btn btn-danger" id="btn-logout">ログアウト</button>
@@ -600,7 +601,8 @@
 
     <script type="module">
         import { db } from "./firebase.js";
-        import { collection, onSnapshot, addDoc, doc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        // ▼ 変更点： deleteDoc をインポートに追加
+        import { collection, onSnapshot, addDoc, doc, updateDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
         const days = ['日', '月', '火', '水', '木', '金', '土'];
         const periods = ['1限', '2限', '昼休み', '3限', '4限', '5限', '放課後1', '放課後2'];
@@ -762,45 +764,79 @@
             }
         }
 
+        // ▼ 変更点： deleted も含めて全件表示し、手動で隠す/表示を切り替えるボタンを追加
         function renderAnnouncements() {
             const tbody = document.getElementById('announcement-tbody'); 
             tbody.innerHTML = '';
-            const activeData = dbAnnouncements.filter(a => a.deleted !== true);
-            const sortedData = activeData.sort((a, b) => a.expire < b.expire ? -1 : a.expire > b.expire ? 1 : 0);
+            // 削除済みのものも含めて表示（ソートだけする）
+            const sortedData = dbAnnouncements.sort((a, b) => a.expire < b.expire ? -1 : a.expire > b.expire ? 1 : 0);
             
             sortedData.forEach(item => {
                 const tr = document.createElement('tr');
+                
+                // 非表示状態のものは背景を少し暗くする
+                if (item.deleted) {
+                    tr.style.backgroundColor = '#f5f5f5';
+                }
+
                 const typeTd = document.createElement('td'); 
-                typeTd.textContent = item.type === 'event' ? 'イベント' : '締め切り';
+                // 非表示の場合は(非表示)ラベルを付ける
+                typeTd.innerHTML = (item.type === 'event' ? 'イベント' : '締め切り') + 
+                                   (item.deleted ? '<br><span style="color:#d0021b; font-size:0.8em; font-weight:bold;">(非表示)</span>' : '');
+                
                 const titleTd = document.createElement('td'); titleTd.textContent = item.title;
                 const expireTd = document.createElement('td'); expireTd.textContent = item.expire.replace('T', ' ');
                 
                 const opTd = document.createElement('td');
-                const editBtn = document.createElement('button'); editBtn.className = 'btn btn-action'; editBtn.textContent = '編'; editBtn.onclick = () => openEditModal(item);
-                const delBtn = document.createElement('button'); delBtn.className = 'btn btn-danger btn-action'; delBtn.textContent = '削'; delBtn.onclick = () => deleteAnnouncement(item.id);
+                
+                // ▼ 追加：表示・非表示のトグルボタン
+                const toggleBtn = document.createElement('button');
+                toggleBtn.className = 'btn btn-action ' + (item.deleted ? 'btn-success' : 'btn-warning');
+                toggleBtn.textContent = item.deleted ? '表示' : '隠す';
+                toggleBtn.onclick = async () => {
+                    try {
+                        await updateDoc(doc(db, "announcements", item.id), { deleted: !item.deleted });
+                    } catch (error) {
+                        alert("状態の変更に失敗しました。");
+                    }
+                };
 
-                opTd.appendChild(editBtn); opTd.appendChild(delBtn);
+                const editBtn = document.createElement('button'); 
+                editBtn.className = 'btn btn-action btn-info'; 
+                editBtn.textContent = '編'; 
+                editBtn.onclick = () => openEditModal(item);
+                
+                const delBtn = document.createElement('button'); 
+                delBtn.className = 'btn btn-danger btn-action'; 
+                delBtn.textContent = '削'; 
+                delBtn.onclick = () => deleteAnnouncement(item.id);
+
+                opTd.appendChild(toggleBtn);
+                opTd.appendChild(editBtn); 
+                opTd.appendChild(delBtn);
+                
                 tr.appendChild(typeTd); tr.appendChild(titleTd); tr.appendChild(expireTd); tr.appendChild(opTd);
                 tbody.appendChild(tr);
             });
         }
 
+        // ▼ 変更点：削除ボタンを「物理削除」に変更
         async function deleteAnnouncement(id) {
-            if (confirm('この案内を削除しますか？')) {
+            if (confirm('この案内を完全に削除しますか？\n※一時的に隠したい場合は「隠す」ボタンを使用してください。')) {
                 const target = dbAnnouncements.find(a => a.id === id);
                 const title = target ? target.title : "不明な案内";
                 const annType = target ? target.type : "unknown";
                 try {
-                    await updateDoc(doc(db, "announcements", id), { deleted: true });
+                    await deleteDoc(doc(db, "announcements", id)); // 物理削除
                     await addDoc(collection(db, "logs"), {
                         timestamp: new Date().toISOString(),
                         category: "announcement",
                         annType: annType,
                         opType: "delete",
                         title: title,
-                        detail: `管理者が${annType === 'event' ? 'イベント' : '締め切り'}「${title}」を削除しました`
+                        detail: `管理者が${annType === 'event' ? 'イベント' : '締め切り'}「${title}」を完全に削除しました`
                     });
-                } catch (error) { console.error("ログ送信エラー:", error); }
+                } catch (error) { console.error("削除エラー:", error); }
             }
         }
 
@@ -1082,7 +1118,6 @@
             });
         }
 
-        // ★修正：iOS判定を加えてダウンロード方式を分ける
         function downloadTimetableImage() { 
             const captureArea = document.getElementById('capture-area'); 
             const captureTitle = document.getElementById('capture-title'); 
@@ -1097,21 +1132,17 @@
             
             html2canvas(captureArea, { scale: 2, backgroundColor: '#ffffff' }).then(canvas => { 
                 
-                // 画像生成が終わったので元の見た目に戻す
                 captureArea.classList.remove('capture-mode'); 
                 captureTitle.style.display = 'none'; 
 
                 const dataUrl = canvas.toDataURL('image/png');
                 
-                // iPhone/iPad (iOS) の判定
                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
                 if (isIOS) {
-                    // iOSの場合は直接ダウンロードが弾かれるため、画面に表示して長押し保存してもらう
                     document.getElementById('generated-image').src = dataUrl;
                     document.getElementById('image-modal').style.display = 'flex';
                 } else {
-                    // PCやAndroidの場合はそのままダウンロード
                     const link = document.createElement('a'); 
                     const offsetName = currentWeekOffset === 0 ? '今週分' : '次週分';
                     link.download = `部室確定時間割_${offsetName}.png`; 
