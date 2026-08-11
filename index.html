@@ -51,17 +51,34 @@
         .hamburger.open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
 
         .side-menu {
-            position: fixed; top: 0; right: -250px; width: 250px; height: 100vh;
+            position: fixed; top: 0; right: -250px; width: 250px; height: 100%; /* 100vhから変更 */
             background-color: #fff; box-shadow: -2px 0 5px rgba(0,0,0,0.1);
-            transition: right 0.3s ease; z-index: 1005; padding-top: 70px;
-            /* ▼ 追加: メニュー自体のスクロールを許可し、iPhoneでも滑らかに動くようにする */
+            transition: right 0.3s ease; z-index: 1005; 
+            padding-top: 60px; padding-bottom: 30px;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
+            box-sizing: border-box; /* ▼ 追加：はみ出し防止 */
         }
         .side-menu.open { right: 0; }
         .side-menu ul { list-style: none; padding: 0; margin: 0; }
         .side-menu li { border-bottom: 1px solid #eee; }
-        .side-menu li.menu-category { border-bottom: none; padding: 20px 20px 5px; font-size: 0.8em; color: #999; font-weight: bold; }
+        
+        /* ▼ 変更：見出しの配色とデザインを調整 */
+        .side-menu li.menu-category { 
+            background-color: #f0f4f8; 
+            color: #555; 
+            font-size: 0.85em; 
+            padding: 8px 20px; 
+            font-weight: bold; 
+            border-bottom: 1px solid #e1e4e8;
+            border-top: 1px solid #e1e4e8;
+            margin-top: 10px;
+        }
+        .side-menu li.menu-category:first-child {
+            margin-top: 0;
+            border-top: none;
+        }
+        
         .side-menu a { display: block; padding: 15px 20px; text-decoration: none; color: #333; font-weight: bold; transition: background-color 0.2s; }
         .side-menu a:hover { background-color: #f5f7fa; }
 
@@ -176,10 +193,10 @@
             <li><a href="band_register.html" style="color: #ff9800;">新規バンド登録</a></li>
             <li><a href="my_bands.html" style="color: #8e44ad;">所属バンドの確認・管理</a></li>
             
-            <li class="menu-category">ライブ関連</li>
+            <li class="menu-category">ライブ・掲示板</li>
             <li><a href="live_entry.html" style="color: #e91e63;">🎸 ライブ出演エントリー</a></li>
             <li><a href="status_rsvp.html" style="color: #e65100;">🍻 審査結果・打ち上げ回答</a></li>
-            <li><a href="board.html" style="color: #e65100;">みんなの掲示板</a></li>
+            <li><a href="board.html" style="color: #00bcd4;">📢 メンバー募集・掲示板</a></li>
             
             <li class="menu-category">アカウント</li>
             <li><a href="settings.html" style="color: #666;">パスワード変更</a></li>
@@ -355,7 +372,7 @@
             document.getElementById('hamburger-btn').onclick = toggleMenu;
             document.getElementById('menu-overlay').onclick = toggleMenu;
 
-            // ▼ 追加: オーバーレイでのスクロールを無効化し、背景がスクロールするのを防ぐ (iOS対策)
+            // スクロール貫通防止 (iOS対策)
             document.getElementById('menu-overlay').addEventListener('touchmove', (e) => {
                 e.preventDefault();
             }, { passive: false });
@@ -368,7 +385,6 @@
             document.getElementById('hamburger-btn').classList.toggle('open');
             document.getElementById('side-menu').classList.toggle('open');
             document.getElementById('menu-overlay').classList.toggle('open');
-            // ▼ 追加: メニューが開いているときは body のスクロールをロック
             document.body.classList.toggle('modal-open');
         }
 
@@ -379,7 +395,7 @@
                 'logout',
                 null,
                 'ログアウト',
-                'btn-danger'
+                '#d0021b'
             );
         }
 
@@ -691,7 +707,7 @@
                 'cancel_reservation',
                 docId,
                 '送信する',
-                'btn-warning'
+                '#ff9800'
             );
         }
 
@@ -702,13 +718,15 @@
             }
         }
 
-        function showConfirmModal(title, message, action, data, confirmBtnText, confirmBtnClass) {
+        function showConfirmModal(title, message, action, data, btnText, color) {
             document.getElementById('confirm-modal-title').textContent = title;
             document.getElementById('confirm-modal-message').innerHTML = message;
             
             const btnExecute = document.getElementById('btn-confirm-execute');
-            btnExecute.textContent = confirmBtnText;
-            btnExecute.className = `btn ${confirmBtnClass}`; 
+            btnExecute.textContent = btnText;
+            btnExecute.style.backgroundColor = color;
+            document.getElementById('modal-border-color').style.borderTopColor = color;
+            document.getElementById('confirm-modal-title').style.borderBottomColor = color;
 
             pendingConfirmAction = action;
             pendingConfirmData = data;
@@ -733,10 +751,10 @@
             
             if (isError) {
                 modalContent.style.borderTop = '5px solid #d0021b';
-                okBtn.className = 'btn btn-danger';
+                okBtn.style.backgroundColor = '#d0021b';
             } else {
                 modalContent.style.borderTop = '5px solid #4caf50';
-                okBtn.className = 'btn btn-success';
+                okBtn.style.backgroundColor = '#4caf50';
             }
             
             document.getElementById('alert-modal').style.display = 'flex';
@@ -778,10 +796,11 @@
                 }
             }
 
-            btnExecute.disabled = false;
+            if (btnExecute) {
+                btnExecute.disabled = false;
+            }
         }
 
-        // ▼ 追加: メニュー項目クリック時や「戻る」ボタン等でメニューを閉じる際にスクロールロックを解除
         window.addEventListener('pageshow', (event) => {
             if (event.persisted) {
                 document.getElementById('hamburger-btn').classList.remove('open');
