@@ -39,335 +39,96 @@
             border-bottom: 2px solid var(--border-color);
         }
 
-        /* --- ハンバーガーメニュー用追加CSS --- */
-        .header-actions {
-            display: flex;
-            align-items: center;
-        }
-
+        /* --- ハンバーガーメニュー --- */
+        .header-actions { display: flex; align-items: center; }
         .hamburger {
-            width: 25px;
-            height: 18px;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            z-index: 1010; 
-            position: relative;
+            width: 25px; height: 18px; cursor: pointer; display: flex; flex-direction: column;
+            justify-content: space-between; z-index: 1010; position: relative;
         }
-        .hamburger span {
-            display: block;
-            height: 3px;
-            width: 100%;
-            background-color: #333;
-            border-radius: 3px;
-            transition: all 0.3s ease;
-        }
-        .hamburger.open span:nth-child(1) {
-            transform: translateY(7.5px) rotate(45deg);
-        }
-        .hamburger.open span:nth-child(2) {
-            opacity: 0;
-        }
-        .hamburger.open span:nth-child(3) {
-            transform: translateY(-7.5px) rotate(-45deg);
-        }
+        .hamburger span { display: block; height: 3px; width: 100%; background-color: #333; border-radius: 3px; transition: all 0.3s ease; }
+        .hamburger.open span:nth-child(1) { transform: translateY(7.5px) rotate(45deg); }
+        .hamburger.open span:nth-child(2) { opacity: 0; }
+        .hamburger.open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
 
-        /* スライドしてくるサイドメニュー */
         .side-menu {
-            position: fixed;
-            top: 0;
-            right: -250px; 
-            width: 250px;
-            height: 100vh;
-            background-color: #fff;
-            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
-            transition: right 0.3s ease;
-            z-index: 1005;
-            padding-top: 70px;
+            position: fixed; top: 0; right: -250px; width: 250px; height: 100vh;
+            background-color: #fff; box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+            transition: right 0.3s ease; z-index: 1005; padding-top: 70px;
         }
-        .side-menu.open {
-            right: 0;
-        }
-        .side-menu ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        .side-menu li {
-            border-bottom: 1px solid #eee;
-        }
-        .side-menu a {
-            display: block;
-            padding: 15px 20px;
-            text-decoration: none;
-            color: #333;
-            font-weight: bold;
-            transition: background-color 0.2s;
-        }
-        .side-menu a:hover {
-            background-color: #f5f7fa;
-        }
+        .side-menu.open { right: 0; }
+        .side-menu ul { list-style: none; padding: 0; margin: 0; }
+        .side-menu li { border-bottom: 1px solid #eee; }
+        .side-menu a { display: block; padding: 15px 20px; text-decoration: none; color: #333; font-weight: bold; transition: background-color 0.2s; }
+        .side-menu a:hover { background-color: #f5f7fa; }
 
-        /* メニュー開いた時の背景の暗転 */
-        .menu-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
+        .menu-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .menu-overlay.open { display: block; }
+        /* --------------------------------- */
+
+        /* ▼ 未回答アラート用 ▼ */
+        .rsvp-alert {
+            background: #fff5f5; border: 2px solid #d0021b; border-left: 8px solid #d0021b; border-radius: 8px;
+            padding: 15px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 6px rgba(208, 2, 27, 0.15); animation: pulseAlert 2s infinite;
         }
-        .menu-overlay.open {
-            display: block;
+        @keyframes pulseAlert {
+            0% { box-shadow: 0 0 0 0 rgba(208, 2, 27, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(208, 2, 27, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(208, 2, 27, 0); }
+        }
+        .rsvp-alert-text { color: #d0021b; font-weight: bold; font-size: 1.05em; line-height: 1.4; }
+        .btn-rsvp-link {
+            background: #d0021b; color: white; padding: 10px 15px; text-decoration: none;
+            border-radius: 4px; font-weight: bold; white-space: nowrap; margin-left: 15px; transition: 0.2s;
+        }
+        .btn-rsvp-link:hover { background: #a00215; }
+        @media (max-width: 768px) {
+            .rsvp-alert { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .btn-rsvp-link { width: 100%; text-align: center; margin-left: 0; box-sizing: border-box; }
         }
         /* --------------------------------- */
         
-        .announcements {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        .announcement-box {
-            flex: 1;
-            background: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .announcement-box h3 {
-            margin-top: 0;
-            color: #d0021b;
-            font-size: 1.1em;
-            margin-bottom: 15px;
-        }
+        .announcements { display: flex; gap: 20px; margin-bottom: 20px; }
+        .announcement-box { flex: 1; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .announcement-box h3 { margin-top: 0; color: #d0021b; font-size: 1.1em; margin-bottom: 15px; }
         
-        #event-list, #deadline-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 12px; 
-        }
+        #event-list, #deadline-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+        .clickable-announcement { cursor: pointer; padding: 16px; background-color: #fff; border: 1px solid #e0e0e0; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: all 0.2s ease; display: flex; flex-direction: column; gap: 8px; }
+        .clickable-announcement:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.1); transform: translateY(-2px); border-color: var(--primary-color); }
+        .badge-container { display: flex; gap: 8px; flex-wrap: wrap; }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75em; font-weight: bold; }
+        .badge-new { background: #ffe8e8; color: #ff6b5e; }
+        .badge-deadline { background: #fff4e5; color: #ff9800; }
+        .card-title { font-weight: 500; font-size: 1em; color: #333; margin: 0; line-height: 1.4; }
 
-        .clickable-announcement {
-            cursor: pointer;
-            padding: 16px;
-            background-color: #fff;
-            border: 1px solid #e0e0e0;
-            border-radius: 12px; 
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05); 
-            transition: all 0.2s ease;
-            display: flex;
-            flex-direction: column;
-            gap: 8px; 
-        }
+        .week-controller { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; min-height: 40px; }
+        .week-label { font-size: 1.2em; font-weight: bold; min-width: 100px; text-align: center; }
 
-        .clickable-announcement:hover {
-            box-shadow: 0 6px 16px rgba(0,0,0,0.1); 
-            transform: translateY(-2px);
-            border-color: var(--primary-color);
-        }
-
-        .badge-container {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 999px; 
-            font-size: 0.75em;
-            font-weight: bold;
-        }
-
-        .badge-new {
-            background: #ffe8e8;
-            color: #ff6b5e;
-        }
-
-        .badge-deadline {
-            background: #fff4e5;
-            color: #ff9800;
-        }
-
-        .card-title {
-            font-weight: 500;
-            font-size: 1em;
-            color: #333;
-            margin: 0;
-            line-height: 1.4;
-        }
-
-        .week-controller {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 15px;
-            min-height: 40px;
-        }
-        .week-label {
-            font-size: 1.2em;
-            font-weight: bold;
-            min-width: 100px;
-            text-align: center;
-        }
-
-        .schedule-container {
-            background: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow-x: auto;
-            overflow-y: hidden;
-        }
+        .schedule-container { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow-x: auto; overflow-y: hidden; }
+        .grid { display: grid; grid-template-columns: 60px repeat(7, minmax(0, 1fr)); gap: 1px; background-color: var(--border-color); border: 1px solid var(--border-color); width: 100%; }
+        .cell { background-color: #fff; padding: 6px; min-height: 55px; display: flex; flex-direction: column; gap: 3px; }
+        .today-col { background-color: #fffde7 !important; }
+        .header-cell, .period-cell { background-color: #eee; font-weight: bold; text-align: center; padding: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.85em; }
         
-        .grid {
-            display: grid;
-            grid-template-columns: 60px repeat(7, minmax(0, 1fr));
-            gap: 1px;
-            background-color: var(--border-color);
-            border: 1px solid var(--border-color);
-            width: 100%;
-        }
-        .cell {
-            background-color: #fff;
-            padding: 6px;
-            min-height: 55px;
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-        }
-        
-        .today-col {
-            background-color: #fffde7 !important;
-        }
-
-        .header-cell, .period-cell {
-            background-color: #eee;
-            font-weight: bold;
-            text-align: center;
-            padding: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.85em;
-        }
-        
-        .band-tag {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 3px 6px;
-            border-radius: 3px;
-            font-size: 0.8em;
-            text-align: center;
-            cursor: pointer;
-            transition: opacity 0.2s;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-weight: bold;
-        }
-        .band-tag:hover {
-            opacity: 0.8;
-        }
-        .band-tag.cancel-requested {
-            background-color: var(--cancel-req-color);
-            background-image: linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent);
-            background-size: 10px 10px;
-        }
-        .band-tag.pending {
-            background-color: #f5a623;
-        }
-        .band-tag.additional {
-            background-color: #4caf50;
-        }
-        .band-tag.rejected {
-            background-color: #9e9e9e;
-            text-decoration: line-through;
-            opacity: 0.7;
-        }
+        .band-tag { background-color: var(--primary-color); color: white; padding: 3px 6px; border-radius: 3px; font-size: 0.8em; text-align: center; cursor: pointer; transition: opacity 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
+        .band-tag:hover { opacity: 0.8; }
+        .band-tag.cancel-requested { background-color: var(--cancel-req-color); background-image: linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent); background-size: 10px 10px; }
+        .band-tag.pending { background-color: #f5a623; }
+        .band-tag.additional { background-color: #4caf50; }
+        .band-tag.rejected { background-color: #9e9e9e; text-decoration: line-through; opacity: 0.7; }
 
         /* モーダル全般の基本スタイル */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .modal-content {
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            width: 350px;
-            max-width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            box-sizing: border-box;
-            animation: fadeIn 0.2s ease-out;
-        }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #fff; padding: 20px; border-radius: 8px; width: 350px; max-width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.2); box-sizing: border-box; animation: fadeIn 0.2s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .modal-content h3 {
-            margin-top: 0;
-            border-bottom: 2px solid var(--primary-color);
-            padding-bottom: 5px;
-            text-align: center;
-            position: sticky;
-            top: 0;
-            background: #fff;
-            z-index: 1;
-        }
-        .detail-item {
-            margin-bottom: 12px;
-            font-size: 0.9em;
-        }
-        .detail-label {
-            font-weight: bold;
-            color: #555;
-            margin-bottom: 2px;
-        }
-        .detail-value {
-            background: #f9f9f9;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
-            padding: 8px;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-        .modal-footer {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            justify-content: center;
-            margin-top: 15px;
-            position: sticky;
-            bottom: 0;
-            background: #fff;
-            padding-top: 5px;
-        }
+        .modal-content h3 { margin-top: 0; border-bottom: 2px solid var(--primary-color); padding-bottom: 5px; text-align: center; position: sticky; top: 0; background: #fff; z-index: 1; }
+        .detail-item { margin-bottom: 12px; font-size: 0.9em; }
+        .detail-label { font-weight: bold; color: #555; margin-bottom: 2px; }
+        .detail-value { background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; white-space: pre-wrap; word-break: break-all; }
+        .modal-footer { display: flex; flex-direction: column; gap: 8px; justify-content: center; margin-top: 15px; position: sticky; bottom: 0; background: #fff; padding-top: 5px; }
 
-        .btn {
-            padding: 10px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            background-color: var(--primary-color);
-            color: white;
-            font-weight: bold;
-            transition: background-color 0.2s;
-            text-align: center;
-        }
+        .btn { padding: 10px 16px; border: none; border-radius: 4px; cursor: pointer; background-color: var(--primary-color); color: white; font-weight: bold; transition: background-color 0.2s; text-align: center; }
         .btn:hover { background-color: var(--primary-hover); }
         .btn:disabled { background-color: #ccc; cursor: not-allowed; }
         .btn-nav { background-color: #e0e0e0; color: #333; }
@@ -379,20 +140,12 @@
         .btn-success { background-color: #4caf50; color: white; }
         .btn-success:hover { background-color: #388e3c; }
 
-        /* カスタム確認用モーダルのスタイル */
-        .confirm-actions {
-            display: flex; gap: 10px; margin-top: 20px;
-        }
+        .confirm-actions { display: flex; gap: 10px; margin-top: 20px; }
         .confirm-actions .btn { flex: 1; }
         
         @media (max-width: 768px) {
-            .announcements {
-                flex-direction: column;
-                gap: 15px;
-            }
-            .grid {
-                min-width: 700px;
-            }
+            .announcements { flex-direction: column; gap: 15px; }
+            .grid { min-width: 700px; }
         }
     </style>
 </head>
@@ -403,9 +156,7 @@
         <div class="header-actions">
             <!-- ハンバーガーアイコン -->
             <div class="hamburger" id="hamburger-btn">
-                <span></span>
-                <span></span>
-                <span></span>
+                <span></span><span></span><span></span>
             </div>
         </div>
     </header>
@@ -417,14 +168,16 @@
             <li><a href="yoyaku.html" style="color: #4A90E2;">次週の予約</a></li>
             <li><a href="settings.html" style="color: #666;">パスワード変更</a></li>
             <li><a href="band_register.html" style="color: #ff9800;">新規バンド登録</a></li>
-            <li><a href="live_entry.html" style="color: #e91e63;">ライブ出演エントリー</a></li>
             <li><a href="my_bands.html" style="color: #8e44ad;">所属バンドの確認・管理</a></li>
-            <li><a href="status_rsvp.html" style="color: #8e44ad;">エントリー状況の確認</a></li>
-            <li><a href="javascript:void(0)">作成中...</a></li>
+            <li><a href="live_entry.html" style="color: #e91e63;">🎸 ライブ出演エントリー</a></li>
+            <li><a href="status_rsvp.html" style="color: #e65100;">🍻 審査結果・打ち上げ回答</a></li>
             <li><a href="javascript:void(0)" id="btn-logout" style="color: #d0021b;">ログアウト</a></li>
         </ul>
     </nav>
     <div class="menu-overlay" id="menu-overlay"></div>
+
+    <!-- ▼ 未回答アラートの表示コンテナ -->
+    <div id="rsvp-alert-container" style="display: none;"></div>
 
     <div class="announcements">
         <div class="announcement-box">
@@ -459,7 +212,7 @@
         </div>
     </div>
 
-    <!-- ▼ 汎用：確認用モーダル (新規追加) -->
+    <!-- 汎用：確認用モーダル -->
     <div class="modal" id="confirm-modal" style="z-index: 1050;">
         <div class="modal-content" style="width: 320px; text-align: center; border-top: 5px solid var(--primary-color);">
             <h3 id="confirm-modal-title" style="margin-top: 0; border: none; padding-bottom: 0;">確認</h3>
@@ -471,7 +224,7 @@
         </div>
     </div>
 
-    <!-- ▼ 汎用：アラート(完了/エラー)表示用モーダル (新規追加) -->
+    <!-- 汎用：アラート(完了/エラー)表示用モーダル -->
     <div class="modal" id="alert-modal" style="z-index: 1100;">
         <div class="modal-content" id="alert-modal-content" style="width: 300px; text-align: center; border-top: 5px solid #4caf50;">
             <p id="alert-modal-message" style="color: #333; line-height: 1.5; font-weight: bold; margin: 15px 0; font-size: 1em;"></p>
@@ -482,8 +235,9 @@
     <script type="module">
         const role = localStorage.getItem('userRole');
         
-        import { db } from "./firebase.js";
-        import { collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        import { db, auth } from "./firebase.js";
+        import { collection, getDocs, doc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
         const days = ['日', '月', '火', '水', '木', '金', '土'];
         const periods = ['1限', '2限', '昼休み', '3限', '4限', '5限', '放課後1', '放課後2'];
@@ -491,8 +245,8 @@
         let currentWeekOffset = 0; 
         let dbReservations = [];
         let dbAnnouncements = [];
+        let currentUserId = ""; 
 
-        // ▼ カスタム確認モーダル用の状態変数
         let pendingConfirmAction = null;
         let pendingConfirmData = null;
 
@@ -512,12 +266,63 @@
             return dates;
         }
 
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUserId = user.email.split('@')[0];
+                checkUnansweredRsvps();
+            }
+        });
+
+        async function checkUnansweredRsvps() {
+            try {
+                // 1. 自分が回答必須対象(U_target)に含まれているライブを検索
+                const livesQ = query(collection(db, "lives"), where("targetUserIds", "array-contains", currentUserId));
+                const livesSnap = await getDocs(livesQ);
+                
+                const activeRsvpLives = [];
+                livesSnap.forEach(d => {
+                    const data = d.data();
+                    // isRsvpOpen または phase が rsvp の場合のみ
+                    if (data.isRsvpOpen === true || data.phase === 'rsvp') {
+                        activeRsvpLives.push({ id: d.id, name: data.name });
+                    }
+                });
+
+                if (activeRsvpLives.length === 0) return;
+
+                // 2. 自分が過去に回答したデータ(R_answered)を取得
+                const rsvpsQ = query(collection(db, "rsvps"), where("userId", "==", currentUserId));
+                const rsvpsSnap = await getDocs(rsvpsQ);
+                const answeredLiveIds = [];
+                rsvpsSnap.forEach(d => { answeredLiveIds.push(d.data().liveId); });
+
+                // 3. 差集合 (未回答のライブ) を抽出
+                const unansweredLives = activeRsvpLives.filter(live => !answeredLiveIds.includes(live.id));
+
+                if (unansweredLives.length > 0) {
+                    const container = document.getElementById('rsvp-alert-container');
+                    container.innerHTML = '';
+                    unansweredLives.forEach(live => {
+                        const alertDiv = document.createElement('div');
+                        alertDiv.className = 'rsvp-alert';
+                        alertDiv.innerHTML = `
+                            <div class="rsvp-alert-text">⚠️ 【至急】「${live.name}」の打ち上げ参加回答が未提出です！</div>
+                            <a href="status_rsvp.html" class="btn-rsvp-link">今すぐ回答する</a>
+                        `;
+                        container.appendChild(alertDiv);
+                    });
+                    container.style.display = 'block';
+                }
+            } catch (error) {
+                console.error("未回答アラートチェックエラー:", error);
+            }
+        }
+
         window.onload = function() {
             document.getElementById('btn-logout').onclick = confirmLogout;
             document.getElementById('btn-prev').onclick = () => changeWeek(-1);
             document.getElementById('btn-next').onclick = () => changeWeek(1);
             
-            // モーダル閉じる系のイベント
             document.getElementById('btn-close-modal').onclick = closeModal;
             document.getElementById('btn-confirm-cancel').onclick = closeConfirmModal;
             document.getElementById('btn-confirm-execute').onclick = executeConfirmAction;
@@ -536,7 +341,6 @@
             document.getElementById('menu-overlay').classList.toggle('open');
         }
 
-        // ▼ 変更点: カスタムモーダルを呼び出すように変更
         function confirmLogout() {
             showConfirmModal(
                 'ログアウト',
@@ -653,12 +457,18 @@
                     }
                     li.appendChild(titleDiv);
                     
-                    if (item.type === 'event') {
+                    if (item.link) {
+                        li.onclick = () => window.location.href = item.link;
+                    } else if (item.type === 'event') {
                         li.onclick = () => openDetailModal("📢 イベント詳細", item, 'event');
+                    } else if (item.type === 'deadline') {
+                        li.onclick = () => openDetailModal("⚠️ 締め切り詳細", item, 'deadline');
+                    }
+
+                    if (item.type === 'event') {
                         eventList.appendChild(li);
                         eventCount++;
                     } else if (item.type === 'deadline') {
-                        li.onclick = () => openDetailModal("⚠️ 締め切り詳細", item, 'deadline');
                         deadlineList.appendChild(li);
                         deadlineCount++;
                     }
@@ -762,7 +572,6 @@
                     { label: '日時', value: data.date },
                     { label: '場所', value: data.location },
                     { label: 'タイムスケジュール', value: data.schedule },
-                    { label: 'リンク', value: data.link, isLink: true },
                     { label: '備考', value: data.notes }
                 ];
             } else if (type === 'deadline') {
@@ -770,7 +579,6 @@
                     { label: '件名', value: data.title },
                     { label: '日時', value: data.date },
                     { label: '提出先', value: data.submissionTo },
-                    { label: 'リンク', value: data.link, isLink: true },
                     { label: '備考', value: data.notes }
                 ];
             } else if (type === 'reservation') {
@@ -791,7 +599,6 @@
                     cancelBtn.className = 'btn btn-warning';
                     cancelBtn.style.marginBottom = '10px';
                     cancelBtn.textContent = 'この予約のキャンセル申請を行う';
-                    // ▼ 変更点: カスタムモーダルを呼び出すように変更
                     cancelBtn.onclick = () => requestCancel(data.id);
                     actionArea.appendChild(cancelBtn);
                 } else if (data.cancelRequested) {
@@ -832,7 +639,6 @@
             document.body.classList.add('modal-open');
         }
 
-        // ▼ 変更点: `confirm()` ではなくカスタムモーダルを呼び出す
         function requestCancel(docId) {
             showConfirmModal(
                 'キャンセル申請の確認',
@@ -846,22 +652,18 @@
 
         function closeModal() {
             document.getElementById('detail-modal').style.display = 'none';
-            // 確認やアラート用モーダルが開いていなければ modal-open を外す
             if(document.getElementById('confirm-modal').style.display !== 'flex' && document.getElementById('alert-modal').style.display !== 'flex') {
                 document.body.classList.remove('modal-open');
             }
         }
 
-        // -----------------------------------------------------
-        // ▼ カスタム確認モーダル ＆ アラート用 関数の追加 ▼
-        // -----------------------------------------------------
         function showConfirmModal(title, message, action, data, confirmBtnText, confirmBtnClass) {
             document.getElementById('confirm-modal-title').textContent = title;
             document.getElementById('confirm-modal-message').innerHTML = message;
             
             const btnExecute = document.getElementById('btn-confirm-execute');
             btnExecute.textContent = confirmBtnText;
-            btnExecute.className = `btn ${confirmBtnClass}`; // ボタンの色を動的に変更
+            btnExecute.className = `btn ${confirmBtnClass}`; 
 
             pendingConfirmAction = action;
             pendingConfirmData = data;
@@ -903,7 +705,6 @@
             }
         }
 
-        // 確認モーダルの「確定する」ボタンが押された時の処理
         async function executeConfirmAction() {
             const action = pendingConfirmAction;
             const data = pendingConfirmData;
@@ -921,11 +722,9 @@
                     await updateDoc(docRef, { cancelRequested: true });
                     
                     closeConfirmModal();
-                    closeModal(); // 予約詳細のモーダルも一緒に閉じる
+                    closeModal(); 
                     
-                    // データを再読み込みしてカレンダーの表示を更新（取消申請中マークをつけるため）
                     await loadData(); 
-                    
                     customAlert('キャンセル希望を調整者に送信しました。');
                 } catch (error) {
                     console.error("キャンセル申請エラー:", error);
@@ -936,8 +735,6 @@
 
             btnExecute.disabled = false;
         }
-
-        // -----------------------------------------------------
 
         window.addEventListener('pageshow', (event) => {
             if (event.persisted) {
