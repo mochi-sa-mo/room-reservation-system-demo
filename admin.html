@@ -4,17 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理者パネル - 部室予約システム</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script>
+        if (!localStorage.getItem('userRole')) {
+            window.location.replace('login.html');
+        }
+    </script>
+
     <style>
         :root {
             --primary-color: #4A90E2;
             --primary-hover: #357abd;
             --bg-color: #f5f7fa;
             --border-color: #ccc;
-            --disabled-color: #ffebee;
-            --disabled-text: #c62828;
-            --confirm-color: #4A90E2;
-            --unconfirm-color: #f5a623;
+            --cancel-req-color: #9e9e9e;
         }
         
         body.modal-open {
@@ -48,16 +51,28 @@
         .hamburger.open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
 
         .side-menu {
-            position: fixed; top: 0; right: -250px; width: 250px; height: 100vh;
+            position: fixed; top: 0; right: -250px; width: 250px; height: 100%;
             background-color: #fff; box-shadow: -2px 0 5px rgba(0,0,0,0.1);
-            transition: right 0.3s ease; z-index: 1005; padding-top: 70px;
+            transition: right 0.3s ease; z-index: 1005; 
+            padding-top: 60px; padding-bottom: 30px;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
+            box-sizing: border-box;
         }
         .side-menu.open { right: 0; }
         .side-menu ul { list-style: none; padding: 0; margin: 0; }
         .side-menu li { border-bottom: 1px solid #eee; }
-        .side-menu li.menu-category { border-bottom: none; padding: 20px 20px 5px; font-size: 0.8em; color: #999; font-weight: bold; }
+        .side-menu li.menu-category { 
+            background-color: #f0f4f8; 
+            color: #555; 
+            font-size: 0.85em; 
+            padding: 8px 20px; 
+            font-weight: bold; 
+            border-bottom: 1px solid #e1e4e8;
+            border-top: 1px solid #e1e4e8;
+            margin-top: 10px;
+        }
+        .side-menu li.menu-category:first-child { margin-top: 0; border-top: none; }
         .side-menu a { display: block; padding: 15px 20px; text-decoration: none; color: #333; font-weight: bold; transition: background-color 0.2s; }
         .side-menu a:hover { background-color: #f5f7fa; }
 
@@ -536,14 +551,12 @@
     <header>
         <h1>部室予約システム 管理者パネル</h1>
         <div class="header-actions">
-            <!-- ハンバーガーアイコン -->
             <div class="hamburger" id="hamburger-btn">
                 <span></span><span></span><span></span>
             </div>
         </div>
     </header>
 
-    <!-- ハンバーガー展開時のメニューと背景 -->
     <nav class="side-menu" id="side-menu">
         <ul>
             <li class="menu-category">管理者メニュー</li>
@@ -551,12 +564,8 @@
             <li><a href="admin_rsvp_manager.html" style="color: #4caf50;">打ち上げ参加状況管理</a></li>
             <li><a href="admin_board.html" style="color: #ff9800;">掲示板の審査・管理</a></li>
             
-            <li class="menu-category">一般メニュー</li>
-            <li><a href="index.html" style="color: #4A90E2;">トップページへ戻る</a></li>
-            <li><a href="board.html" style="color: #8e44ad;">掲示板 (ユーザー表示)</a></li>
-            
             <li class="menu-category">アカウント</li>
-            <li><a href="javascript:void(0)" id="btn-logout" style="color: #d0021b;">ログアウト</a></li>
+            <li><a id="btn-logout" style="color: #d0021b; cursor: pointer;">ログアウト</a></li>
         </ul>
     </nav>
     <div class="menu-overlay" id="menu-overlay"></div>
@@ -723,7 +732,23 @@
                 e.preventDefault();
             }, { passive: false });
 
-            document.getElementById('btn-logout').onclick = confirmLogout;
+            // ▼ 変更: ログアウトボタンの処理を修正
+            document.getElementById('btn-logout').onclick = () => {
+                document.getElementById('hamburger-btn').classList.remove('open');
+                document.getElementById('side-menu').classList.remove('open');
+                document.getElementById('menu-overlay').classList.remove('open');
+                document.body.classList.remove('modal-open');
+                
+                showConfirmModal(
+                    'ログアウト',
+                    'システムからログアウトします。<br>よろしいですか？',
+                    'logout',
+                    null,
+                    'ログアウト',
+                    '#d0021b'
+                );
+            };
+
             document.getElementById('btn-confirm-cancel').onclick = closeConfirmModal;
             document.getElementById('btn-confirm-execute').onclick = executeConfirmAction;
 
@@ -746,17 +771,6 @@
             document.getElementById('side-menu').classList.toggle('open');
             document.getElementById('menu-overlay').classList.toggle('open');
             document.body.classList.toggle('modal-open');
-        }
-
-        function confirmLogout() {
-            showConfirmModal(
-                'ログアウト',
-                'システムからログアウトします。<br>よろしいですか？',
-                'logout',
-                null,
-                'ログアウト',
-                '#d0021b'
-            );
         }
 
         function showConfirmModal(title, message, action, data, btnText, color) {
@@ -1303,7 +1317,10 @@
         });
 
         document.querySelectorAll('#side-menu a').forEach(link => {
-            link.addEventListener('click', () => {
+            link.addEventListener('click', (e) => {
+                // ▼ 変更: ログアウトボタンの場合はここで処理を止め、後続の onclick に任せる
+                if (e.target.id === 'btn-logout') return;
+                
                 document.getElementById('hamburger-btn').classList.remove('open');
                 document.getElementById('side-menu').classList.remove('open');
                 document.getElementById('menu-overlay').classList.remove('open');
