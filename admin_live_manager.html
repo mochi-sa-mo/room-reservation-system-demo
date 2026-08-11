@@ -33,6 +33,9 @@
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
         select, input[type="text"], input[type="date"], textarea { width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box; background: #fff; font-size: 1em; }
         textarea { resize: vertical; min-height: 100px; }
+        
+        /* ▼ 辞書入力枠を最初から大きくするスタイル */
+        #dict-textarea { min-height: 300px; font-family: monospace; white-space: pre; overflow-wrap: normal; overflow-x: auto; }
 
         .live-control-header { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 10px; }
         .live-control-header .form-group { margin-bottom: 0; flex: 1; }
@@ -184,11 +187,12 @@
         import { collection, getDocs, doc, getDoc, updateDoc, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
         let currentLiveId = "";
-        let currentLiveState = {}; // { isEntryOpen: boolean, isRsvpOpen: boolean }
+        let currentLiveState = {}; 
         let entriesData = []; 
         let pendingAction = null; 
         let pendingEntryId = null; 
-        let nameDictionary = JSON.parse(localStorage.getItem('adminNameDictionary') || '{}');
+        // ▼ 変更点： localStorage から sessionStorage へ変更
+        let nameDictionary = JSON.parse(sessionStorage.getItem('adminNameDictionary') || '{}');
 
         window.onload = function() {
             document.getElementById('btn-logout').onclick = () => showConfirmModal('ログアウト', 'ログアウトしますか？', 'logout', 'ログアウト', '#d0021b');
@@ -232,7 +236,7 @@
             try {
                 const liveData = {
                     name: name, eventDate: dateStr, location: location, deadline: deadline, conditions: conditions,
-                    isActive: true, isEntryOpen: true, isRsvpOpen: false, createdAt: serverTimestamp() // ★並列フラグで初期化
+                    isActive: true, isEntryOpen: true, isRsvpOpen: false, createdAt: serverTimestamp() 
                 };
                 const docRef = await addDoc(collection(db, "lives"), liveData);
 
@@ -259,16 +263,14 @@
             const text = document.getElementById('dict-textarea').value;
             const lines = text.split('\n');
             const newDict = {};
-            let count = 0; // 保存できた件数をカウント
+            let count = 0;
 
             lines.forEach(line => {
-                // タブ、カンマ、半角スペース、全角スペースで分割
                 const parts = line.split(/[\t, , ]+/);
                 if (parts.length >= 2) {
                     const id = parts[0].trim();
                     const name = parts.slice(1).join(" ").trim(); 
                     
-                    // 【修正】6桁縛りをやめ、空文字でなければ登録する
                     if (id.length > 0 && name.length > 0) { 
                         newDict[id] = name; 
                         count++;
@@ -277,16 +279,14 @@
             });
 
             nameDictionary = newDict;
-            localStorage.setItem('adminNameDictionary', JSON.stringify(nameDictionary));
+            // ▼ 変更点： sessionStorage に保存
+            sessionStorage.setItem('adminNameDictionary', JSON.stringify(nameDictionary));
             document.getElementById('dict-modal').style.display = 'none';
             
-            // 何件保存できたかアラートで通知
             customAlert(`名簿辞書を ${count} 件保存しました。`);
             
-            // 画面の再描画（ファイルによって呼ぶ関数が異なるため両方判定）
             if (currentLiveId) {
                 if (typeof loadEntries === 'function') loadEntries();
-                if (typeof loadRsvps === 'function') loadRsvps();
             }
         }
 
@@ -330,7 +330,6 @@
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
                 const data = docSnap.data();
-                // 互換性対応（古い phase データがあれば変換）
                 currentLiveState = {
                     isEntryOpen: data.isEntryOpen !== undefined ? data.isEntryOpen : (data.phase === 'entry'),
                     isRsvpOpen: data.isRsvpOpen !== undefined ? data.isRsvpOpen : (data.phase === 'rsvp')
@@ -344,7 +343,6 @@
         function updateStatusAreaUI() {
             document.getElementById('status-panel').style.display = 'flex';
             
-            // エントリー受付UI
             const elbl = document.getElementById('entry-status-label');
             const ebtn = document.getElementById('btn-toggle-entry');
             if (currentLiveState.isEntryOpen) {
@@ -355,7 +353,6 @@
                 ebtn.textContent = "募集を再開する"; ebtn.className = "btn btn-success";
             }
 
-            // 打ち上げ回答UI
             const rlbl = document.getElementById('rsvp-status-label');
             const rbtn = document.getElementById('btn-toggle-rsvp');
             if (currentLiveState.isRsvpOpen) {
@@ -386,7 +383,6 @@
             showConfirmModal(title, msg, action, btnText, color);
         }
 
-        // ★抽出・保存ロジック（並列化の要）
         async function updateTargetUserIds() {
             const targetMembersSet = new Set();
             entriesData.forEach(entry => {
@@ -516,7 +512,13 @@
             closeConfirmModal(); const successMsg = document.getElementById('main-success-msg');
             
             try {
-                if (action === 'logout') { localStorage.removeItem('userRole'); window.location.href = 'login.html'; return; }
+                if (action === 'logout') { 
+                    localStorage.removeItem('userRole'); 
+                    // ▼ 追加：ログアウト時に辞書も削除する
+                    sessionStorage.removeItem('adminNameDictionary');
+                    window.location.href = 'login.html'; 
+                    return; 
+                }
 
                 if (action === 'approve' || action === 'reject' || action === 'reset') {
                     let newStatus = 'pending';
@@ -525,8 +527,7 @@
 
                     await updateDoc(doc(db, "liveEntries", targetEntryId), { status: newStatus });
                     
-                    // ★承認/取消時に、もし打ち上げ回答期間中なら、対象者リストを再計算して即座に同期する
-                    await loadEntries(); // entriesData を最新化
+                    await loadEntries(); 
                     if (currentLiveState.isRsvpOpen) { await updateTargetUserIds(); }
 
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -534,7 +535,7 @@
                     setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
                 } 
                 else if (action.startsWith('entry_') || action.startsWith('rsvp_')) {
-                    const [type, state] = action.split('_'); // 'entry', 'close'
+                    const [type, state] = action.split('_'); 
                     const isNowOpen = (state === 'open');
                     const updateObj = {};
                     
@@ -544,7 +545,6 @@
                     await updateDoc(doc(db, "lives", currentLiveId), updateObj);
                     
                     if (type === 'entry') {
-                        // お知らせの自動連動
                         const liveDoc = await getDoc(doc(db, "lives", currentLiveId));
                         if (liveDoc.exists()) {
                             const annTitle = `【${liveDoc.data().name}】出演バンド募集`;
@@ -556,7 +556,6 @@
                             await Promise.all(annPromises);
                         }
                     } else if (type === 'rsvp' && isNowOpen) {
-                        // 打ち上げ開始時に最新の承認メンバーを抽出
                         await updateTargetUserIds();
                     }
                     
