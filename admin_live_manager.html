@@ -39,7 +39,6 @@
         .live-control-header { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 10px; }
         .live-control-header .form-group { margin-bottom: 0; flex: 1; }
         
-        /* ▼ 変更：3つのステータスエリアが並ぶように調整 */
         .status-panel { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
         .status-box { flex: 1; min-width: 150px; background: #f9f9f9; border: 1px solid #eee; padding: 15px; border-radius: 8px; text-align: center; }
         .status-label { font-weight: bold; font-size: 1.1em; display: block; margin-bottom: 10px; }
@@ -56,7 +55,6 @@
         .rejected .status-badge { background: #d0021b; color: white; }
         .pending .status-badge { background: #ff9800; color: white; }
         
-        /* ▼ 機材情報エリアのスタイル追加 */
         .equipment-info { font-size: 0.85em; color: #555; background: #fff3e0; padding: 8px; border-radius: 4px; border: 1px solid #ffe0b2; margin-bottom: 5px; }
         .member-list { font-size: 0.95em; color: #333; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #ddd; line-height: 1.6; }
         .translated-name { color: #0056b3; font-weight: bold; }
@@ -72,7 +70,6 @@
         #extracted-text { width: 100%; height: 120px; font-family: monospace; font-size: 14px; padding: 10px; box-sizing: border-box; margin-bottom: 5px;}
         .btn-copy { background: #607d8b; color: white; width: 100%; }
         
-        /* エクセル出力ボタン等 */
         .export-actions { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;}
         .btn-export { background: #2e7d32; color: white; flex: 1; font-size: 0.9em; padding: 10px;}
         .btn-export:hover { background: #1b5e20; }
@@ -93,7 +90,6 @@
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <button class="btn btn-info" id="btn-open-dict">📖 名簿辞書設定</button>
             <a href="admin.html" class="btn btn-nav" style="text-decoration: none; line-height: normal; display: inline-flex; align-items: center;">← 戻る</a>
-            <button class="btn btn-danger" id="btn-logout">ログアウト</button>
         </div>
     </header>
 
@@ -111,7 +107,6 @@
             <button class="btn btn-success" id="btn-open-create-live" style="height: 40px; white-space: nowrap;">➕ 新規作成</button>
         </div>
 
-        <!-- ▼ 変更：ステータスコントロールを3つに拡張 -->
         <div class="status-panel" id="status-panel" style="display: none;">
             <div class="status-box">
                 <div style="font-size: 0.85em; color: #666;">エントリー受付</div>
@@ -224,20 +219,18 @@
         let nameDictionary = JSON.parse(sessionStorage.getItem('adminNameDictionary') || '{}');
 
         window.onload = function() {
-            document.getElementById('btn-logout').onclick = () => showConfirmModal('ログアウト', 'ログアウトしますか？', 'logout', 'ログアウト', '#d0021b');
             document.getElementById('btn-confirm-cancel').onclick = closeConfirmModal;
             document.getElementById('btn-confirm-execute').onclick = executeConfirmAction;
             document.getElementById('btn-alert-ok').onclick = closeAlertModal;
             document.getElementById('live-select').onchange = handleLiveChange;
 
             document.getElementById('btn-toggle-entry').onclick = () => confirmToggle('entry');
-            document.getElementById('btn-toggle-result').onclick = () => confirmToggle('result'); // ★追加
+            document.getElementById('btn-toggle-result').onclick = () => confirmToggle('result');
             document.getElementById('btn-toggle-rsvp').onclick = () => confirmToggle('rsvp');
             
             document.getElementById('btn-extract-ids').onclick = extractIds;
             document.getElementById('btn-copy-ids').onclick = copyIdsToClipboard;
             
-            // ★追加：Excelエクスポートボタン
             document.getElementById('btn-export-band').onclick = () => exportToCSV('band');
             document.getElementById('btn-export-member').onclick = () => exportToCSV('member');
 
@@ -269,7 +262,6 @@
             const conditions = document.getElementById('new-live-conditions').value.trim();
 
             try {
-                // ★追加: isResultOpen (結果公開フラグ) を false で初期化
                 const liveData = {
                     name: name, eventDate: dateStr, location: location, deadline: deadline, conditions: conditions,
                     isActive: true, isEntryOpen: true, isResultOpen: false, isRsvpOpen: false, createdAt: serverTimestamp() 
@@ -364,7 +356,7 @@
                 const data = docSnap.data();
                 currentLiveState = {
                     isEntryOpen: data.isEntryOpen !== undefined ? data.isEntryOpen : (data.phase === 'entry'),
-                    isResultOpen: data.isResultOpen !== undefined ? data.isResultOpen : false, // ★追加
+                    isResultOpen: data.isResultOpen !== undefined ? data.isResultOpen : false,
                     isRsvpOpen: data.isRsvpOpen !== undefined ? data.isRsvpOpen : (data.phase === 'rsvp')
                 };
                 updateStatusAreaUI();
@@ -376,7 +368,6 @@
         function updateStatusAreaUI() {
             document.getElementById('status-panel').style.display = 'flex';
             
-            // エントリー受付UI
             const elbl = document.getElementById('entry-status-label');
             const ebtn = document.getElementById('btn-toggle-entry');
             if (currentLiveState.isEntryOpen) {
@@ -387,7 +378,6 @@
                 ebtn.textContent = "募集を再開する"; ebtn.className = "btn btn-success";
             }
 
-            // ★追加：審査結果の公開UI
             const reslbl = document.getElementById('result-status-label');
             const resbtn = document.getElementById('btn-toggle-result');
             if (currentLiveState.isResultOpen) {
@@ -398,7 +388,6 @@
                 resbtn.textContent = "部員へ公開する"; resbtn.className = "btn btn-success";
             }
 
-            // 打ち上げ回答UI
             const rlbl = document.getElementById('rsvp-status-label');
             const rbtn = document.getElementById('btn-toggle-rsvp');
             if (currentLiveState.isRsvpOpen) {
@@ -419,7 +408,6 @@
                 msg = isCurrentlyOpen ? 'エントリー受付を締め切ります。<br>部員画面から消去され、お知らせも非表示になります。' : 'エントリー受付を再開します。';
                 btnText = isCurrentlyOpen ? '募集を終了する' : '募集を再開する';
             } else if (type === 'result') {
-                // ★追加
                 isCurrentlyOpen = currentLiveState.isResultOpen;
                 title = isCurrentlyOpen ? '結果の非公開化' : '審査結果の公開';
                 msg = isCurrentlyOpen ? '部員の画面から審査結果を隠し、一律で「保留中」の表示に戻します。' : '現在の審査結果（承認・却下）を部員の画面に公開します。';
@@ -474,12 +462,11 @@
                     const card = document.createElement('div');
                     card.className = `entry-card ${cardClass}`;
 
-                    // ★変更：機材情報の表示を追加
                     let equipmentHtml = `
                         <div class="equipment-info">
-                            <strong>マイク:</strong> ${entry.micCount || 0} 本 
-                            <strong>キーボード:</strong> ${entry.keyboardType || '使用しない'} <br>
-                            <strong>備考:</strong> ${entry.entryNotes ? entry.entryNotes.replace(/\n/g, '<br>') : 'なし'}
+                            <strong>🎤 マイク:</strong> ${entry.micCount || 0} 本 
+                            <strong>🎹 キーボード:</strong> ${entry.keyboardType || '使用しない'} <br>
+                            <strong>📝 備考:</strong> ${entry.entryNotes ? entry.entryNotes.replace(/\n/g, '<br>') : 'なし'}
                         </div>
                     `;
 
@@ -495,6 +482,7 @@
                             <div class="status-badge">${statusText}</div>
                         </div>
                         ${equipmentHtml}
+                        <div id="sheet-area-${entry.id}"></div>
                         <div class="member-list">${memberHtml}</div>
                     `;
 
@@ -513,6 +501,37 @@
                         actions.appendChild(btnReset);
                     }
                     card.appendChild(actions); container.appendChild(card);
+
+                    // ★追加：セッティングシート提出状況のUI（承認済みの場合のみ表示）
+                    if (status === 'approved') {
+                        const isSubmitted = entry.sheetSubmitted === true;
+                        const sheetArea = card.querySelector(`#sheet-area-${entry.id}`);
+                        const sheetStatusText = isSubmitted ? '<span style="color:#4caf50; font-weight:bold;">提出済み</span>' : '<span style="color:#d0021b; font-weight:bold;">未提出</span>';
+                        const sheetBtnText = isSubmitted ? '未提出に戻す' : '提出済みにする';
+                        const sheetBtnClass = isSubmitted ? 'btn-nav' : 'btn-info';
+
+                        sheetArea.innerHTML = `
+                            <div style="margin-top: 5px; margin-bottom: 5px; padding: 10px; background: #f0f4f8; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #dce4ec;">
+                                <div style="font-size: 0.9em;">📄 セッティングシート: ${sheetStatusText}</div>
+                                <button class="btn ${sheetBtnClass}" id="btn-sheet-${entry.id}" style="padding: 4px 10px; font-size: 0.85em;">${sheetBtnText}</button>
+                            </div>
+                        `;
+                        
+                        sheetArea.querySelector(`#btn-sheet-${entry.id}`).addEventListener('click', async () => {
+                            const btn = sheetArea.querySelector(`#btn-sheet-${entry.id}`);
+                            btn.disabled = true;
+                            btn.textContent = '更新中...';
+                            try {
+                                await updateDoc(doc(db, "liveEntries", entry.id), { sheetSubmitted: !isSubmitted });
+                                await loadEntries(); 
+                            } catch (error) {
+                                console.error(error);
+                                alert("更新に失敗しました。");
+                                btn.disabled = false;
+                                btn.textContent = sheetBtnText;
+                            }
+                        });
+                    }
                 });
                 extractSec.style.display = 'block';
 
@@ -524,7 +543,7 @@
             let title, msg, color;
             if (action === 'approve') { title = "承認の確認"; msg = `以下のバンドを承認しますか？`; color = "#4caf50"; } 
             else if (action === 'reject') { title = "却下の確認"; msg = `以下のバンドを却下しますか？`; color = "#d0021b"; } 
-            else { title = "保留に戻す"; msg = `以下のバンドを調整中に戻しますか？`; color = "#ff9800"; }
+            else { title = "保留に戻す"; msg = `以下のバンドを未審査に戻しますか？`; color = "#ff9800"; }
 
             msg += `<div style="background: #eee; padding: 10px; margin-top: 10px; border-radius: 4px;"><strong>${entryData.bandName}</strong><br>`;
             entryData.performers.forEach(p => { msg += `<div style="font-size: 0.9em;">・${p.part}: ${translateId(p.id)}</div>`; });
@@ -533,7 +552,6 @@
             showConfirmModal(title, msg, action, '状態を変更する', color);
         }
 
-        // ▼ 変更：ID抽出の3択化
         function extractIds() {
             const format = document.getElementById('extract-format').value;
             const targetMembersSet = new Set();
@@ -567,9 +585,7 @@
             .catch(err => { console.error(err); alert("コピーに失敗しました。手動でコピーしてください。"); });
         }
 
-        // ▼ 追加：エクセル出力用関数
         function exportToCSV(type) {
-            // 承認済みのバンドのみを対象とする
             const approvedEntries = entriesData.filter(e => e.status === 'approved');
             if (approvedEntries.length === 0) {
                 alert("承認済みのバンドがありません。");
@@ -579,15 +595,16 @@
             let csvContent = "";
             
             if (type === 'band') {
-                // パターンX: バンド単位 (香盤表・機材表用)
-                csvContent += "バンド名,マイク本数,キーボード,備考,メンバー1(ID),メンバー1(名前),メンバー2(ID),メンバー2(名前),メンバー3(ID),メンバー3(名前),...\n";
+                // ★変更：出力の列に「シート提出」を追加
+                csvContent += "バンド名,シート提出,マイク本数,キーボード,備考,メンバー1(ID),メンバー1(名前),メンバー2(ID),メンバー2(名前),メンバー3(ID),メンバー3(名前),...\n";
                 
                 approvedEntries.forEach(entry => {
                     const row = [];
-                    // CSVのセル内で改行などが崩れないようエスケープ処理
                     const escape = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
                     
                     row.push(escape(entry.bandName));
+                    // ★追加：提出状況をCSVに書き出し
+                    row.push(entry.sheetSubmitted ? "提出済み" : "未提出"); 
                     row.push(entry.micCount || 0);
                     row.push(escape(entry.keyboardType || '使用しない'));
                     row.push(escape(entry.entryNotes || ''));
@@ -600,7 +617,6 @@
                     csvContent += row.join(",") + "\n";
                 });
             } else if (type === 'member') {
-                // パターンY: メンバー単位 (多重出演確認用)
                 csvContent += "学籍番号,氏名,パート,区分,所属バンド名\n";
                 
                 approvedEntries.forEach(entry => {
@@ -618,7 +634,6 @@
                 });
             }
 
-            // BOMを付与してExcelで文字化けしないようにする
             const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
             const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
@@ -680,7 +695,7 @@
                     const updateObj = {};
                     
                     if (type === 'entry') { updateObj.isEntryOpen = isNowOpen; } 
-                    else if (type === 'result') { updateObj.isResultOpen = isNowOpen; } // ★追加
+                    else if (type === 'result') { updateObj.isResultOpen = isNowOpen; } 
                     else { updateObj.isRsvpOpen = isNowOpen; }
 
                     await updateDoc(doc(db, "lives", currentLiveId), updateObj);
