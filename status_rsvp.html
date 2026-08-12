@@ -18,8 +18,46 @@
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); }
         .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto 20px; }
         
-        .btn-back { background-color: #999; color: white; padding: 10px 15px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .btn-back:hover { background-color: #888; }
+        /* --- ハンバーガーメニュー --- */
+        .header-actions { display: flex; align-items: center; }
+        .hamburger {
+            width: 25px; height: 18px; cursor: pointer; display: flex; flex-direction: column;
+            justify-content: space-between; z-index: 1010; position: relative;
+        }
+        .hamburger span { display: block; height: 3px; width: 100%; background-color: #333; border-radius: 3px; transition: all 0.3s ease; }
+        .hamburger.open span:nth-child(1) { transform: translateY(7.5px) rotate(45deg); }
+        .hamburger.open span:nth-child(2) { opacity: 0; }
+        .hamburger.open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
+
+        .side-menu {
+            position: fixed; top: 0; right: -250px; width: 250px; height: 100%;
+            background-color: #fff; box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+            transition: right 0.3s ease; z-index: 1005; 
+            padding-top: 60px; padding-bottom: 30px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            box-sizing: border-box;
+        }
+        .side-menu.open { right: 0; }
+        .side-menu ul { list-style: none; padding: 0; margin: 0; }
+        .side-menu li { border-bottom: 1px solid #eee; }
+        .side-menu li.menu-category { 
+            background-color: #f0f4f8; 
+            color: #555; 
+            font-size: 0.85em; 
+            padding: 8px 20px; 
+            font-weight: bold; 
+            border-bottom: 1px solid #e1e4e8;
+            border-top: 1px solid #e1e4e8;
+            margin-top: 10px;
+        }
+        .side-menu li.menu-category:first-child { margin-top: 0; border-top: none; }
+        .side-menu a { display: block; padding: 15px 20px; text-decoration: none; color: #333; font-weight: bold; transition: background-color 0.2s; }
+        .side-menu a:hover { background-color: #f5f7fa; }
+
+        .menu-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .menu-overlay.open { display: block; }
+        /* --------------------------------- */
         
         .section-title { margin-top: 0; margin-bottom: 15px; padding-left: 10px; font-size: 1.3em; }
 
@@ -36,6 +74,10 @@
         .pending .badge { background: #ff9800; color: white; }
         .rejected .badge { background: #9e9e9e; color: white; }
         .approved .badge { background: #4caf50; color: white; }
+
+        .sheet-status { display: inline-block; font-size: 0.8em; font-weight: bold; padding: 4px 8px; border-radius: 4px; margin-bottom: 10px; margin-left: 5px; border: 1px solid #ccc; }
+        .sheet-submitted { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+        .sheet-unsubmitted { background: #ffebee; color: #c62828; border-color: #ef9a9a; }
 
         .action-buttons { display: flex; justify-content: flex-end; margin-top: 5px; border-top: 1px solid #eee; padding-top: 10px; }
         .btn-small { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold; transition: 0.2s;}
@@ -86,8 +128,36 @@
 
     <header>
         <h1>審査・打ち上げ回答</h1>
-        <button class="btn-back" onclick="window.location.href='index.html'">トップへ</button>
+        <div class="header-actions">
+            <!-- ハンバーガーアイコン -->
+            <div class="hamburger" id="hamburger-btn">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
     </header>
+
+    <!-- ハンバーガー展開時のメニューと背景 -->
+    <nav class="side-menu" id="side-menu">
+        <ul>
+            <li class="menu-category">部室予約</li>
+            <li><a href="tsuika.html" style="color: #4caf50;">今週の追加予約</a></li>
+            <li><a href="yoyaku.html" style="color: #4A90E2;">次週の予約</a></li>
+            
+            <li class="menu-category">バンド管理</li>
+            <li><a href="band_register.html" style="color: #ff9800;">新規バンド登録</a></li>
+            <li><a href="my_bands.html" style="color: #8e44ad;">所属バンドの確認・管理</a></li>
+            
+            <li class="menu-category">ライブ・掲示板</li>
+            <li><a href="live_entry.html" style="color: #e91e63;">🎸 ライブ出演エントリー</a></li>
+            <li><a href="status_rsvp.html" style="color: #e65100;">🍻 審査結果・打ち上げ回答</a></li>
+            <li><a href="board.html" style="color: #00bcd4;">📢 メンバー募集・掲示板</a></li>
+            
+            <li class="menu-category">アカウント</li>
+            <li><a href="settings.html" style="color: #666;">パスワード変更</a></li>
+            <li><a id="btn-logout" style="color: #d0021b; cursor: pointer;">ログアウト</a></li>
+        </ul>
+    </nav>
+    <div class="menu-overlay" id="menu-overlay"></div>
 
     <div class="container">
         <div class="success-message" id="main-success-msg"></div>
@@ -112,10 +182,10 @@
         </div>
     </div>
 
-    <!-- 確認モーダル -->
+    <!-- 汎用確認モーダル (RSVP回答 & ログアウト兼用) -->
     <div class="modal-overlay" id="confirm-modal">
         <div class="modal-content" style="border-top: 5px solid #ff9800;">
-            <h3 style="margin-top: 0; border-bottom: 2px solid #ccc; padding-bottom: 5px;">送信内容の確認</h3>
+            <h3 id="confirm-modal-title" style="margin-top: 0; border-bottom: 2px solid #ccc; padding-bottom: 5px;">送信内容の確認</h3>
             <p id="confirm-modal-message" style="color: #333; font-size: 0.95em; line-height: 1.5; margin: 15px 0; text-align: left;"></p>
             <div class="confirm-actions">
                 <button class="btn-modal-cancel" id="btn-confirm-cancel">修正する</button>
@@ -151,12 +221,74 @@
             }
         });
 
+        window.onload = function() {
+            // ハンバーガーメニューの制御
+            document.getElementById('hamburger-btn').onclick = toggleMenu;
+            document.getElementById('menu-overlay').onclick = toggleMenu;
+
+            // スクロール貫通防止 (iOS対策)
+            document.getElementById('menu-overlay').addEventListener('touchmove', (e) => {
+                e.preventDefault();
+            }, { passive: false });
+
+            // ログアウトボタンの処理
+            document.getElementById('btn-logout').onclick = () => {
+                document.getElementById('hamburger-btn').classList.remove('open');
+                document.getElementById('side-menu').classList.remove('open');
+                document.getElementById('menu-overlay').classList.remove('open');
+                document.body.classList.remove('modal-open');
+                
+                showConfirmModal(
+                    'ログアウト',
+                    '<div style="text-align:center;">システムからログアウトします。<br>よろしいですか？</div>',
+                    'logout',
+                    'ログアウト',
+                    '#d0021b'
+                );
+            };
+
+            document.getElementById('btn-close-modal').addEventListener('click', () => {
+                document.getElementById('details-modal').style.display = 'none';
+                document.body.classList.remove('modal-open');
+            });
+
+            document.getElementById('btn-confirm-cancel').addEventListener('click', () => {
+                document.getElementById('confirm-modal').style.display = 'none';
+                document.body.classList.remove('modal-open');
+                pendingData = null;
+            });
+        };
+
+        function toggleMenu() {
+            document.getElementById('hamburger-btn').classList.toggle('open');
+            document.getElementById('side-menu').classList.toggle('open');
+            document.getElementById('menu-overlay').classList.toggle('open');
+            document.body.classList.toggle('modal-open');
+        }
+
+        // 汎用確認モーダル表示関数
+        function showConfirmModal(title, message, action, btnText, color) {
+            document.querySelector('#confirm-modal .modal-content').style.borderTopColor = color;
+            document.getElementById('confirm-modal-title').textContent = title;
+            document.getElementById('confirm-modal-title').style.borderBottomColor = color;
+            document.getElementById('confirm-modal-message').innerHTML = message;
+            
+            const btnExecute = document.getElementById('btn-confirm-execute');
+            btnExecute.textContent = btnText;
+            btnExecute.style.backgroundColor = color;
+            
+            document.getElementById('btn-confirm-cancel').textContent = 'キャンセル';
+
+            pendingData = { action: action };
+            document.getElementById('confirm-modal').style.display = 'flex';
+            document.body.classList.add('modal-open');
+        }
+
         async function loadData() {
             const entryContainer = document.getElementById('entry-container');
             const rsvpContainer = document.getElementById('rsvp-container');
             
             try {
-                // 1. 各種データの並列取得
                 const [snapEntries, snapLives, snapRsvps] = await Promise.all([
                     getDocs(query(collection(db, "liveEntries"), where("performerIds", "array-contains", currentUserId))),
                     getDocs(query(collection(db, "lives"), where("isActive", "==", true))),
@@ -185,7 +317,6 @@
                         
                         const liveInfo = liveMaster[entry.liveId];
                         
-                        // ★変更：管理者が結果を「公開（isResultOpen: true）」にしていない場合は一律で「保留」として表示する
                         let displayStatus = entry.status || 'pending';
                         if (liveInfo && liveInfo.isResultOpen !== true) {
                             displayStatus = 'pending';
@@ -195,10 +326,22 @@
                         if (displayStatus === 'approved') { badgeText = "✓ 出演承認済み"; cardClass = "approved"; }
                         if (displayStatus === 'rejected') { badgeText = "✕ 出演却下"; cardClass = "rejected"; }
 
+                        let sheetBadge = "";
+                        if (displayStatus === 'approved') {
+                            if (entry.sheetSubmitted === true) {
+                                sheetBadge = `<div class="sheet-status sheet-submitted">📄 シート: 提出済み</div>`;
+                            } else {
+                                sheetBadge = `<div class="sheet-status sheet-unsubmitted">📄 シート: 未提出</div>`;
+                            }
+                        }
+
                         const card = document.createElement('div');
                         card.className = `status-card ${cardClass}`;
                         card.innerHTML = `
-                            <div class="badge">${badgeText}</div>
+                            <div>
+                                <div class="badge">${badgeText}</div>
+                                ${sheetBadge}
+                            </div>
                             <div class="live-name">${entry.liveName}</div>
                             <div class="band-name">🎸 バンド：${entry.bandName}</div>
                             <div class="action-buttons">
@@ -305,12 +448,23 @@
                             const commentVal = card.querySelector(`#comment-${liveId}`).value.trim();
                             const docId = `${liveId}_${currentUserId}`;
 
-                            pendingData = { docId, liveId: liveId, userId: currentUserId, status: statusVal, comment: commentVal, liveName: liveInfo.name };
-
                             const statusStr = statusVal === 'yes' ? '<span style="color:#2196f3; font-weight:bold;">⭕ 参加する</span>' : '<span style="color:#f44336; font-weight:bold;">❌ 参加しない</span>';
                             let msgHtml = `<strong>【ライブ名】</strong><br>${liveInfo.name}<br><br><strong>【回答内容】</strong><br>${statusStr}<br><br><strong>【備考】</strong><br>${commentVal ? commentVal.replace(/\n/g, '<br>') : 'なし'}`;
                             
+                            // RSVP専用のダイアログ設定
+                            document.querySelector('#confirm-modal .modal-content').style.borderTopColor = '#ff9800';
+                            document.getElementById('confirm-modal-title').textContent = '送信内容の確認';
+                            document.getElementById('confirm-modal-title').style.borderBottomColor = '#ccc';
                             document.getElementById('confirm-modal-message').innerHTML = msgHtml;
+                            
+                            const btnExecute = document.getElementById('btn-confirm-execute');
+                            btnExecute.textContent = '確定する';
+                            btnExecute.style.backgroundColor = '#ff9800';
+                            
+                            document.getElementById('btn-confirm-cancel').textContent = '修正する';
+
+                            pendingData = { action: 'submit_rsvp', docId, liveId: liveId, userId: currentUserId, status: statusVal, comment: commentVal, liveName: liveInfo.name };
+                            
                             document.getElementById('confirm-modal').style.display = 'flex';
                             document.body.classList.add('modal-open');
                         });
@@ -328,7 +482,6 @@
             }
         }
 
-        // ▼ 変更：モーダルに機材・備考情報を追加
         function showDetailsModal(entryId) {
             const data = myEntriesData[entryId];
             let html = `<p style="margin-bottom: 5px;"><strong>🎵 ライブ:</strong> ${data.liveName}</p>`;
@@ -354,37 +507,54 @@
             document.body.classList.add('modal-open');
         }
 
-        document.getElementById('btn-close-modal').addEventListener('click', () => {
-            document.getElementById('details-modal').style.display = 'none';
-            document.body.classList.remove('modal-open');
-        });
-
-        document.getElementById('btn-confirm-cancel').addEventListener('click', () => {
-            document.getElementById('confirm-modal').style.display = 'none';
-            document.body.classList.remove('modal-open');
-            pendingData = null;
-        });
-
         document.getElementById('btn-confirm-execute').addEventListener('click', async () => {
             if (!pendingData) return;
             const data = pendingData;
             document.getElementById('confirm-modal').style.display = 'none';
             document.body.classList.remove('modal-open');
 
-            const successMsg = document.getElementById('main-success-msg');
-            try {
-                await setDoc(doc(db, "rsvps", data.docId), {
-                    liveId: data.liveId, userId: data.userId, status: data.status, comment: data.comment, updatedAt: serverTimestamp()
-                });
-                window.scrollTo({ top: 0, behavior: 'smooth' }); 
-                successMsg.textContent = "回答を送信しました！";
-                successMsg.style.display = 'block';
-                setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
-                await loadData(); 
-            } catch (error) {
-                console.error(error); window.scrollTo({ top: 0, behavior: 'smooth' }); alert("保存に失敗しました。");
+            if (data.action === 'logout') {
+                localStorage.removeItem('userRole');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            if (data.action === 'submit_rsvp') {
+                const successMsg = document.getElementById('main-success-msg');
+                try {
+                    await setDoc(doc(db, "rsvps", data.docId), {
+                        liveId: data.liveId, userId: data.userId, status: data.status, comment: data.comment, updatedAt: serverTimestamp()
+                    });
+                    window.scrollTo({ top: 0, behavior: 'smooth' }); 
+                    successMsg.textContent = "回答を送信しました！";
+                    successMsg.style.display = 'block';
+                    setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
+                    await loadData(); 
+                } catch (error) {
+                    console.error(error); window.scrollTo({ top: 0, behavior: 'smooth' }); alert("保存に失敗しました。");
+                }
             }
             pendingData = null;
+        });
+
+        // ページ遷移時などにメニューを確実に閉じる
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                document.getElementById('hamburger-btn').classList.remove('open');
+                document.getElementById('side-menu').classList.remove('open');
+                document.getElementById('menu-overlay').classList.remove('open');
+                document.body.classList.remove('modal-open');
+            }
+        });
+
+        document.querySelectorAll('#side-menu a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                if (e.target.id === 'btn-logout') return; // ログアウトはJSで処理
+                document.getElementById('hamburger-btn').classList.remove('open');
+                document.getElementById('side-menu').classList.remove('open');
+                document.getElementById('menu-overlay').classList.remove('open');
+                document.body.classList.remove('modal-open');
+            });
         });
     </script>
 </body>
