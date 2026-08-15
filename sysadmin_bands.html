@@ -19,7 +19,7 @@
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); flex-wrap: wrap; gap: 10px; }
         
-        .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1000px; margin: 0 auto 20px; }
+        .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 100vw; margin: 0 auto 20px; overflow-x: hidden;}
         .section-title { margin-top: 0; margin-bottom: 15px; border-left: 5px solid var(--primary-color); padding-left: 10px; font-size: 1.3em; display: flex; justify-content: space-between; align-items: center; }
         
         .btn { padding: 10px 16px; border: none; border-radius: 4px; cursor: pointer; background-color: var(--primary-color); color: white; font-weight: bold; transition: 0.2s; text-align: center; }
@@ -31,10 +31,10 @@
         .control-panel { display: flex; gap: 15px; background: #f3e5f5; padding: 20px; border-radius: 8px; border: 1px solid #e1bee7; margin-bottom: 20px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
         .info-text { font-size: 0.9em; color: #4a148c; font-weight: bold; }
 
-        .data-table { width: 100%; border-collapse: collapse; font-size: 0.9em; margin-top: 15px; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.85em; margin-top: 15px; white-space: nowrap; }
         .data-table th, .data-table td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
-        .data-table th { background: #f3e5f5; color: #4a148c; font-weight: bold; white-space: nowrap; position: sticky; top: 0;}
-        .table-container { max-height: 500px; overflow-y: auto; overflow-x: auto; border: 1px solid #ccc; border-radius: 4px; display: none; }
+        .data-table th { background: #f3e5f5; color: #4a148c; font-weight: bold; position: sticky; top: 0;}
+        .table-container { max-height: 60vh; overflow-y: auto; overflow-x: auto; border: 1px solid #ccc; border-radius: 4px; display: none; }
 
         .tag-leader { background: #ff9800; color: white; padding: 2px 6px; border-radius: 12px; font-size: 0.75em; margin-left: 5px;}
         
@@ -50,7 +50,7 @@
 <body>
 
     <header>
-        <h1>特権管理者パネル - 全バンドデータ出力</h1>
+        <h1>特権管理者パネル - 全バンドデータ</h1>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <a href="index.html" class="btn btn-nav" style="text-decoration: none; display: inline-flex; align-items: center;">← トップへ戻る</a>
             <button class="btn btn-danger" id="btn-logout">ログアウト</button>
@@ -64,7 +64,7 @@
         <div class="control-panel">
             <div class="info-text">
                 データベース上に登録されているすべてのバンド情報を読み込みます。<br>
-                ※データ量が多い場合、読み込みに数秒かかることがあります。
+                ※列（代表者・メンバー）は最大人数に合わせて自動調整されます。
             </div>
             <div style="display: flex; gap: 10px;">
                 <button class="btn" id="btn-load-bands" style="background-color: var(--primary-color);">🔄 全バンドを読み込む</button>
@@ -75,14 +75,9 @@
         <div id="loading-msg" style="text-align: center; color: #999; display: none; padding: 20px;">データを取得中...</div>
 
         <div class="table-container" id="table-container">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>No.</th>
-                        <th>バンド名</th>
-                        <th>代表者</th>
-                        <th>メンバー構成</th>
-                    </tr>
+            <table class="data-table" id="bands-table">
+                <thead id="bands-thead">
+                    <!-- 動的に生成されます -->
                 </thead>
                 <tbody id="bands-tbody">
                     <!-- データがここに挿入されます -->
@@ -106,10 +101,14 @@
 
     <script type="module">
         import { db } from "./firebase.js";
-        import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        import { collection, getDocs, query } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
         let allBandsData = [];
         let nameDictionary = JSON.parse(sessionStorage.getItem('adminNameDictionary') || '{}');
+        
+        // 動的な最大人数を保持する変数
+        let maxLeaders = 1;
+        let maxMembers = 1;
 
         window.onload = () => {
             document.getElementById('btn-logout').onclick = confirmLogout;
@@ -120,8 +119,14 @@
             document.getElementById('btn-export-csv').onclick = exportToCSV;
         };
 
+        function escapeHTML(str) {
+            return String(str || '').replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
         function translateId(id) {
-            return nameDictionary[id] ? `${id} (${nameDictionary[id]})` : id;
+            return nameDictionary[id] ? `${id}<br><span style="color:#0056b3;">${nameDictionary[id]}</span>` : id;
         }
 
         async function loadAllBands() {
@@ -129,6 +134,7 @@
             const btnExport = document.getElementById('btn-export-csv');
             const loadingMsg = document.getElementById('loading-msg');
             const tableContainer = document.getElementById('table-container');
+            const thead = document.getElementById('bands-thead');
             const tbody = document.getElementById('bands-tbody');
             const emptyMsg = document.getElementById('empty-msg');
 
@@ -138,16 +144,28 @@
             tableContainer.style.display = 'none';
             btnExport.style.display = 'none';
             loadingMsg.style.display = 'block';
+            thead.innerHTML = '';
             tbody.innerHTML = '';
 
             try {
-                // bandsコレクションから全件取得
                 const q = query(collection(db, "bands"));
                 const snap = await getDocs(q);
                 
                 allBandsData = [];
+                maxLeaders = 1; // 初期化
+                maxMembers = 1; // 初期化
+
                 snap.forEach(doc => {
-                    allBandsData.push({ id: doc.id, ...doc.data() });
+                    const data = doc.data();
+                    allBandsData.push({ id: doc.id, ...data });
+                    
+                    // 各バンドの人数をチェックして最大値を更新
+                    if (data.leaders && data.leaders.length > maxLeaders) {
+                        maxLeaders = data.leaders.length;
+                    }
+                    if (data.memberDetails && data.memberDetails.length > maxMembers) {
+                        maxMembers = data.memberDetails.length;
+                    }
                 });
 
                 if (allBandsData.length === 0) {
@@ -159,39 +177,47 @@
                     return;
                 }
 
-                // バンド名でソート（五十音順等）
                 allBandsData.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
+                // --- 1. 動的なテーブルヘッダーの生成 ---
+                let theadHtml = `<tr><th>No.</th><th>バンド名</th>`;
+                for(let i = 1; i <= maxLeaders; i++) {
+                    theadHtml += `<th>代表者 ${i}</th>`;
+                }
+                for(let i = 1; i <= maxMembers; i++) {
+                    theadHtml += `<th>メンバー ${i}</th>`;
+                }
+                theadHtml += `</tr>`;
+                thead.innerHTML = theadHtml;
+
+                // --- 2. テーブルボディの生成 ---
                 allBandsData.forEach((band, index) => {
                     const tr = document.createElement('tr');
-                    
-                    const noTd = document.createElement('td');
-                    noTd.textContent = index + 1;
-                    
-                    const nameTd = document.createElement('td');
-                    nameTd.style.fontWeight = 'bold';
-                    nameTd.textContent = band.name || "名称未設定";
+                    let rowHtml = `<td>${index + 1}</td><td style="font-weight:bold;">${escapeHTML(band.name || "名称未設定")}</td>`;
 
-                    const leaderTd = document.createElement('td');
+                    // 代表者列の生成（maxLeadersの数だけループ）
                     const leaders = band.leaders || [];
-                    leaderTd.innerHTML = leaders.map(id => translateId(id)).join('<br>');
+                    for(let i = 0; i < maxLeaders; i++) {
+                        if (leaders[i]) {
+                            rowHtml += `<td>${translateId(leaders[i])}</td>`;
+                        } else {
+                            rowHtml += `<td style="background:#fafafa;"></td>`; // 空のセル
+                        }
+                    }
 
-                    const membersTd = document.createElement('td');
+                    // メンバー列の生成（maxMembersの数だけループ）
                     const details = band.memberDetails || [];
-                    
-                    // メンバー情報の構築
-                    let membersHtml = "";
-                    details.forEach(m => {
-                        const isLeader = leaders.includes(m.id);
-                        const leaderBadge = isLeader ? '<span class="tag-leader">代表</span>' : '';
-                        membersHtml += `<div>・${m.part}: ${translateId(m.id)} ${leaderBadge}</div>`;
-                    });
-                    membersTd.innerHTML = membersHtml;
+                    for(let i = 0; i < maxMembers; i++) {
+                        if (details[i]) {
+                            const isLeader = leaders.includes(details[i].id);
+                            const leaderBadge = isLeader ? '<span class="tag-leader">代表</span>' : '';
+                            rowHtml += `<td>${escapeHTML(details[i].part)}: ${translateId(details[i].id)} ${leaderBadge}</td>`;
+                        } else {
+                            rowHtml += `<td style="background:#fafafa;"></td>`; // 空のセル
+                        }
+                    }
 
-                    tr.appendChild(noTd);
-                    tr.appendChild(nameTd);
-                    tr.appendChild(leaderTd);
-                    tr.appendChild(membersTd);
+                    tr.innerHTML = rowHtml;
                     tbody.appendChild(tr);
                 });
 
@@ -199,7 +225,7 @@
                 tableContainer.style.display = 'block';
                 btnExport.style.display = 'inline-block';
 
-                showSuccessMsg(`${allBandsData.length} 件のバンドデータを読み込みました。`);
+                showSuccessMsg(`${allBandsData.length} 件のバンドデータを読み込みました。（最大代表者: ${maxLeaders}名 / 最大メンバー: ${maxMembers}名）`);
 
             } catch (error) {
                 console.error("データ取得エラー:", error);
@@ -218,15 +244,17 @@
                 return;
             }
 
-            // CSVのヘッダーを作成
-            // バンドによってメンバー数が違うため、列を長めに確保するか、1列にまとめるかを判断。
-            // PAさんや運営側が扱いやすいよう、メンバー情報は横に展開する（最大10人と仮定）
-            let csvContent = "バンドID,バンド名,代表者1,代表者2,";
-            for(let i=1; i<=10; i++) {
+            // CSVのヘッダーを動的に生成
+            let csvContent = "バンドID,バンド名,";
+            for(let i = 1; i <= maxLeaders; i++) {
+                csvContent += `代表者${i}_学籍番号,代表者${i}_氏名,`;
+            }
+            for(let i = 1; i <= maxMembers; i++) {
                 csvContent += `メンバー${i}_学籍番号,メンバー${i}_氏名,メンバー${i}_パート,`;
             }
             csvContent += "\n";
 
+            // CSVのデータを動的に生成
             allBandsData.forEach(band => {
                 const row = [];
                 const escape = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
@@ -235,13 +263,19 @@
                 row.push(escape(band.name));
                 
                 const leaders = band.leaders || [];
-                row.push(escape(leaders[0] ? translateIdForCsv(leaders[0]) : ""));
-                row.push(escape(leaders[1] ? translateIdForCsv(leaders[1]) : ""));
+                for(let i = 0; i < maxLeaders; i++) {
+                    if (leaders[i]) {
+                        row.push(escape(leaders[i]));
+                        row.push(escape(nameDictionary[leaders[i]] || "未登録"));
+                    } else {
+                        row.push(""); row.push("");
+                    }
+                }
 
                 const details = band.memberDetails || [];
-                for(let i=0; i<10; i++) {
+                for(let i = 0; i < maxMembers; i++) {
                     if (details[i]) {
-                        row.push(details[i].id);
+                        row.push(escape(details[i].id));
                         row.push(escape(nameDictionary[details[i].id] || "未登録"));
                         row.push(escape(details[i].part));
                     } else {
@@ -261,17 +295,13 @@
             const now = new Date();
             const dateStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}`;
             link.setAttribute("href", url);
-            link.setAttribute("download", `全バンドデータ_${dateStr}.csv`);
+            link.setAttribute("download", `全バンドデータ_最適化版_${dateStr}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
 
-        function translateIdForCsv(id) {
-            return nameDictionary[id] ? `${nameDictionary[id]} (${id})` : id;
-        }
-
-        function showConfirmModal(title, message, action, btnText, color) {
+        function showConfirmModal(title, message) {
             document.getElementById('confirm-modal-title').textContent = title;
             document.getElementById('confirm-modal-message').innerHTML = message;
             document.getElementById('confirm-modal').style.display = 'flex';
@@ -295,7 +325,7 @@
             const el = document.getElementById('main-success-msg');
             el.textContent = msg;
             el.style.display = 'block';
-            setTimeout(() => { el.style.display = 'none'; }, 4000);
+            setTimeout(() => { el.style.display = 'none'; }, 5000);
         }
     </script>
 </body>
