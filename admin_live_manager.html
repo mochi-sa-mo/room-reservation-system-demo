@@ -502,7 +502,6 @@
                     }
                     card.appendChild(actions); container.appendChild(card);
 
-                    // ★追加：セッティングシート提出状況のUI（承認済みの場合のみ表示）
                     if (status === 'approved') {
                         const isSubmitted = entry.sheetSubmitted === true;
                         const sheetArea = card.querySelector(`#sheet-area-${entry.id}`);
@@ -595,24 +594,43 @@
             let csvContent = "";
             
             if (type === 'band') {
-                // ★変更：出力の列に「シート提出」を追加
-                csvContent += "バンド名,シート提出,マイク本数,キーボード,備考,メンバー1(ID),メンバー1(名前),メンバー2(ID),メンバー2(名前),メンバー3(ID),メンバー3(名前),...\n";
+                // 最大メンバー数を取得
+                let maxMembers = 0;
+                approvedEntries.forEach(entry => {
+                    if (entry.performers && entry.performers.length > maxMembers) {
+                        maxMembers = entry.performers.length;
+                    }
+                });
+
+                // 動的ヘッダー生成
+                let header = ["バンド名", "シート提出", "マイク本数", "キーボード", "備考"];
+                for (let i = 1; i <= maxMembers; i++) {
+                    header.push(`メンバー${i}(パート)`);
+                    header.push(`メンバー${i}(ID)`);
+                    header.push(`メンバー${i}(名前)`);
+                }
+                csvContent += header.join(",") + "\n";
                 
                 approvedEntries.forEach(entry => {
                     const row = [];
                     const escape = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
                     
                     row.push(escape(entry.bandName));
-                    // ★追加：提出状況をCSVに書き出し
                     row.push(entry.sheetSubmitted ? "提出済み" : "未提出"); 
                     row.push(entry.micCount || 0);
                     row.push(escape(entry.keyboardType || '使用しない'));
                     row.push(escape(entry.entryNotes || ''));
 
-                    entry.performers.forEach(p => {
-                        row.push(p.id);
-                        row.push(escape(nameDictionary[p.id] || "未登録"));
-                    });
+                    const performers = entry.performers || [];
+                    for (let i = 0; i < maxMembers; i++) {
+                        if (performers[i]) {
+                            row.push(escape(performers[i].part));
+                            row.push(performers[i].id);
+                            row.push(escape(nameDictionary[performers[i].id] || "未登録"));
+                        } else {
+                            row.push(""); row.push(""); row.push("");
+                        }
+                    }
                     
                     csvContent += row.join(",") + "\n";
                 });
