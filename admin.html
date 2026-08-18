@@ -544,7 +544,7 @@
 <body>
 
     <header>
-        <h1>部室予約システム 管理者パネル</h1>
+        <h1>管理者パネル</h1>
         <div class="header-actions">
             <div class="hamburger" id="hamburger-btn">
                 <span></span><span></span><span></span>
@@ -558,9 +558,6 @@
             <li><a href="admin_live_manager.html" style="color: #e91e63;">ライブ審査・管理</a></li>
             <li><a href="admin_rsvp_manager.html" style="color: #4caf50;">打ち上げ参加状況管理</a></li>
             <li><a href="admin_board.html" style="color: #ff9800;">掲示板の審査・管理</a></li>
-            
-            <li class="menu-category">一般メニュー</li>
-            <li><a href="board.html" style="color: #8e44ad;">掲示板 (ユーザー表示)</a></li>
             
             <li class="menu-category">アカウント</li>
             <li><a id="btn-logout" style="color: #d0021b; cursor: pointer;">ログアウト</a></li>
@@ -589,9 +586,9 @@
                         <button type="submit" class="btn">即時公開する</button>
                     </form>
                     <form id="form-deadline" class="form-panel">
-                        <div class="form-group"><label>件名<span class="required-badge">*</span></label><input type="text" id="d-title" placeholder="例: ○○ＬＩＶＥの出演希望"></div>
+                        <div class="form-group"><label>件名<span class="required-badge">*</span></label><input type="text" id="d-title" placeholder="例: ○○LIVEについて"></div>
                         <div class="form-group"><label>日時</label><input type="datetime-local" id="d-date" placeholder="例: 1月1日まで"></div>
-                        <div class="form-group"><label>提出先</label><input type="text" id="d-sub" placeholder="例: ○○のＬＩＮＥまで"></div>
+                        <div class="form-group"><label>提出先</label><input type="text" id="d-sub" placeholder="例: ○○のLINEまで"></div>
                         <div class="form-group"><label>リンク</label><input type="url" id="d-link" placeholder="ここにURLを貼ると、閲覧者が押してそのURLに遷移するようにできます。"></div>
                         <div class="form-group"><label>備考</label><textarea id="d-notes"></textarea></div>
                         <div class="form-group"><label>非表示日時<span class="required-badge">*</span></label><input type="date" id="d-expire"></div>
