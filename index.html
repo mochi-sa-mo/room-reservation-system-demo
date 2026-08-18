@@ -172,7 +172,7 @@
 <body>
 
     <header>
-        <h1>部室予約システム</h1>
+        <h1>軽音ポータル</h1>
         <div class="header-actions">
             <div class="hamburger" id="hamburger-btn">
                 <span></span><span></span><span></span>
@@ -187,17 +187,16 @@
             <li><a href="yoyaku.html" style="color: #4A90E2;">次週の予約</a></li>
             
             <li class="menu-category">バンド管理</li>
-            <li><a href="band_register.html" style="color: #ff9800;">新規バンド登録</a></li>
-            <li><a href="my_bands.html" style="color: #8e44ad;">所属バンドの確認・管理</a></li>
+            <li><a href="band_register.html" style="color: #ff9800;">新規バンドを登録する</a></li>
+            <li><a href="my_bands.html" style="color: #8e44ad;">所属バンドを確認する</a></li>
             
             <li class="menu-category">ライブ・掲示板</li>
-            <li><a href="live_entry.html" style="color: #e91e63;">🎸 ライブ出演エントリー</a></li>
-            <li><a href="status_rsvp.html" style="color: #e65100;">🍻 審査結果・打ち上げ回答</a></li>
-            <li><a href="board.html" style="color: #00bcd4;">📢 メンバー募集・掲示板</a></li>
+            <li><a href="live_entry.html" style="color: #e91e63;">ライブエントリーをする</a></li>
+            <li><a href="status_rsvp.html" style="color: #e65100;">審査・打ち上げの回答をする</a></li>
+            <li><a href="board.html" style="color: #00bcd4;">掲示板へ</a></li>
             
             <li class="menu-category">アカウント</li>
-            <li><a href="settings.html" style="color: #666;">パスワード変更</a></li>
-            <!-- ▼ 変更：href="javascript:void(0)" を削除し、カーソル設定を追加してエラー表示をなくす -->
+            <li><a href="settings.html" style="color: #666;">パスワードの変更</a></li>
             <li><a id="btn-logout" style="color: #d0021b; cursor: pointer;">ログアウト</a></li>
         </ul>
     </nav>
@@ -207,11 +206,11 @@
 
     <div class="announcements">
         <div class="announcement-box">
-            <h3>📢 イベント・告知</h3>
+            <h3>📢 イベント・告知（タップして詳細を確認）</h3>
             <ul id="event-list"></ul>
         </div>
         <div class="announcement-box">
-            <h3>⚠️ 締め切り</h3>
+            <h3>⚠️ 締め切り（タップして詳細を確認）</h3>
             <ul id="deadline-list"></ul>
         </div>
     </div>
@@ -664,7 +663,7 @@
                         noAuthText.style.fontSize = '0.85em';
                         noAuthText.style.textAlign = 'center';
                         noAuthText.style.marginBottom = '10px';
-                        noAuthText.textContent = '※この予約をキャンセルできるのは、バンドのメンバーのみです。';
+                        noAuthText.textContent = '※この予約をキャンセルできるのは、バンドメンバーのみです。';
                         actionArea.appendChild(noAuthText);
                     }
                 }
