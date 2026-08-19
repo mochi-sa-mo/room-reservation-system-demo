@@ -73,15 +73,15 @@
 
     <header>
         <h1>掲示板</h1>
-        <button class="btn-back" onclick="window.location.href='index.html'">トップへ</button>
+        <button class="btn-back" onclick="window.location.href='index.html'">戻る</button>
     </header>
 
     <div class="container">
         <div class="success-message" id="main-success-msg"></div>
 
         <div class="tabs">
-            <div class="tab active" id="tab-public">📢 募集を見る</div>
-            <div class="tab" id="tab-mypost">📝 自分の投稿</div>
+            <div class="tab active" id="tab-public">募集を見る</div>
+            <div class="tab" id="tab-mypost">募集掲示を作成する</div>
         </div>
 
         <!-- ▼ パネル：公開中の募集一覧 -->
@@ -111,11 +111,11 @@
             <form id="post-form">
                 <div class="form-group">
                     <label>件名 (タイトル) <span class="req">*</span></label>
-                    <input type="text" id="post-title" placeholder="例: 【急募】ギター募集！" required>
+                    <input type="text" id="post-title" placeholder="○○バンドのメンバー募集のお知らせ" required>
                 </div>
                 <div class="form-group">
                     <label>募集内容・連絡先 <span class="req">*</span></label>
-                    <textarea id="post-content" placeholder="活動ペース、やりたい曲のジャンル、連絡先（LINEのIDやSNSなど）を記載してください" required></textarea>
+                    <textarea id="post-content" placeholder="活動ペース、やりたい曲のジャンル、連絡先を記載する" required></textarea>
                 </div>
                 <div class="form-group">
                     <label>掲載終了日 <span class="req">*</span></label>
