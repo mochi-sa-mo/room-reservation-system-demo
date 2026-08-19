@@ -152,8 +152,8 @@
             <div style="margin-top: 15px; border-top: 1px dashed #ffb300; padding-top: 15px;">
                 <label style="font-weight: bold; font-size: 0.9em; display:block; margin-bottom: 5px;">Excel (CSV) 一括ダウンロード</label>
                 <div class="export-actions">
-                    <button class="btn btn-export" id="btn-export-band">📥 香盤表 (バンド単位) をDL</button>
-                    <button class="btn btn-export" id="btn-export-member">📥 出演者リスト (個人単位) をDL</button>
+                    <button class="btn btn-export" id="btn-export-band">バンド単位で出力する（.csv）</button>
+                    <button class="btn btn-export" id="btn-export-member">個人単位で出力する（.csv）</button>
                 </div>
             </div>
         </div>
@@ -169,7 +169,7 @@
                 <div class="form-group"><label>開催日 (例: 9/9(水))</label><input type="text" id="new-live-date" required></div>
                 <div class="form-group"><label>場所</label><input type="text" id="new-live-location" required></div>
                 <div class="form-group"><label>募集締め切り (日付)</label><input type="date" id="new-live-deadline" required></div>
-                <div class="form-group"><label>募集の条件</label><textarea id="new-live-conditions" required>・参加費は不要です&#10;・一日を通してメンバーが揃っている&#10;・期日までにセッティングシートを提出できる</textarea></div>
+                <div class="form-group"><label>募集の条件</label><textarea id="new-live-conditions" required>備考欄に反映されます</textarea></div>
                 <div class="confirm-actions">
                     <button type="button" class="btn btn-nav" id="btn-cancel-create">キャンセル</button>
                     <button type="submit" class="btn btn-success" id="btn-execute-create">作成して告知する</button>
@@ -405,12 +405,12 @@
             if (type === 'entry') {
                 isCurrentlyOpen = currentLiveState.isEntryOpen;
                 title = isCurrentlyOpen ? 'エントリー募集終了' : 'エントリー募集再開';
-                msg = isCurrentlyOpen ? 'エントリー受付を締め切ります。<br>部員画面から消去され、お知らせも非表示になります。' : 'エントリー受付を再開します。';
+                msg = isCurrentlyOpen ? 'エントリー受付を締め切ります。<br>お知らせが非表示になります。' : 'エントリー受付を再開します。';
                 btnText = isCurrentlyOpen ? '募集を終了する' : '募集を再開する';
             } else if (type === 'result') {
                 isCurrentlyOpen = currentLiveState.isResultOpen;
                 title = isCurrentlyOpen ? '結果の非公開化' : '審査結果の公開';
-                msg = isCurrentlyOpen ? '部員の画面から審査結果を隠し、一律で「保留中」の表示に戻します。' : '現在の審査結果（承認・却下）を部員の画面に公開します。';
+                msg = isCurrentlyOpen ? '一律で「保留中」の表示に戻します。' : '現在の審査結果（承認・却下）を部員の画面に公開します。';
                 btnText = isCurrentlyOpen ? '非公開に戻す' : '部員へ公開する';
             } else {
                 isCurrentlyOpen = currentLiveState.isRsvpOpen;
