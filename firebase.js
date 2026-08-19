@@ -3,7 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/fireba
 import { getFirestore } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyBMIYb5mt_aFCxWuJtN5slJi67H_3E8mIs",
   authDomain: "room-reservation-system-demooo.firebaseapp.com",
   projectId: "room-reservation-system-demooo",
