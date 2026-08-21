@@ -192,7 +192,10 @@
             
             <li class="menu-category">ライブ・掲示板</li>
             <li><a href="live_entry.html" style="color: #e91e63;">ライブエントリーをする</a></li>
-            <li><a href="status_rsvp.html" style="color: #e65100;">審査・打ち上げの回答をする</a></li>
+            <!-- ▼ メニューを2つに分割しました ▼ -->
+            <li><a href="entry_status.html" style="color: #e65100;">審査状況・履歴を確認する</a></li>
+            <li><a href="rsvp.html" style="color: #4caf50;">打ち上げの回答をする</a></li>
+            <!-- ▲ メニューを2つに分割しました ▲ -->
             <li><a href="board.html" style="color: #00bcd4;">掲示板へ</a></li>
             
             <li class="menu-category">アカウント</li>
@@ -339,10 +342,12 @@
                     unansweredLives.forEach(live => {
                         const alertDiv = document.createElement('div');
                         alertDiv.className = 'rsvp-alert';
+                        // ▼ アラートのリンク先を rsvp.html に変更しました ▼
                         alertDiv.innerHTML = `
-                            <div class="rsvp-alert-text">⚠️ 【至急】「${live.name}」の打ち上げ参加回答が未提出です！</div>
-                            <a href="status_rsvp.html" class="btn-rsvp-link">今すぐ回答する</a>
+                            <div class="rsvp-alert-text">⚠️ 「${live.name}」の打ち上げ参加回答が未提出です！</div>
+                            <a href="rsvp.html" class="btn-rsvp-link">今すぐ回答する</a>
                         `;
+                        // ▲ アラートのリンク先を rsvp.html に変更しました ▲
                         container.appendChild(alertDiv);
                     });
                     container.style.display = 'block';
