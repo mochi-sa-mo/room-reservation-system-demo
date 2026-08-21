@@ -651,7 +651,7 @@
                 【保存方法】<br>
                 ① 下の「端末に保存 / 共有」ボタンを押す。<br>
                 ② （LINE等のアプリ内ブラウザでボタンが反応しない場合）<br>
-                  画像自体を長押しして「画像を保存」や「写真に追加」を選んでください。
+                 画像自体を長押しして「画像を保存」や「写真に追加」を選んでください。
             </div>
             <img id="generated-image" style="max-width: 100%; border: 1px solid #ccc; margin-bottom: 15px;" />
             <div style="display: flex; gap: 10px;">
@@ -674,8 +674,9 @@
     </div>
 
     <script type="module">
-        import { db } from "./firebase.js";
+        import { db, auth } from "./firebase.js";
         import { collection, onSnapshot, addDoc, doc, updateDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
         const days = ['日', '月', '火', '水', '木', '金', '土'];
         const periods = ['1限', '2限', '昼休み', '3限', '4限', '5限', '放課後1', '放課後2'];
@@ -702,6 +703,8 @@
         let pendingConfirmAction = null;
         let pendingConfirmData = null;
 
+        let currentUserId = "不明な管理者";
+
         function getTodayStr() {
             const now = new Date();
             return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -725,6 +728,12 @@
                 window.location.href = 'login.html';
                 return;
             }
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUserId = user.email.split('@')[0];
+                }
+            });
 
             document.getElementById('hamburger-btn').onclick = toggleMenu;
             document.getElementById('menu-overlay').onclick = toggleMenu;
@@ -822,7 +831,8 @@
                         annType: annType,
                         opType: "delete",
                         title: title,
-                        detail: `管理者が${annType === 'event' ? 'イベント' : '締め切り'}「${title}」を完全に削除しました`
+                        userId: currentUserId,
+                        detail: `管理者(${currentUserId})が${annType === 'event' ? 'イベント' : '締め切り'}「${title}」を完全に削除しました`
                     });
                 } catch (error) { console.error("削除エラー:", error); }
                 closeConfirmModal();
@@ -920,7 +930,8 @@
                     opType: "create",
                     title: title,
                     expire: expire,
-                    detail: `管理者が${type === 'event' ? 'イベント' : '締め切り'}「${title}」を登録しました`
+                    userId: currentUserId,
+                    detail: `管理者(${currentUserId})が${type === 'event' ? 'イベント' : '締め切り'}「${title}」を登録しました`
                 });
                 document.getElementById(`form-${type}`).reset();
                 alert('登録しました。');
@@ -1063,7 +1074,8 @@
                     opType: "update",
                     title: title,
                     expire: expire,
-                    detail: `管理者が案内「${title}」の登録情報を編集しました`
+                    userId: currentUserId,
+                    detail: `管理者(${currentUserId})が案内「${title}」の登録情報を編集しました`
                 });
                 closeEditModal();
                 alert('変更を保存しました。');
@@ -1190,7 +1202,8 @@
                                     await addDoc(collection(db, "logs"), {
                                         timestamp: new Date().toISOString(),
                                         category: "reservation", opType: "update", bandName: res.bandName,
-                                        slot: `${days[dIndex]}曜 ${periods[pIndex]}`, detail: `管理者が ${res.bandName} からの消去申請を【却下】しました`
+                                        userId: currentUserId,
+                                        slot: `${days[dIndex]}曜 ${periods[pIndex]}`, detail: `管理者(${currentUserId})が ${res.bandName} からの消去申請を【却下】しました`
                                     });
                                 } catch (err) { console.error(err); }
                             };
@@ -1204,7 +1217,8 @@
                                     await addDoc(collection(db, "logs"), {
                                         timestamp: new Date().toISOString(),
                                         category: "reservation", opType: "update", bandName: res.bandName,
-                                        slot: `${days[dIndex]}曜 ${periods[pIndex]}`, detail: `管理者が ${res.bandName} の落選状態を【復元】しました`
+                                        userId: currentUserId,
+                                        slot: `${days[dIndex]}曜 ${periods[pIndex]}`, detail: `管理者(${currentUserId})が ${res.bandName} の落選状態を【復元】しました`
                                     });
                                 } catch (err) { console.error(err); }
                             };
@@ -1218,7 +1232,8 @@
                                     await addDoc(collection(db, "logs"), {
                                         timestamp: new Date().toISOString(),
                                         category: "reservation", opType: "update", bandName: res.bandName,
-                                        slot: `${days[dIndex]}曜 ${periods[pIndex]}`, detail: `管理者が ${res.bandName} の希望を【却下(落選)】しました`
+                                        userId: currentUserId,
+                                        slot: `${days[dIndex]}曜 ${periods[pIndex]}`, detail: `管理者(${currentUserId})が ${res.bandName} の希望を【却下(落選)】しました`
                                     });
                                 } catch (err) { console.error(err); }
                             };
@@ -1233,7 +1248,8 @@
                                     await addDoc(collection(db, "logs"), {
                                         timestamp: new Date().toISOString(),
                                         category: "reservation", opType: "update", bandName: res.bandName,
-                                        slot: `${days[dIndex]}曜 ${periods[pIndex]}`, detail: `管理者が予約状態を【${res.confirmed ? '確定' : '承認待ち'}】から【${nextState ? '確定' : '承認待ち'}】に変更しました`
+                                        userId: currentUserId,
+                                        slot: `${days[dIndex]}曜 ${periods[pIndex]}`, detail: `管理者(${currentUserId})が予約状態を【${res.confirmed ? '確定' : '承認待ち'}】から【${nextState ? '確定' : '承認待ち'}】に変更しました`
                                     });
                                 } catch (err) { console.error(err); }
                             };
@@ -1250,7 +1266,8 @@
                                     await addDoc(collection(db, "logs"), {
                                         timestamp: new Date().toISOString(),
                                         category: "reservation", opType: "delete", bandName: res.bandName,
-                                        slot: `${days[dIndex]}曜 ${periods[pIndex]}`, detail: `管理者が予約を完全に【削除】しました`
+                                        userId: currentUserId,
+                                        slot: `${days[dIndex]}曜 ${periods[pIndex]}`, detail: `管理者(${currentUserId})が予約を完全に【削除】しました`
                                     });
                                 } catch (err) { console.error(err); }
                             }
@@ -1269,7 +1286,6 @@
             });
         }
 
-        // ▼ 変更：共有・ダウンロード機能の強化 (Web Share API対応)
         function downloadTimetableImage() { 
             const captureArea = document.getElementById('capture-area'); 
             const captureTitle = document.getElementById('capture-title'); 
@@ -1294,7 +1310,6 @@
                 const fileName = `部室確定時間割_${offsetName}.png`;
 
                 document.getElementById('btn-download-modal').onclick = () => {
-                    // スマホ用のネイティブ共有（Web Share API）が使える場合は優先
                     if (navigator.share && navigator.canShare) {
                         canvas.toBlob(blob => {
                             const file = new File([blob], fileName, { type: "image/png" });
@@ -1311,7 +1326,6 @@
                             }
                         }, 'image/png');
                     } else {
-                        // PCや対応していないブラウザは通常のダウンロードを実行
                         fallbackDownload(dataUrl, fileName);
                     }
                 };
@@ -1327,7 +1341,6 @@
             }); 
         }
 
-        // 通常のダウンロード処理フォールバック
         function fallbackDownload(url, name) {
             const link = document.createElement('a'); 
             link.download = name; 
