@@ -139,7 +139,7 @@
         let currentUserId = "";
         let myBandsData = {}; 
         let editingBandId = null; 
-        let pendingUpdateData = null; // 確認画面で保持する更新データ
+        let pendingUpdateData = null;
 
         const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Other"];
 
@@ -311,7 +311,6 @@
             document.getElementById('edit-members-container').appendChild(createMemberRow(false));
         });
 
-        // ▼ モーダルを表示するためのフォーム送信処理
         document.getElementById('edit-form').addEventListener('submit', (e) => {
             e.preventDefault();
             if (!editingBandId) return;
@@ -363,7 +362,6 @@
                 errorMsg.style.display = 'block'; return;
             }
 
-            // 更新データを一時保持
             pendingUpdateData = {
                 name: bandName,
                 memberIds: uniqueMemberIds,
@@ -371,7 +369,6 @@
                 leaders: leaders
             };
 
-            // モーダル用のHTMLを生成して表示
             let confirmHtml = `<div style="margin-bottom: 10px;"><strong>【バンド名】</strong><br>${bandName}</div>`;
             confirmHtml += `<div><strong>【メンバー構成】</strong><br>`;
             memberDetails.forEach(m => {
@@ -386,13 +383,11 @@
             document.getElementById('confirm-modal').style.display = 'flex';
         });
 
-        // モーダルの「修正する」ボタン
         document.getElementById('btn-modal-cancel').addEventListener('click', () => {
             document.getElementById('confirm-modal').style.display = 'none';
             pendingUpdateData = null; 
         });
 
-        // ▼ モーダルの「更新を確定する」ボタン（データベースへの上書き書き込み）
         document.getElementById('btn-modal-confirm').addEventListener('click', async () => {
             if (!pendingUpdateData || !editingBandId) return;
             
@@ -404,14 +399,38 @@
             btnSave.textContent = '保存中...';
 
             try {
+                // 1. bands コレクションの更新
                 const bandRef = doc(db, "bands", editingBandId);
                 await updateDoc(bandRef, pendingUpdateData);
+
+                // ▼ ここから追加：関連する予約やエントリーのバンド名も一斉に更新する ▼
+                const newBandName = pendingUpdateData.name;
+                const updatePromises = [];
+
+                // reservations (部室予約) の書き換え
+                const resQuery = query(collection(db, "reservations"), where("bandId", "==", editingBandId));
+                const resSnap = await getDocs(resQuery);
+                resSnap.forEach(docSnap => {
+                    updatePromises.push(updateDoc(doc(db, "reservations", docSnap.id), { bandName: newBandName }));
+                });
+
+                // liveEntries (ライブエントリー) の書き換え
+                const entryQuery = query(collection(db, "liveEntries"), where("bandId", "==", editingBandId));
+                const entrySnap = await getDocs(entryQuery);
+                entrySnap.forEach(docSnap => {
+                    updatePromises.push(updateDoc(doc(db, "liveEntries", docSnap.id), { bandName: newBandName }));
+                });
+
+                // すべての書き換え処理を並列で実行
+                if (updatePromises.length > 0) {
+                    await Promise.all(updatePromises);
+                }
+                // ▲ 追加ここまで ▲
 
                 editingBandId = null;
                 document.getElementById('edit-section').style.display = 'none';
                 document.getElementById('list-section').style.display = 'block';
                 
-                // ▼ 画面の一番上に遷移してサクセスメッセージを表示
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 
                 const successMsg = document.getElementById('main-success-msg');
@@ -424,8 +443,6 @@
 
             } catch (error) {
                 console.error("更新エラー:", error);
-                
-                // ▼ エラー時も上にスクロール
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 
                 errorMsg.textContent = "データベースの更新に失敗しました。";
