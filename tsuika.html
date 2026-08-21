@@ -372,6 +372,10 @@
 
                 submitBtn.disabled = false; 
 
+                // ▼ バンドが変わったらカレンダーを再描画（自バンドの申請済をチェックするため）
+                bandSelect.addEventListener('change', initTsuikaGrid);
+                initTsuikaGrid();
+
             } catch (error) {
                 console.error("バンド取得エラー:", error);
                 bandSelect.innerHTML = '<option value="">エラーが発生しました</option>';
@@ -415,6 +419,9 @@
             const grid = document.getElementById('tsuika-grid');
             grid.innerHTML = '';
 
+            const bandSelect = document.getElementById('band-select');
+            const selectedBandId = bandSelect ? bandSelect.value : null;
+
             const emptyCell = document.createElement('div');
             emptyCell.className = 'header-cell';
             grid.appendChild(emptyCell);
@@ -449,6 +456,9 @@
                     const cellRes = dbConfirmedReservations.filter(r => r.date === targetDate && r.period === pIndex);
                     
                     const blockingRes = cellRes.filter(r => r.confirmed === true && r.cancelRequested === false && r.rejected !== true);
+                    
+                    // ▼ 追加：現在選択しているバンドが既に申請しているかチェック
+                    const myExistingRes = cellRes.filter(r => r.bandId === selectedBandId && r.cancelRequested === false && r.rejected !== true);
 
                     if (isAdminDisabled) {
                         cell.classList.add('admin-disabled');
@@ -463,6 +473,21 @@
                             cell.appendChild(tag);
                         });
                     } 
+                    else if (selectedBandId && myExistingRes.length > 0) {
+                        // ▼ 自バンドが既に申請済みの場合はグレーアウトしてクリック不可にする
+                        cell.classList.add('has-existing');
+                        const tag = document.createElement('div');
+                        tag.className = 'faint-band-tag';
+                        tag.textContent = '自バンド申請済'; 
+                        cell.appendChild(tag);
+
+                        // 万が一選択状態だった場合は解除する
+                        const selIdx = selectedSlots.findIndex(s => s.day === dIndex && s.period === pIndex);
+                        if (selIdx >= 0) {
+                            selectedSlots.splice(selIdx, 1);
+                            updateSelectedDisplay();
+                        }
+                    }
                     else {
                         cell.classList.add('available');
 
@@ -543,6 +568,16 @@
                 return;
             }
 
+            // ▼ 追加：送信直前の最終チェック（重複弾き）
+            for (let slot of selectedSlots) {
+                const targetDate = currentWeekDates[slot.day];
+                const isDuplicate = dbConfirmedReservations.some(r => r.date === targetDate && r.period === slot.period && r.bandId === bandId && r.cancelRequested === false && r.rejected !== true);
+                if (isDuplicate) {
+                    alert(`既に「${myBands[bandId]}」で ${slot.text} の申請が行われています。別の枠を選択してください。`);
+                    return; // 重複が見つかれば送信をキャンセル
+                }
+            }
+
             const bandName = myBands[bandId]; 
             const btnSubmit = document.getElementById('btn-submit-req');
             btnSubmit.disabled = true;
@@ -568,7 +603,6 @@
 
                 await Promise.all(promises);
 
-                // ▼ 変更点: userIdを追加し、detailにも誰が操作したかを含める
                 await addDoc(collection(db, "logs"), {
                     timestamp: new Date().toISOString(),
                     category: "reservation",
