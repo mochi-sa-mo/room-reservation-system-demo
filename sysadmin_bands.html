@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全バンドデータ出力 - 特権管理者パネル</title>
+    <title>システム管理ツール (隠しページ)</title>
 
     <script>
-        // 特権管理者(adminadmin)のみアクセスを許可
-        if (localStorage.getItem('userRole') !== 'adminadmin') {
+        // システム管理者(sysadmin)のみアクセスを許可
+        if (localStorage.getItem('userRole') !== 'sysadmin') {
             alert('このページにアクセスする権限がありません。');
             window.location.replace('login.html');
         }
@@ -19,26 +19,39 @@
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); flex-wrap: wrap; gap: 10px; }
         
-        .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 100vw; margin: 0 auto 20px; overflow-x: hidden;}
+        .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 100vw; margin: 0 auto 30px; overflow-x: hidden;}
         .section-title { margin-top: 0; margin-bottom: 15px; border-left: 5px solid var(--primary-color); padding-left: 10px; font-size: 1.3em; display: flex; justify-content: space-between; align-items: center; }
+        .section-title.blue { border-left-color: #4A90E2; }
         
         .btn { padding: 10px 16px; border: none; border-radius: 4px; cursor: pointer; background-color: var(--primary-color); color: white; font-weight: bold; transition: 0.2s; text-align: center; }
         .btn:hover { background-color: var(--primary-hover); }
         .btn-nav { background-color: #e0e0e0; color: #333; } .btn-nav:hover { background-color: #d0d0d0; }
         .btn-danger { background-color: #d0021b; } .btn-danger:hover { background-color: #a00215; }
         .btn-success { background-color: #4caf50; } .btn-success:hover { background-color: #388e3c; }
+        .btn-blue { background-color: #4A90E2; } .btn-blue:hover { background-color: #357abd; }
 
         .control-panel { display: flex; gap: 15px; background: #f3e5f5; padding: 20px; border-radius: 8px; border: 1px solid #e1bee7; margin-bottom: 20px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+        .control-panel.blue-panel { background: #e3f2fd; border-color: #bbdefb; }
         .info-text { font-size: 0.9em; color: #4a148c; font-weight: bold; }
+        .info-text.blue-text { color: #1565c0; }
 
         .data-table { width: 100%; border-collapse: collapse; font-size: 0.85em; margin-top: 15px; white-space: nowrap; }
         .data-table th, .data-table td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
         .data-table th { background: #f3e5f5; color: #4a148c; font-weight: bold; position: sticky; top: 0;}
+        
+        /* ユーザーテーブル用のヘッダー色 */
+        .table-users th { background: #e3f2fd; color: #1565c0; }
+
         .table-container { max-height: 60vh; overflow-y: auto; overflow-x: auto; border: 1px solid #ccc; border-radius: 4px; display: none; }
 
-        .tag-leader { background: #ff9800; color: white; padding: 2px 6px; border-radius: 12px; font-size: 0.75em; margin-left: 5px;}
+        .tag { background: #ff9800; color: white; padding: 2px 6px; border-radius: 12px; font-size: 0.75em; margin-left: 5px; font-weight: bold;}
+        .tag.admin { background: #4A90E2; }
+        .tag.sysadmin { background: #d0021b; }
+        .tag.log { background: #8e44ad; }
         
         .success-message { color: #4caf50; font-size: 0.9em; margin-bottom: 15px; display: none; padding: 10px; background: #e8f5e9; border-radius: 4px; font-weight: bold; text-align: center;}
+        
+        .search-input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; width: 100%; max-width: 300px; display: none; }
 
         /* モーダル */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
@@ -50,29 +63,71 @@
 <body>
 
     <header>
-        <h1>特権管理者パネル - 全バンドデータ</h1>
+        <h1>🔧 システム管理ツール (裏メニュー)</h1>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-nav" onclick="window.location.href='index.html'">トップへ戻る</button>
             <button class="btn btn-danger" id="btn-logout">ログアウト</button>
         </div>
     </header>
 
+    <div class="success-message" id="main-success-msg" style="max-width: 100vw; margin: 0 auto 20px;"></div>
+
+    <!-- ========================================== -->
+    <!-- ▼ ユーザー（名簿）管理セクション ▼ -->
+    <!-- ========================================== -->
     <div class="container">
-        <div class="section-title"><span>🎸 現在登録されている全バンドデータ</span></div>
-        <div class="success-message" id="main-success-msg"></div>
+        <div class="section-title blue"><span>👥 登録ユーザー（名簿）データ</span></div>
+
+        <div class="control-panel blue-panel">
+            <div class="info-text blue-text">
+                データベース上に登録されているすべてのユーザー（名簿）情報を読み込みます。<br>
+                ※読み込むことで、下のバンドデータの「学籍番号→名前」の変換精度が向上します。
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <button class="btn btn-blue" id="btn-load-users">🔄 ユーザーを読み込む</button>
+                <input type="text" id="user-search-input" class="search-input" placeholder="🔍 学籍番号や名前で検索...">
+            </div>
+        </div>
+
+        <div id="loading-users-msg" style="text-align: center; color: #999; display: none; padding: 20px;">ユーザーデータを取得中...</div>
+
+        <div class="table-container" id="users-table-container">
+            <table class="data-table table-users" id="users-table">
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>学籍番号 (ID)</th>
+                        <th>氏名</th>
+                        <th>権限 (Role)</th>
+                    </tr>
+                </thead>
+                <tbody id="users-tbody">
+                    <!-- データがここに挿入されます -->
+                </tbody>
+            </table>
+        </div>
+        <p id="users-empty-msg" style="text-align: center; color: #999;">「ユーザーを読み込む」ボタンを押してください。</p>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ▼ バンドデータ管理セクション ▼ -->
+    <!-- ========================================== -->
+    <div class="container">
+        <div class="section-title"><span>🎸 全バンドデータ</span></div>
 
         <div class="control-panel">
             <div class="info-text">
-                データベース上に登録されているすべてのバンド情報を読み込みます。<br>
+                データベース上に登録されているすべてのバンド情報を読み込みます。
             </div>
             <div style="display: flex; gap: 10px;">
-                <button class="btn" id="btn-load-bands" style="background-color: var(--primary-color);">🔄 全バンドを読み込む</button>
+                <button class="btn" id="btn-load-bands">🔄 全バンドを読み込む</button>
                 <button class="btn btn-success" id="btn-export-csv" style="display: none;">📥 CSVでエクスポート</button>
             </div>
         </div>
 
-        <div id="loading-msg" style="text-align: center; color: #999; display: none; padding: 20px;">データを取得中...</div>
+        <div id="loading-bands-msg" style="text-align: center; color: #999; display: none; padding: 20px;">バンドデータを取得中...</div>
 
-        <div class="table-container" id="table-container">
+        <div class="table-container" id="bands-table-container">
             <table class="data-table" id="bands-table">
                 <thead id="bands-thead">
                     <!-- 動的に生成されます -->
@@ -82,7 +137,7 @@
                 </tbody>
             </table>
         </div>
-        <p id="empty-msg" style="text-align: center; color: #999;">「全バンドを読み込む」ボタンを押してください。</p>
+        <p id="bands-empty-msg" style="text-align: center; color: #999;">「全バンドを読み込む」ボタンを押してください。</p>
     </div>
 
     <!-- 汎用アクション確認モーダル -->
@@ -101,20 +156,27 @@
         import { db } from "./firebase.js";
         import { collection, getDocs, query } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
+        // バンド用変数
         let allBandsData = [];
-        let nameDictionary = JSON.parse(sessionStorage.getItem('adminNameDictionary') || '{}');
-        
-        // 動的な最大人数を保持する変数
         let maxLeaders = 1;
         let maxMembers = 1;
+        
+        // ユーザー（名簿）用変数
+        let allUsersData = [];
+        let nameDictionary = JSON.parse(sessionStorage.getItem('adminNameDictionary') || '{}');
 
         window.onload = () => {
             document.getElementById('btn-logout').onclick = confirmLogout;
             document.getElementById('btn-confirm-cancel').onclick = closeConfirmModal;
             document.getElementById('btn-confirm-execute').onclick = executeLogout;
 
+            // バンドのイベント
             document.getElementById('btn-load-bands').onclick = loadAllBands;
             document.getElementById('btn-export-csv').onclick = exportToCSV;
+
+            // ユーザー（名簿）のイベント
+            document.getElementById('btn-load-users').onclick = loadAllUsers;
+            document.getElementById('user-search-input').addEventListener('input', filterUsers);
         };
 
         function escapeHTML(str) {
@@ -127,108 +189,67 @@
             return nameDictionary[id] ? `${id}<br><span style="color:#0056b3;">${nameDictionary[id]}</span>` : id;
         }
 
-        async function loadAllBands() {
-            const btnLoad = document.getElementById('btn-load-bands');
-            const btnExport = document.getElementById('btn-export-csv');
-            const loadingMsg = document.getElementById('loading-msg');
-            const tableContainer = document.getElementById('table-container');
-            const thead = document.getElementById('bands-thead');
-            const tbody = document.getElementById('bands-tbody');
-            const emptyMsg = document.getElementById('empty-msg');
+        // ==========================================
+        // 👥 ユーザー（名簿）関連の処理
+        // ==========================================
+        async function loadAllUsers() {
+            const btnLoad = document.getElementById('btn-load-users');
+            const loadingMsg = document.getElementById('loading-users-msg');
+            const tableContainer = document.getElementById('users-table-container');
+            const emptyMsg = document.getElementById('users-empty-msg');
+            const searchInput = document.getElementById('user-search-input');
 
-            btnLoad.disabled = true;
-            btnLoad.textContent = '読み込み中...';
-            emptyMsg.style.display = 'none';
-            tableContainer.style.display = 'none';
-            btnExport.style.display = 'none';
-            loadingMsg.style.display = 'block';
-            thead.innerHTML = '';
-            tbody.innerHTML = '';
+            btnLoad.disabled = true; btnLoad.textContent = '読み込み中...';
+            emptyMsg.style.display = 'none'; tableContainer.style.display = 'none';
+            searchInput.style.display = 'none'; loadingMsg.style.display = 'block';
 
             try {
-                const q = query(collection(db, "bands"));
+                const q = query(collection(db, "users"));
                 const snap = await getDocs(q);
                 
-                allBandsData = [];
-                maxLeaders = 1; // 初期化
-                maxMembers = 1; // 初期化
+                allUsersData = [];
+                nameDictionary = {}; // 辞書をリセット
 
                 snap.forEach(doc => {
                     const data = doc.data();
-                    allBandsData.push({ id: doc.id, ...data });
-                    
-                    // 各バンドの人数をチェックして最大値を更新
-                    if (data.leaders && data.leaders.length > maxLeaders) {
-                        maxLeaders = data.leaders.length;
-                    }
-                    if (data.memberDetails && data.memberDetails.length > maxMembers) {
-                        maxMembers = data.memberDetails.length;
+                    allUsersData.push({ id: doc.id, ...data });
+                    // 名前があれば辞書に追加（バンド出力用）
+                    if (data.name) {
+                        nameDictionary[doc.id] = data.name;
                     }
                 });
 
-                if (allBandsData.length === 0) {
+                // セッションストレージに最新の辞書を保存
+                sessionStorage.setItem('adminNameDictionary', JSON.stringify(nameDictionary));
+
+                if (allUsersData.length === 0) {
                     loadingMsg.style.display = 'none';
-                    emptyMsg.textContent = '登録されているバンドがありません。';
+                    emptyMsg.textContent = '登録されているユーザーがいません。';
                     emptyMsg.style.display = 'block';
-                    btnLoad.disabled = false;
-                    btnLoad.textContent = '🔄 全バンドを読み込む';
+                    btnLoad.disabled = false; btnLoad.textContent = '🔄 ユーザーを読み込む';
                     return;
                 }
 
-                allBandsData.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+                // 学籍番号順にソート
+                allUsersData.sort((a, b) => a.id.localeCompare(b.id));
 
-                // --- 1. 動的なテーブルヘッダーの生成 ---
-                let theadHtml = `<tr><th>No.</th><th>バンド名</th>`;
-                for(let i = 1; i <= maxLeaders; i++) {
-                    theadHtml += `<th>代表者 ${i}</th>`;
-                }
-                for(let i = 1; i <= maxMembers; i++) {
-                    theadHtml += `<th>メンバー ${i}</th>`;
-                }
-                theadHtml += `</tr>`;
-                thead.innerHTML = theadHtml;
-
-                // --- 2. テーブルボディの生成 ---
-                allBandsData.forEach((band, index) => {
-                    const tr = document.createElement('tr');
-                    let rowHtml = `<td>${index + 1}</td><td style="font-weight:bold;">${escapeHTML(band.name || "名称未設定")}</td>`;
-
-                    // 代表者列の生成（maxLeadersの数だけループ）
-                    const leaders = band.leaders || [];
-                    for(let i = 0; i < maxLeaders; i++) {
-                        if (leaders[i]) {
-                            rowHtml += `<td>${translateId(leaders[i])}</td>`;
-                        } else {
-                            rowHtml += `<td style="background:#fafafa;"></td>`; // 空のセル
-                        }
-                    }
-
-                    // メンバー列の生成（maxMembersの数だけループ）
-                    const details = band.memberDetails || [];
-                    for(let i = 0; i < maxMembers; i++) {
-                        if (details[i]) {
-                            const isLeader = leaders.includes(details[i].id);
-                            const leaderBadge = isLeader ? '<span class="tag-leader">代表</span>' : '';
-                            rowHtml += `<td>${escapeHTML(details[i].part)}: ${translateId(details[i].id)} ${leaderBadge}</td>`;
-                        } else {
-                            rowHtml += `<td style="background:#fafafa;"></td>`; // 空のセル
-                        }
-                    }
-
-                    tr.innerHTML = rowHtml;
-                    tbody.appendChild(tr);
-                });
+                renderUsersTable(allUsersData);
 
                 loadingMsg.style.display = 'none';
                 tableContainer.style.display = 'block';
-                btnExport.style.display = 'inline-block';
+                searchInput.style.display = 'block'; // 検索窓を表示
 
-                showSuccessMsg(`${allBandsData.length} 件のバンドデータを読み込みました。（最大代表者: ${maxLeaders}名 / 最大メンバー: ${maxMembers}名）`);
+                showSuccessMsg(`名簿データ（${allUsersData.length} 件）を読み込みました！`);
+
+                // もし既にバンドが表示されていたら、名前を再描画する
+                if(allBandsData.length > 0) {
+                    renderBandsTable();
+                }
 
             } catch (error) {
-                console.error("データ取得エラー:", error);
+                console.error("ユーザー取得エラー:", error);
                 loadingMsg.style.display = 'none';
-                emptyMsg.textContent = 'データの取得に失敗しました。';
+                emptyMsg.textContent = 'ユーザーデータの取得に失敗しました。';
                 emptyMsg.style.display = 'block';
             }
 
@@ -236,29 +257,154 @@
             btnLoad.textContent = '🔄 再読み込み';
         }
 
+        function renderUsersTable(dataList) {
+            const tbody = document.getElementById('users-tbody');
+            tbody.innerHTML = '';
+            
+            dataList.forEach((user, index) => {
+                const tr = document.createElement('tr');
+                
+                // 権限バッジの生成
+                let roleBadge = '<span style="color:#666; font-size:0.85em;">一般部員</span>';
+                if (user.role === 'sysadmin') roleBadge = '<span class="tag sysadmin">システム管理者</span>';
+                else if (user.role === 'admin') roleBadge = '<span class="tag admin">管理者</span>';
+                else if (user.role === 'log') roleBadge = '<span class="tag log">ログ確認用</span>';
+                else if (user.role === 'member' || !user.role) roleBadge = '<span style="color:#666; font-size:0.85em;">一般部員</span>';
+
+                tr.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td style="font-weight:bold;">${escapeHTML(user.id)}</td>
+                    <td>${escapeHTML(user.name || "未登録")}</td>
+                    <td>${roleBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            if(dataList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#999;">一致するユーザーが見つかりません</td></tr>';
+            }
+        }
+
+        function filterUsers(e) {
+            const term = e.target.value.toLowerCase();
+            const filtered = allUsersData.filter(user => 
+                user.id.toLowerCase().includes(term) || 
+                (user.name && user.name.toLowerCase().includes(term)) ||
+                (user.role && user.role.toLowerCase().includes(term))
+            );
+            renderUsersTable(filtered);
+        }
+
+        // ==========================================
+        // 🎸 バンド関連の処理
+        // ==========================================
+        async function loadAllBands() {
+            const btnLoad = document.getElementById('btn-load-bands');
+            const btnExport = document.getElementById('btn-export-csv');
+            const loadingMsg = document.getElementById('loading-bands-msg');
+            const tableContainer = document.getElementById('bands-table-container');
+            const emptyMsg = document.getElementById('bands-empty-msg');
+
+            btnLoad.disabled = true; btnLoad.textContent = '読み込み中...';
+            emptyMsg.style.display = 'none'; tableContainer.style.display = 'none';
+            btnExport.style.display = 'none'; loadingMsg.style.display = 'block';
+
+            try {
+                const q = query(collection(db, "bands"));
+                const snap = await getDocs(q);
+                
+                allBandsData = [];
+                maxLeaders = 1; maxMembers = 1;
+
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    allBandsData.push({ id: doc.id, ...data });
+                    
+                    if (data.leaders && data.leaders.length > maxLeaders) maxLeaders = data.leaders.length;
+                    if (data.memberDetails && data.memberDetails.length > maxMembers) maxMembers = data.memberDetails.length;
+                });
+
+                if (allBandsData.length === 0) {
+                    loadingMsg.style.display = 'none';
+                    emptyMsg.textContent = '登録されているバンドがありません。';
+                    emptyMsg.style.display = 'block';
+                    btnLoad.disabled = false; btnLoad.textContent = '🔄 全バンドを読み込む';
+                    return;
+                }
+
+                allBandsData.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+                renderBandsTable();
+
+                loadingMsg.style.display = 'none';
+                tableContainer.style.display = 'block';
+                btnExport.style.display = 'inline-block';
+
+                showSuccessMsg(`バンドデータ（${allBandsData.length} 件）を読み込みました！`);
+
+            } catch (error) {
+                console.error("バンド取得エラー:", error);
+                loadingMsg.style.display = 'none';
+                emptyMsg.textContent = 'バンドデータの取得に失敗しました。';
+                emptyMsg.style.display = 'block';
+            }
+
+            btnLoad.disabled = false;
+            btnLoad.textContent = '🔄 再読み込み';
+        }
+
+        function renderBandsTable() {
+            const thead = document.getElementById('bands-thead');
+            const tbody = document.getElementById('bands-tbody');
+            
+            // ヘッダー生成
+            let theadHtml = `<tr><th>No.</th><th>バンド名</th>`;
+            for(let i = 1; i <= maxLeaders; i++) theadHtml += `<th>代表者 ${i}</th>`;
+            for(let i = 1; i <= maxMembers; i++) theadHtml += `<th>メンバー ${i}</th>`;
+            theadHtml += `</tr>`;
+            thead.innerHTML = theadHtml;
+
+            // ボディ生成
+            tbody.innerHTML = '';
+            allBandsData.forEach((band, index) => {
+                const tr = document.createElement('tr');
+                let rowHtml = `<td>${index + 1}</td><td style="font-weight:bold;">${escapeHTML(band.name || "名称未設定")}</td>`;
+
+                const leaders = band.leaders || [];
+                for(let i = 0; i < maxLeaders; i++) {
+                    if (leaders[i]) rowHtml += `<td>${translateId(leaders[i])}</td>`;
+                    else rowHtml += `<td style="background:#fafafa;"></td>`;
+                }
+
+                const details = band.memberDetails || [];
+                for(let i = 0; i < maxMembers; i++) {
+                    if (details[i]) {
+                        const isLeader = leaders.includes(details[i].id);
+                        const leaderBadge = isLeader ? '<span class="tag tag-leader">代表</span>' : '';
+                        rowHtml += `<td>${escapeHTML(details[i].part)}: ${translateId(details[i].id)} ${leaderBadge}</td>`;
+                    } else {
+                        rowHtml += `<td style="background:#fafafa;"></td>`;
+                    }
+                }
+                tr.innerHTML = rowHtml;
+                tbody.appendChild(tr);
+            });
+        }
+
         function exportToCSV() {
             if (allBandsData.length === 0) {
-                alert("出力するデータがありません。");
-                return;
+                alert("出力するデータがありません。"); return;
             }
 
-            // CSVのヘッダーを動的に生成
             let csvContent = "バンドID,バンド名,";
-            for(let i = 1; i <= maxLeaders; i++) {
-                csvContent += `代表者${i}_学籍番号,代表者${i}_氏名,`;
-            }
-            for(let i = 1; i <= maxMembers; i++) {
-                csvContent += `メンバー${i}_学籍番号,メンバー${i}_氏名,メンバー${i}_パート,`;
-            }
+            for(let i = 1; i <= maxLeaders; i++) csvContent += `代表者${i}_学籍番号,代表者${i}_氏名,`;
+            for(let i = 1; i <= maxMembers; i++) csvContent += `メンバー${i}_学籍番号,メンバー${i}_氏名,メンバー${i}_パート,`;
             csvContent += "\n";
 
-            // CSVのデータを動的に生成
             allBandsData.forEach(band => {
                 const row = [];
                 const escape = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
                 
-                row.push(escape(band.id));
-                row.push(escape(band.name));
+                row.push(escape(band.id)); row.push(escape(band.name));
                 
                 const leaders = band.leaders || [];
                 for(let i = 0; i < maxLeaders; i++) {
@@ -280,11 +426,9 @@
                         row.push(""); row.push(""); row.push("");
                     }
                 }
-
                 csvContent += row.join(",") + "\n";
             });
 
-            // BOMを付与してExcelで文字化けしないようにする
             const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
             const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
@@ -293,12 +437,15 @@
             const now = new Date();
             const dateStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}`;
             link.setAttribute("href", url);
-            link.setAttribute("download", `全バンドデータ_最適化版_${dateStr}.csv`);
+            link.setAttribute("download", `全バンドデータ_${dateStr}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
 
+        // ==========================================
+        // 共通機能
+        // ==========================================
         function showConfirmModal(title, message) {
             document.getElementById('confirm-modal-title').textContent = title;
             document.getElementById('confirm-modal-message').innerHTML = message;
