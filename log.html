@@ -41,7 +41,6 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
-        /* ★追加：タイトルとフィルターボタンを横並びにするレイアウト */
         .section-header-wrap {
             display: flex;
             justify-content: space-between;
@@ -53,15 +52,15 @@
 
         .section-title {
             margin-top: 0;
-            margin-bottom: 0; /* ラップ側にmarginを持たせたため0に */
+            margin-bottom: 0;
             padding-left: 10px;
             font-size: 1.2em;
             font-weight: bold;
         }
         .title-res { border-left: 5px solid #2196F3; }
         .title-ann { border-left: 5px solid #FF9800; }
+        .title-live { border-left: 5px solid #e91e63; } /* 新規セクション用 */
 
-        /* ★追加：フィルターボタンのスタイル */
         .filter-buttons {
             display: flex;
             gap: 6px;
@@ -98,7 +97,7 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9em;
-            min-width: 600px; 
+            min-width: 800px; /* 列が増えたのでスクロール幅を拡大 */
         }
         .log-table th, .log-table td {
             border: 1px solid var(--border-color);
@@ -137,8 +136,6 @@
             text-align: center;
         }
         .btn:hover { background-color: var(--primary-hover); }
-        .btn-back { background-color: #999; }
-        .btn-back:hover { background-color: #888; }
         .btn-danger { background-color: #d0021b; }
         .btn-danger:hover { background-color: #a00215; }
 
@@ -170,14 +167,14 @@
 
     <div class="log-layout">
         
+        <!-- 予約・変更履歴 -->
         <div class="log-section">
-            <!-- ★追加：タイトルとフィルターボタンの配置エリア -->
             <div class="section-header-wrap">
                 <div class="section-title title-res">📅 部室予約・変更・削除希望 履歴</div>
                 <div class="filter-buttons">
                     <button id="filter-all" class="filter-btn active" onclick="setResFilter('all')">すべて表示</button>
                     <button id="filter-create" class="filter-btn" onclick="setResFilter('create')">新規希望</button>
-                    <button id="filter-update" class="filter-btn" onclick="setResFilter('update')">予約確定</button>
+                    <button id="filter-update" class="filter-btn" onclick="setResFilter('update')">予約確定/変更</button>
                     <button id="filter-cancel" class="filter-btn" onclick="setResFilter('cancel')">取消申請</button>
                     <button id="filter-delete" class="filter-btn" onclick="setResFilter('delete')">削除/却下</button>
                 </div>
@@ -187,20 +184,46 @@
                 <table class="log-table">
                     <thead>
                         <tr>
-                            <th style="width: 20%;">操作日時</th>
-                            <th style="width: 15%;">操作種別</th>
-                            <th style="width: 20%;">対象バンド名</th>
-                            <th style="width: 25%;">対象スロット (時間帯)</th>
-                            <th style="width: 20%;">備考・変更内容</th>
+                            <th style="width: 15%;">操作日時</th>
+                            <th style="width: 15%;">操作者ID</th>
+                            <th style="width: 10%;">操作種別</th>
+                            <th style="width: 15%;">対象バンド名</th>
+                            <th style="width: 15%;">対象スロット (時間帯)</th>
+                            <th style="width: 30%;">備考・変更内容</th>
                         </tr>
                     </thead>
                     <tbody id="res-log-tbody">
-                        <tr><td colspan="5" class="empty-log">ログを読み込み中...</td></tr>
+                        <tr><td colspan="6" class="empty-log">ログを読み込み中...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
+        <!-- ライブ・バンド関連履歴（新規追加） -->
+        <div class="log-section">
+            <div class="section-header-wrap">
+                <div class="section-title title-live">🎸 ライブ・バンド関連 履歴</div>
+            </div>
+            <div class="table-container">
+                <table class="log-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">操作日時</th>
+                            <th style="width: 15%;">操作者ID</th>
+                            <th style="width: 10%;">区分</th>
+                            <th style="width: 10%;">操作種別</th>
+                            <th style="width: 20%;">対象 (ライブ名/バンド名)</th>
+                            <th style="width: 30%;">詳細</th>
+                        </tr>
+                    </thead>
+                    <tbody id="live-log-tbody">
+                        <tr><td colspan="6" class="empty-log">ログを読み込み中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 案内履歴 -->
         <div class="log-section">
             <div class="section-header-wrap">
                 <div class="section-title title-ann">📢 イベント・締め切り登録・編集 履歴</div>
@@ -209,15 +232,16 @@
                 <table class="log-table">
                     <thead>
                         <tr>
-                            <th style="width: 20%;">操作日時</th>
-                            <th style="width: 15%;">区分</th>
-                            <th style="width: 15%;">操作種別</th>
+                            <th style="width: 15%;">操作日時</th>
+                            <th style="width: 15%;">操作者ID</th>
+                            <th style="width: 10%;">区分</th>
+                            <th style="width: 10%;">操作種別</th>
                             <th style="width: 30%;">件名（タイトル）</th>
                             <th style="width: 20%;">非表示設定日時</th>
                         </tr>
                     </thead>
                     <tbody id="ann-log-tbody">
-                        <tr><td colspan="5" class="empty-log">ログを読み込み中...</td></tr>
+                        <tr><td colspan="6" class="empty-log">ログを読み込み中...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -229,7 +253,6 @@
         import { db } from "./firebase.js";
         import { collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
-        // ★追加：ログの全体データと現在のフィルター状態を保持する変数
         let allResLogs = [];
         let currentResFilter = 'all';
 
@@ -257,16 +280,11 @@
             }
         };
 
-        // ★追加：フィルターボタンが押された時の処理
         window.setResFilter = function(filterType) {
             currentResFilter = filterType;
-            
-            // ボタンの見た目（active状態）を切り替え
             const buttons = document.querySelectorAll('.filter-buttons .filter-btn');
             buttons.forEach(btn => btn.classList.remove('active'));
             document.getElementById(`filter-${filterType}`).classList.add('active');
-
-            // ログの再描画
             renderReservationLogs();
         };
 
@@ -276,6 +294,7 @@
             onSnapshot(q, (snapshot) => {
                 const resLogs = [];
                 const annLogs = [];
+                const liveLogs = [];
 
                 snapshot.forEach(doc => {
                     const data = doc.data();
@@ -283,13 +302,15 @@
                         annLogs.push(data);
                     } else if (data.category === 'reservation') {
                         resLogs.push(data);
+                    } else if (['live', 'band', 'entry'].includes(data.category)) {
+                        liveLogs.push(data);
                     }
                 });
 
-                // ★修正：取得した予約ログを一旦グローバル変数に保存してから描画関数を呼ぶ
                 allResLogs = resLogs;
                 renderReservationLogs();
                 renderAnnouncementLogs(annLogs);
+                renderLiveLogs(liveLogs);
             });
         }
 
@@ -299,18 +320,16 @@
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
         }
 
-        // ★修正：引数で受け取るのではなく、グローバル変数（allResLogs）からフィルターをかけて描画する
         function renderReservationLogs() {
             const tbody = document.getElementById('res-log-tbody');
             tbody.innerHTML = '';
 
-            // 現在のフィルター条件に合うものだけを抽出
             const filteredLogs = currentResFilter === 'all' 
                 ? allResLogs 
                 : allResLogs.filter(log => log.opType === currentResFilter);
 
             if (filteredLogs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-log">該当する操作ログはありません。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-log">該当する操作ログはありません。</td></tr>';
                 return;
             }
 
@@ -320,11 +339,14 @@
                 const timeTd = document.createElement('td');
                 timeTd.textContent = formatDate(log.timestamp);
 
+                const userTd = document.createElement('td');
+                userTd.textContent = log.userId || '-';
+
                 const opTd = document.createElement('td');
                 let badgeClass = '';
                 let badgeText = '';
                 if (log.opType === 'create') { badgeClass = 'op-create'; badgeText = '新規希望'; }
-                else if (log.opType === 'update') { badgeClass = 'op-update'; badgeText = '予約確定'; }
+                else if (log.opType === 'update') { badgeClass = 'op-update'; badgeText = '予約確定/更新'; }
                 else if (log.opType === 'cancel') { badgeClass = 'op-cancel'; badgeText = '取消申請'; }
                 else if (log.opType === 'delete') { badgeClass = 'op-delete'; badgeText = '削除/却下'; }
                 opTd.innerHTML = `<span class="op-badge ${badgeClass}">${badgeText}</span>`;
@@ -339,9 +361,59 @@
                 detailTd.textContent = log.detail || '-';
 
                 tr.appendChild(timeTd);
+                tr.appendChild(userTd);
                 tr.appendChild(opTd);
                 tr.appendChild(nameTd);
                 tr.appendChild(slotTd);
+                tr.appendChild(detailTd);
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 新規追加：バンド・ライブ関連のログ描画
+        function renderLiveLogs(logs) {
+            const tbody = document.getElementById('live-log-tbody');
+            tbody.innerHTML = '';
+
+            if (logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-log">操作ログはありません。</td></tr>';
+                return;
+            }
+
+            logs.forEach(log => {
+                const tr = document.createElement('tr');
+
+                const timeTd = document.createElement('td');
+                timeTd.textContent = formatDate(log.timestamp);
+
+                const userTd = document.createElement('td');
+                userTd.textContent = log.userId || '-';
+
+                const typeTd = document.createElement('td');
+                if (log.category === 'live') typeTd.textContent = 'ライブ管理';
+                else if (log.category === 'band') typeTd.textContent = 'バンド管理';
+                else if (log.category === 'entry') typeTd.textContent = 'エントリー';
+                else typeTd.textContent = log.category;
+
+                const opTd = document.createElement('td');
+                let badgeClass = '';
+                let badgeText = '';
+                if (log.opType === 'create') { badgeClass = 'op-create'; badgeText = '新規作成'; }
+                else if (log.opType === 'update') { badgeClass = 'op-update'; badgeText = '更新/変更'; }
+                else if (log.opType === 'delete') { badgeClass = 'op-delete'; badgeText = '削除/辞退'; }
+                opTd.innerHTML = `<span class="op-badge ${badgeClass}">${badgeText}</span>`;
+
+                const titleTd = document.createElement('td');
+                titleTd.textContent = log.title || log.bandName || '-';
+
+                const detailTd = document.createElement('td');
+                detailTd.textContent = log.detail || '-';
+
+                tr.appendChild(timeTd);
+                tr.appendChild(userTd);
+                tr.appendChild(typeTd);
+                tr.appendChild(opTd);
+                tr.appendChild(titleTd);
                 tr.appendChild(detailTd);
                 tbody.appendChild(tr);
             });
@@ -352,7 +424,7 @@
             tbody.innerHTML = '';
 
             if (logs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-log">操作ログはありません。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-log">操作ログはありません。</td></tr>';
                 return;
             }
 
@@ -361,6 +433,9 @@
 
                 const timeTd = document.createElement('td');
                 timeTd.textContent = formatDate(log.timestamp);
+
+                const userTd = document.createElement('td');
+                userTd.textContent = log.userId || '-';
 
                 const typeTd = document.createElement('td');
                 typeTd.textContent = log.annType === 'event' ? 'イベント' : '締め切り';
@@ -380,6 +455,7 @@
                 expireTd.textContent = log.expire ? log.expire.replace('T', ' ') : '-';
 
                 tr.appendChild(timeTd);
+                tr.appendChild(userTd);
                 tr.appendChild(typeTd);
                 tr.appendChild(opTd);
                 tr.appendChild(titleTd);
