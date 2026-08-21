@@ -208,8 +208,10 @@
     </div>
 
     <script type="module">
-        import { db } from "./firebase.js";
+        import { db, auth } from "./firebase.js";
+        // ▼ 追加: onAuthStateChangedをインポート
         import { collection, getDocs, doc, getDoc, updateDoc, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
         let currentLiveId = "";
         let currentLiveState = {}; 
@@ -217,8 +219,18 @@
         let pendingAction = null; 
         let pendingEntryId = null; 
         let nameDictionary = JSON.parse(sessionStorage.getItem('adminNameDictionary') || '{}');
+        
+        // ▼ 追加: 操作した管理者のIDを保持する変数
+        let currentUserId = "不明な管理者";
 
         window.onload = function() {
+            // ▼ 追加: 管理者のIDを取得
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUserId = user.email.split('@')[0];
+                }
+            });
+
             document.getElementById('btn-confirm-cancel').onclick = closeConfirmModal;
             document.getElementById('btn-confirm-execute').onclick = executeConfirmAction;
             document.getElementById('btn-alert-ok').onclick = closeAlertModal;
@@ -273,6 +285,16 @@
                 await addDoc(collection(db, "announcements"), {
                     type: 'deadline', title: `【${name}】出演バンド募集`,
                     date: deadline + "T23:59", expire: deadline + "T23:59", notes: messageText, link: "live_entry.html", deleted: false, createdAt: serverTimestamp()
+                });
+
+                // ▼ 追加: 新規ライブ作成のログ
+                await addDoc(collection(db, "logs"), {
+                    timestamp: new Date().toISOString(),
+                    category: "live",
+                    opType: "create",
+                    title: name,
+                    userId: currentUserId,
+                    detail: `管理者(${currentUserId})が新規ライブ「${name}」を作成・告知しました`
                 });
 
                 document.getElementById('create-live-modal').style.display = 'none';
@@ -594,7 +616,6 @@
             let csvContent = "";
             
             if (type === 'band') {
-                // 最大メンバー数を取得
                 let maxMembers = 0;
                 approvedEntries.forEach(entry => {
                     if (entry.performers && entry.performers.length > maxMembers) {
@@ -602,7 +623,6 @@
                     }
                 });
 
-                // 動的ヘッダー生成
                 let header = ["バンド名", "シート提出", "マイク本数", "キーボード", "備考"];
                 for (let i = 1; i <= maxMembers; i++) {
                     header.push(`メンバー${i}(パート)`);
@@ -739,6 +759,23 @@
                     
                     updateStatusAreaUI();
                     
+                    // ▼ 追加: 状態の変更をログに記録
+                    const liveDoc = await getDoc(doc(db, "lives", currentLiveId));
+                    const liveName = liveDoc.exists() ? liveDoc.data().name : "不明なライブ";
+                    let stateLabel = "";
+                    if (type === 'entry') stateLabel = isNowOpen ? '募集を再開' : '募集を終了';
+                    else if (type === 'result') stateLabel = isNowOpen ? '審査結果を公開' : '審査結果を非公開化';
+                    else stateLabel = isNowOpen ? '打ち上げ受付を開始' : '打ち上げ受付を終了';
+
+                    await addDoc(collection(db, "logs"), {
+                        timestamp: new Date().toISOString(),
+                        category: "live",
+                        opType: "update",
+                        title: liveName,
+                        userId: currentUserId,
+                        detail: `管理者(${currentUserId})がライブ「${liveName}」の${stateLabel}しました`
+                    });
+
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                     successMsg.textContent = "ステータスを変更しました。"; successMsg.style.display = 'block';
                     setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
