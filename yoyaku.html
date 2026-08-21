@@ -110,6 +110,7 @@
 
         .cell.has-existing {
             background-color: var(--existing-bg);
+            cursor: not-allowed;
         }
         .cell.has-existing:hover {
             background-color: #f0f0f0;
@@ -175,7 +176,6 @@
             color: red;
             margin-left: 4px;
         }
-        /* ▼ 変更点： select を追加 */
         .form-group input, .form-group textarea, .form-group select {
             width: 100%;
             padding: 8px;
@@ -245,7 +245,6 @@
 
         @media (max-width: 768px) {
             body { padding: 10px; }
-            /* スマホでもヘッダーを1行で表示 */
             header { 
                 flex-direction: row; 
                 justify-content: space-between; 
@@ -280,7 +279,6 @@
                 選択されていません（カレンダーから選んでください）
             </div>
             
-            <!-- ▼ 変更点：プルダウンに変更 -->
             <div class="form-group">
                 <label for="band-select">バンド名<span class="required-badge">*</span></label>
                 <select id="band-select">
@@ -312,7 +310,6 @@
         }
 
         import { db, auth } from "./firebase.js";
-        // ▼ 変更点: onAuthStateChanged, getDocs, query, where を追加
         import { collection, onSnapshot, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
@@ -323,7 +320,6 @@
         let dbConfirmedReservations = [];
         let dbDisabledSlots = [];
 
-        // ▼ 追加: バンド情報保持用
         let currentUserId = "";
         let myBands = {};
 
@@ -340,7 +336,6 @@
 
         const nextWeekDates = getNextWeekDates(); 
 
-        // ▼ 追加: 自分が所属しているバンドをロードする
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUserId = user.email.split('@')[0];
@@ -353,7 +348,6 @@
             const submitBtn = document.getElementById('btn-submit-req');
             
             try {
-                // 自分が memberIds に含まれるバンドを検索
                 const q = query(collection(db, "bands"), where("memberIds", "array-contains", currentUserId));
                 const snap = await getDocs(q);
                 
@@ -375,7 +369,11 @@
                     bandSelect.appendChild(option);
                 });
 
-                submitBtn.disabled = false; // バンドがあれば送信ボタンを有効化
+                submitBtn.disabled = false; 
+
+                // ▼ バンドが変わったらカレンダーを再描画（自バンドの申請済をチェックするため）
+                bandSelect.addEventListener('change', initYoyakuGrid);
+                initYoyakuGrid();
 
             } catch (error) {
                 console.error("バンド取得エラー:", error);
@@ -389,7 +387,7 @@
             document.getElementById('btn-alert-ok').onclick = () => {
                 document.getElementById('alert-modal').style.display = 'none';
                 document.body.classList.remove('modal-open');
-                window.location.href = 'index.html'; // OKを押したらトップへ戻る
+                window.location.href = 'index.html'; 
             };
 
             startRealtimeSync();
@@ -419,6 +417,9 @@
         function initYoyakuGrid() {
             const grid = document.getElementById('yoyaku-grid');
             grid.innerHTML = '';
+
+            const bandSelect = document.getElementById('band-select');
+            const selectedBandId = bandSelect ? bandSelect.value : null;
 
             const emptyCell = document.createElement('div');
             emptyCell.className = 'header-cell';
@@ -451,22 +452,41 @@
                         const targetDate = nextWeekDates[dIndex];
                         const cellRes = dbConfirmedReservations.filter(r => r.date === targetDate && r.period === pIndex);
                         
-                        if (cellRes.length > 0) {
+                        // ▼ 追加：現在選択しているバンドが既に申請しているかチェック
+                        const myExistingRes = cellRes.filter(r => r.bandId === selectedBandId && r.cancelRequested === false && r.deleted !== true);
+
+                        if (selectedBandId && myExistingRes.length > 0) {
+                            // 自バンドが既に申請済みの場合はグレーアウトしてクリック不可にする
                             cell.classList.add('has-existing');
-                            cellRes.forEach(res => {
-                                const tag = document.createElement('div');
-                                tag.className = 'faint-band-tag';
-                                tag.textContent = res.bandName + (res.confirmed ? '' : ' (保留中)');
-                                cell.appendChild(tag);
-                            });
-                        }
+                            const tag = document.createElement('div');
+                            tag.className = 'faint-band-tag';
+                            tag.textContent = '自バンド申請済'; 
+                            cell.appendChild(tag);
 
-                        const isSelected = selectedSlots.some(s => s.day === dIndex && s.period === pIndex);
-                        if (isSelected) {
-                            cell.classList.add('selected');
-                        }
+                            // 万が一選択状態だった場合は解除する
+                            const selIdx = selectedSlots.findIndex(s => s.day === dIndex && s.period === pIndex);
+                            if (selIdx >= 0) {
+                                selectedSlots.splice(selIdx, 1);
+                                updateSelectedDisplay();
+                            }
+                        } else {
+                            if (cellRes.length > 0) {
+                                cell.classList.add('has-existing');
+                                cellRes.forEach(res => {
+                                    const tag = document.createElement('div');
+                                    tag.className = 'faint-band-tag';
+                                    tag.textContent = res.bandName + (res.confirmed ? '' : ' (保留中)');
+                                    cell.appendChild(tag);
+                                });
+                            }
 
-                        cell.onclick = () => toggleSlotSelection(dIndex, pIndex, cell);
+                            const isSelected = selectedSlots.some(s => s.day === dIndex && s.period === pIndex);
+                            if (isSelected) {
+                                cell.classList.add('selected');
+                            }
+
+                            cell.onclick = () => toggleSlotSelection(dIndex, pIndex, cell);
+                        }
                     }
 
                     grid.appendChild(cell);
@@ -532,7 +552,17 @@
                 return;
             }
 
-            const bandName = myBands[bandId]; // IDからバンド名を取得
+            // ▼ 追加：送信直前の最終チェック（重複弾き）
+            for (let slot of selectedSlots) {
+                const targetDate = nextWeekDates[slot.day];
+                const isDuplicate = dbConfirmedReservations.some(r => r.date === targetDate && r.period === slot.period && r.bandId === bandId && r.cancelRequested === false && r.deleted !== true);
+                if (isDuplicate) {
+                    alert(`既に「${myBands[bandId]}」で ${slot.text} の申請が行われています。別の枠を選択してください。`);
+                    return; 
+                }
+            }
+
+            const bandName = myBands[bandId]; 
             const btnSubmit = document.getElementById('btn-submit-req');
             btnSubmit.disabled = true;
             btnSubmit.textContent = '送信中...';
@@ -543,8 +573,8 @@
                         date: nextWeekDates[slot.day], 
                         day: slot.day,
                         period: slot.period,
-                        bandId: bandId,       // ★ 新規追加: バンドID
-                        bandName: bandName,   // ★ 既存: バンド名
+                        bandId: bandId,       
+                        bandName: bandName,   
                         notes: notes,
                         confirmed: false,       
                         cancelRequested: false,
@@ -556,17 +586,18 @@
 
                 await Promise.all(promises);
 
+                // ▼ 変更点: userIdを追加し、detailにも誰が操作したかを含める
                 await addDoc(collection(db, "logs"), {
                     timestamp: new Date().toISOString(),
                     category: "reservation",
                     opType: "create",
                     bandName: bandName,
+                    userId: currentUserId,
                     slot: selectedSlots.map(s => s.text).join(', '),
-                    detail: "一般ユーザーより新規予約希望が送信されました"
+                    detail: `【新規予約】 ${currentUserId} が新規予約希望を送信しました`
                 });
 
                 selectedSlots = [];
-                // 送信完了時にカスタムアラートを表示（OKを押すとトップに戻る）
                 customAlert(`【送信完了】<br>${bandName} の予約希望を ${promises.length} 件送信しました。`);
                 
             } catch (error) {
