@@ -169,7 +169,6 @@
             color: red;
             margin-left: 4px;
         }
-        /* ▼ 変更点： selectを追加 */
         .form-group input, .form-group textarea, .form-group select {
             width: 100%;
             padding: 8px;
@@ -216,7 +215,6 @@
         .btn-submit { width: 100%; padding: 10px; font-size: 1em; margin-top: 5px; }
         .btn-submit:disabled { background-color: #ccc; cursor: not-allowed; }
 
-        /* ▼ 汎用アラートモーダル用 */
         .modal {
             display: none;
             position: fixed;
@@ -307,7 +305,6 @@
         }
 
         import { db, auth } from "./firebase.js";
-        // ▼ 変更点: onAuthStateChanged, getDocs, query, where を追加
         import { collection, onSnapshot, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
@@ -318,7 +315,6 @@
         let dbConfirmedReservations = [];
         let dbDisabledSlots = [];
         
-        // ▼ 追加: バンド情報保持用
         let currentUserId = "";
         let myBands = {};
 
@@ -341,7 +337,6 @@
         const currentWeekDates = getWeekDates(0); 
         const todayStr = getTodayStr();
 
-        // ▼ 追加: 自分が所属しているバンドをロードする
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUserId = user.email.split('@')[0];
@@ -354,7 +349,6 @@
             const submitBtn = document.getElementById('btn-submit-req');
             
             try {
-                // 自分が memberIds に含まれるバンドを検索
                 const q = query(collection(db, "bands"), where("memberIds", "array-contains", currentUserId));
                 const snap = await getDocs(q);
                 
@@ -376,7 +370,7 @@
                     bandSelect.appendChild(option);
                 });
 
-                submitBtn.disabled = false; // バンドがあれば送信ボタンを有効化
+                submitBtn.disabled = false; 
 
             } catch (error) {
                 console.error("バンド取得エラー:", error);
@@ -390,7 +384,7 @@
             document.getElementById('btn-alert-ok').onclick = () => {
                 document.getElementById('alert-modal').style.display = 'none';
                 document.body.classList.remove('modal-open');
-                window.location.href = 'index.html'; // OKを押したらトップへ戻る
+                window.location.href = 'index.html';
             };
 
             startRealtimeSync();
@@ -549,7 +543,7 @@
                 return;
             }
 
-            const bandName = myBands[bandId]; // IDからバンド名を取得
+            const bandName = myBands[bandId]; 
             const btnSubmit = document.getElementById('btn-submit-req');
             btnSubmit.disabled = true;
             btnSubmit.textContent = '送信中...';
@@ -560,8 +554,8 @@
                         date: currentWeekDates[slot.day], 
                         day: slot.day,
                         period: slot.period,
-                        bandId: bandId,       // ★ 新規追加: バンドID
-                        bandName: bandName,   // ★ 既存: バンド名
+                        bandId: bandId,       
+                        bandName: bandName,   
                         notes: notes,
                         confirmed: false,       
                         cancelRequested: false,
@@ -574,17 +568,18 @@
 
                 await Promise.all(promises);
 
+                // ▼ 変更点: userIdを追加し、detailにも誰が操作したかを含める
                 await addDoc(collection(db, "logs"), {
                     timestamp: new Date().toISOString(),
                     category: "reservation",
                     opType: "create",
                     bandName: bandName,
+                    userId: currentUserId,
                     slot: selectedSlots.map(s => s.text).join(', '),
-                    detail: "【追加予約】 一般ユーザーが空き枠へ追加希望を送信しました"
+                    detail: `【追加予約】 ${currentUserId} が空き枠へ追加希望を送信しました`
                 });
 
                 selectedSlots = [];
-                // 送信完了時にカスタムアラートを表示（OKを押すとトップに戻る）
                 customAlert(`【送信完了】<br>${bandName} の追加予約希望を ${promises.length} 件送信しました。<br>管理者の承認をお待ちください。`);
                 
             } catch (error) {
