@@ -55,8 +55,8 @@
 
     <script type="module">
         import { auth } from "./firebase.js";
-        // Firebase Authの パスワード更新機能 と ログイン状態確認機能 を読み込む
-        import { updatePassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+        // ▼ 追加: signOut（ログアウト）機能を読み込む
+        import { updatePassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
         // ページを開いたときにログインしているかチェック
         onAuthStateChanged(auth, (user) => {
@@ -99,9 +99,16 @@
                 await updatePassword(user, newPass);
                 
                 // 成功時の処理
-                successMsg.textContent = "パスワードを正常に変更しました！";
+                successMsg.textContent = "パスワードを変更しました。再ログインしてください。";
                 successMsg.style.display = 'block';
-                document.getElementById('password-form').reset(); // フォームを空にする
+                document.getElementById('password-form').reset();
+                
+                // ▼ 追加：パスワード変更後に自動でログアウトさせ、login画面へ飛ばす
+                setTimeout(async () => {
+                    await signOut(auth);
+                    localStorage.removeItem('userRole');
+                    window.location.href = "login.html";
+                }, 2000); // 2秒後に画面遷移
 
             } catch (error) {
                 console.error("パスワード変更エラー:", error);
@@ -112,10 +119,9 @@
                     errorMsg.textContent = "パスワードの変更に失敗しました。";
                 }
                 errorMsg.style.display = 'block';
+                btnSubmit.disabled = false;
+                btnSubmit.textContent = '変更を保存する';
             }
-
-            btnSubmit.disabled = false;
-            btnSubmit.textContent = '変更を保存する';
         });
     </script>
 </body>
