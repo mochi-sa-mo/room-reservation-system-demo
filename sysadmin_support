@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【極秘】お問い合わせ管理</title>
+
+    <script>
+        // 直打ちページなので、sysadmin以外は弾く
+        if (localStorage.getItem('userRole') !== 'sysadmin') {
+            alert('アクセス権限がありません。');
+            window.location.replace('login.html');
+        }
+    </script>
+
+    <style>
+        :root { --primary-color: #8e44ad; --primary-hover: #732d91; --bg-color: #f5f7fa; --border-color: #ccc; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); flex-wrap: wrap; gap: 10px; }
+        
+        .container { max-width: 900px; margin: 0 auto; }
+        .section-title { margin-top: 0; margin-bottom: 15px; border-left: 5px solid var(--primary-color); padding-left: 10px; font-size: 1.3em; }
+        
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; transition: 0.2s; font-size: 0.9em; }
+        .btn-nav { background-color: #e0e0e0; color: #333; } .btn-nav:hover { background-color: #d0d0d0; }
+        .btn-success { background-color: #4caf50; } .btn-success:hover { background-color: #388e3c; }
+        .btn-danger { background-color: #d0021b; } .btn-danger:hover { background-color: #a00215; }
+
+        .inquiry-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; border-left: 5px solid transparent; }
+        .inquiry-card.unread { border-left-color: #ff9800; background: #fffde7; }
+        .inquiry-card.read { border-left-color: #9e9e9e; opacity: 0.8; }
+
+        .inquiry-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; border-bottom: 1px dashed #eee; padding-bottom: 10px; flex-wrap: wrap; gap: 10px;}
+        .inquiry-meta { font-size: 0.85em; color: #666; }
+        .inquiry-category { display: inline-block; background: #e3f2fd; color: #00838f; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-top: 5px; }
+        
+        .inquiry-body { font-size: 0.95em; line-height: 1.6; white-space: pre-wrap; background: #f9f9f9; padding: 10px; border-radius: 4px; border: 1px solid #eee; margin-bottom: 10px; }
+        
+        .inquiry-actions { display: flex; justify-content: flex-end; gap: 10px; }
+        
+        .badge { padding: 2px 6px; border-radius: 3px; font-size: 0.8em; font-weight: bold; color: white; margin-left: 10px; }
+        .badge-unread { background: #ff9800; }
+        .badge-read { background: #9e9e9e; }
+
+        .empty-message { text-align: center; color: #888; padding: 30px; background: white; border-radius: 8px; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1 style="color: var(--primary-color); margin:0;">📬 お問い合わせ管理</h1>
+            <p style="font-size:0.85em; color:#666; margin:0;">※このページはシステム管理者のみアクセス可能です。</p>
+        </header>
+
+        <h2 class="section-title">受信トレイ</h2>
+        <div id="inquiries-container">
+            <div class="empty-message">読み込み中...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from "./firebase.js";
+        import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+        const container = document.getElementById('inquiries-container');
+
+        // 日時フォーマット関数
+        function formatDate(timestamp) {
+            if (!timestamp) return '日時不明';
+            // FirestoreのTimestamp型かISO文字列かを判定
+            const d = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        }
+
+        // リアルタイム取得
+        const q = query(collection(db, "inquiries"), orderBy("createdAt", "desc"));
+        onSnapshot(q, (snapshot) => {
+            container.innerHTML = '';
+            
+            if (snapshot.empty) {
+                container.innerHTML = '<div class="empty-message">現在、お問い合わせはありません。</div>';
+                return;
+            }
+
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                const id = docSnap.id;
+                const isUnread = data.status === 'unread';
+
+                const card = document.createElement('div');
+                card.className = `inquiry-card ${isUnread ? 'unread' : 'read'}`;
+
+                const badgeHtml = isUnread 
+                    ? `<span class="badge badge-unread">未読</span>` 
+                    : `<span class="badge badge-read">既読</span>`;
+
+                card.innerHTML = `
+                    <div class="inquiry-header">
+                        <div>
+                            <div style="font-weight: bold; font-size: 1.1em;">
+                                送信者ID: ${data.userId} ${badgeHtml}
+                            </div>
+                            <div class="inquiry-category">${data.category}</div>
+                        </div>
+                        <div class="inquiry-meta">
+                            送信日時: ${formatDate(data.createdAt)}
+                        </div>
+                    </div>
+                    <div class="inquiry-body">${data.message}</div>
+                    <div class="inquiry-actions">
+                        ${isUnread ? `<button class="btn btn-success btn-mark-read" data-id="${id}">既読にする</button>` : ''}
+                        <button class="btn btn-danger btn-delete" data-id="${id}">削除</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            // ボタンのイベントリスナー設定
+            document.querySelectorAll('.btn-mark-read').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const targetId = e.target.getAttribute('data-id');
+                    e.target.disabled = true;
+                    e.target.textContent = '処理中...';
+                    try {
+                        await updateDoc(doc(db, "inquiries", targetId), { status: 'read' });
+                    } catch (error) {
+                        console.error(error);
+                        alert("既読処理に失敗しました。");
+                        e.target.disabled = false;
+                        e.target.textContent = '既読にする';
+                    }
+                });
+            });
+
+            document.querySelectorAll('.btn-delete').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    if (!confirm("このお問い合わせを削除しますか？\n※この操作は元に戻せません。")) return;
+                    const targetId = e.target.getAttribute('data-id');
+                    e.target.disabled = true;
+                    e.target.textContent = '削除中...';
+                    try {
+                        await deleteDoc(doc(db, "inquiries", targetId));
+                    } catch (error) {
+                        console.error(error);
+                        alert("削除に失敗しました。");
+                        e.target.disabled = false;
+                        e.target.textContent = '削除';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
