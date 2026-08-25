@@ -451,7 +451,6 @@
             document.getElementById('confirm-modal').style.display = 'flex';
         }
 
-        // ▼ モーダルでの機材・備考の表示を追加
         function showDetailsModal(entryId) {
             const data = myEntriesData[entryId];
             let html = `<p style="margin-bottom: 5px;"><strong>🎵 ライブ:</strong> ${data.liveName}</p>`;
@@ -488,7 +487,6 @@
             await updateBandSelectOptions(data.liveId, data.bandId);
             document.getElementById('band-select').value = data.bandId;
             
-            // ▼ 編集時にフォームに値を復元
             document.getElementById('mic-count').value = data.micCount || 0;
             document.getElementById('keyboard-type').value = data.keyboardType || '使用しない';
             document.getElementById('entry-notes').value = data.entryNotes || '';
@@ -564,7 +562,6 @@
             const liveName = liveSelect.options[liveSelect.selectedIndex].text;
             const bandName = bandSelect.options[bandSelect.selectedIndex].text;
 
-            // ▼ 追加：機材情報の取得
             const micCount = parseInt(document.getElementById('mic-count').value, 10);
             const keyboardType = document.getElementById('keyboard-type').value;
             const entryNotes = document.getElementById('entry-notes').value.trim();
@@ -614,7 +611,6 @@
                 liveId: liveId, liveName: liveName,
                 bandId: bandId, bandName: bandName,
                 performers: performers, performerIds: uniqueIds,
-                // ▼ 追加：機材情報をデータに含める
                 micCount: micCount,
                 keyboardType: keyboardType,
                 entryNotes: entryNotes,
@@ -628,7 +624,6 @@
             let confirmHtml = `<div style="margin-bottom: 10px;"><strong>【ライブ】</strong><br>${liveName}</div>`;
             confirmHtml += `<div style="margin-bottom: 10px;"><strong>【バンド】</strong><br>${bandName}</div>`;
             
-            // ▼ モーダルでの確認画面に機材情報を追加
             confirmHtml += `<div style="margin-bottom: 10px; background:#f9f9f9; padding:5px; border-radius:4px; font-size:0.9em;">`;
             confirmHtml += `<strong>🎤 マイク:</strong> ${micCount} 本<br>`;
             confirmHtml += `<strong>🎹 キーボード:</strong> ${keyboardType}<br>`;
@@ -663,7 +658,21 @@
             
             if (pendingAction === 'delete') {
                 try {
+                    const entryToDelete = myEntriesData[pendingDeleteId]; // ★ 削除するデータをログ用に保持
+                    
                     await deleteDoc(doc(db, "liveEntries", pendingDeleteId));
+                    
+                    // ▼ 追加：削除(辞退)時のログ記録
+                    await addDoc(collection(db, "logs"), {
+                        timestamp: new Date().toISOString(),
+                        category: "entry",
+                        opType: "delete",
+                        title: entryToDelete.liveName,
+                        bandName: entryToDelete.bandName,
+                        userId: currentUserId,
+                        detail: `一般部員(${currentUserId})がライブ「${entryToDelete.liveName}」から「${entryToDelete.bandName}」のエントリーを辞退(削除)しました`
+                    });
+
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                     successMsg.textContent = "エントリーを削除しました。";
                     successMsg.style.display = 'block';
@@ -689,12 +698,36 @@
                     if (pendingAction === 'update') {
                         pendingEntryData.updatedAt = serverTimestamp();
                         await updateDoc(doc(db, "liveEntries", editingEntryId), pendingEntryData);
+                        
+                        // ▼ 追加：変更(更新)時のログ記録
+                        await addDoc(collection(db, "logs"), {
+                            timestamp: new Date().toISOString(),
+                            category: "entry",
+                            opType: "update",
+                            title: pendingEntryData.liveName,
+                            bandName: pendingEntryData.bandName,
+                            userId: currentUserId,
+                            detail: `一般部員(${currentUserId})がライブ「${pendingEntryData.liveName}」への「${pendingEntryData.bandName}」のエントリー内容を更新しました`
+                        });
+
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                         successMsg.textContent = "エントリー内容を変更しました！";
                     } else {
                         pendingEntryData.enteredBy = currentUserId;
                         pendingEntryData.createdAt = serverTimestamp();
                         await addDoc(collection(db, "liveEntries"), pendingEntryData);
+
+                        // ▼ 追加：新規作成時のログ記録
+                        await addDoc(collection(db, "logs"), {
+                            timestamp: new Date().toISOString(),
+                            category: "entry",
+                            opType: "create",
+                            title: pendingEntryData.liveName,
+                            bandName: pendingEntryData.bandName,
+                            userId: currentUserId,
+                            detail: `一般部員(${currentUserId})がライブ「${pendingEntryData.liveName}」に「${pendingEntryData.bandName}」でエントリーを新規作成しました`
+                        });
+
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                         successMsg.textContent = "エントリーが完了しました！";
                     }
