@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>サポート・お問い合わせ - 部室予約システム</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f5f7fa; margin: 0; padding: 20px; color: #333; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #ccc; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto 20px; }
+        
+        .btn { padding: 12px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1em; transition: 0.2s; text-align: center; display: inline-block; box-sizing: border-box; }
+        .btn-back { background-color: #999; color: white; }
+        .btn-back:hover { background-color: #888; }
+        .btn-submit { background-color: #4A90E2; color: white; width: 100%; }
+        .btn-submit:hover { background-color: #357abd; }
+        .btn-submit:disabled { background-color: #ccc; cursor: not-allowed; }
+        .btn-manual { background-color: #4caf50; color: white; width: 100%; margin-bottom: 10px; text-decoration: none; }
+        .btn-manual:hover { background-color: #388e3c; }
+
+        .section-title { margin-top: 0; font-size: 1.2em; border-left: 5px solid #4A90E2; padding-left: 8px; margin-bottom: 15px;}
+        
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 0.9em; }
+        select, input[type="text"], textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1em; font-family: inherit; }
+        textarea { resize: vertical; min-height: 120px; }
+        /* 読み取り専用（ID部分）のスタイル */
+        input[readonly] { background-color: #e8f4f8; color: #555; border: 1px solid #b3d4fc; cursor: not-allowed; }
+
+        .error-message { color: #d0021b; font-size: 0.85em; margin-bottom: 15px; display: none; padding: 10px; background: #ffe8e8; border-radius: 4px; }
+        .success-message { color: #4caf50; font-size: 0.9em; margin-bottom: 15px; display: none; padding: 10px; background: #e8f5e9; border-radius: 4px; font-weight: bold; text-align: center;}
+        
+        /* マニュアルへの誘導カード */
+        .manual-card { background: #e8f5e9; border: 1px solid #81c784; padding: 15px; border-radius: 8px; margin-bottom: 30px; text-align: center; }
+        .manual-card p { font-size: 0.9em; color: #2e7d32; margin-top: 0; margin-bottom: 15px; line-height: 1.5;}
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>サポート窓口</h1>
+        <!-- 確実にトップページに戻る -->
+        <button class="btn btn-back" onclick="window.location.href='index.html'">戻る</button>
+    </header>
+
+    <div class="container">
+        <!-- マニュアルへのリンクエリア -->
+        <div class="manual-card">
+            <h2 style="margin-top: 0; color: #2e7d32; font-size: 1.2em;">📖 まずは使い方を確認</h2>
+            <p>システムの詳しい使い方や、よくある質問はマニュアルにまとめています。<br>お問い合わせの前に一度ご確認ください。</p>
+            <!-- ▼ 後でURLを本物のNotionリンクに書き換えてください ▼ -->
+            <a href="https://www.notion.so/YOUR_NOTION_PAGE_URL" target="_blank" class="btn btn-manual">取扱説明書（マニュアル）を開く ↗</a>
+        </div>
+
+        <h2 class="section-title">✉️ 管理者へのお問い合わせ</h2>
+        <p style="font-size: 0.85em; color: #666; line-height: 1.5; margin-bottom: 20px;">
+            マニュアルを見ても解決しない場合や、システムの不具合を見つけた場合はこちらからご連絡ください。<br>
+            ※システム上からの返信機能はありません。確認次第、必要に応じて個別にご連絡します。
+        </p>
+
+        <div class="error-message" id="error-msg"></div>
+        <div class="success-message" id="success-msg"></div>
+
+        <form id="inquiry-form">
+            <div class="form-group">
+                <label>あなたの学籍番号（送信元ID）</label>
+                <!-- readonlyをつけて書き換え不可に -->
+                <input type="text" id="user-id" readonly value="読込中...">
+            </div>
+
+            <div class="form-group">
+                <label for="category">お問い合わせの件名 <span style="color:#d0021b;">*</span></label>
+                <select id="category" required>
+                    <option value="">選択してください</option>
+                    <option value="部室予約について">部室予約について</option>
+                    <option value="バンド登録について">バンド登録について</option>
+                    <option value="ライブエントリーについて">ライブエントリーについて</option>
+                    <option value="打ち上げ回答について">打ち上げ回答について</option>
+                    <option value="その他・バグ報告など">その他・バグ報告など</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="message">お問い合わせ内容・概要 <span style="color:#d0021b;">*</span></label>
+                <textarea id="message" required placeholder="具体的な状況や、お困りの内容を詳しく記入してください。"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-submit" id="btn-submit" disabled>送信する</button>
+        </form>
+    </div>
+
+    <script type="module">
+        import { db, auth } from "./firebase.js";
+        import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+
+        let currentUserId = "";
+
+        // ログインチェックとIDの自動入力
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUserId = user.email.split('@')[0];
+                document.getElementById('user-id').value = currentUserId;
+                document.getElementById('btn-submit').disabled = false; // IDが取れたらボタンを有効化
+            } else {
+                alert("ログイン状態が確認できません。再度ログインしてください。");
+                window.location.href = "login.html";
+            }
+        });
+
+        // フォーム送信処理
+        document.getElementById('inquiry-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btnSubmit = document.getElementById('btn-submit');
+            const errorMsg = document.getElementById('error-msg');
+            const successMsg = document.getElementById('success-msg');
+            
+            const category = document.getElementById('category').value;
+            const message = document.getElementById('message').value.trim();
+
+            errorMsg.style.display = 'none';
+            successMsg.style.display = 'none';
+
+            if (!category || !message) {
+                errorMsg.textContent = "件名と概要を両方入力してください。";
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            btnSubmit.disabled = true;
+            btnSubmit.textContent = '送信中...';
+
+            try {
+                // データベース(inquiriesコレクション)に保存
+                await addDoc(collection(db, "inquiries"), {
+                    userId: currentUserId,
+                    category: category,
+                    message: message,
+                    status: 'unread', // 管理者画面で「未読・既読」を判別するためのフラグ
+                    createdAt: serverTimestamp()
+                });
+
+                successMsg.textContent = "お問い合わせを送信しました。";
+                successMsg.style.display = 'block';
+                
+                // フォームをリセットして、IDだけ再度セットし直す
+                document.getElementById('inquiry-form').reset();
+                document.getElementById('user-id').value = currentUserId;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            } catch (error) {
+                console.error("送信エラー:", error);
+                errorMsg.textContent = "送信に失敗しました。通信環境を確認してください。";
+                errorMsg.style.display = 'block';
+            }
+
+            btnSubmit.disabled = false;
+            btnSubmit.textContent = '送信する';
+        });
+    </script>
+</body>
+</html>
