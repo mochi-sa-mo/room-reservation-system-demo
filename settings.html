@@ -99,7 +99,7 @@
                 await updatePassword(user, newPass);
                 
                 // 成功時の処理
-                successMsg.textContent = "パスワードを変更しました。再ログインしてください。";
+                successMsg.textContent = "パスワードを変更しました。強制的にログアウトします。";
                 successMsg.style.display = 'block';
                 document.getElementById('password-form').reset();
                 
