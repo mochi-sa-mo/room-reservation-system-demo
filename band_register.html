@@ -296,6 +296,16 @@
             try {
                 await addDoc(collection(db, "bands"), pendingBandData);
 
+                // ▼ 追加：新規バンド作成時のログ記録
+                await addDoc(collection(db, "logs"), {
+                    timestamp: new Date().toISOString(),
+                    category: "band",
+                    opType: "create",
+                    bandName: pendingBandData.name,
+                    userId: currentUserId,
+                    detail: `一般部員(${currentUserId})が新規バンド「${pendingBandData.name}」を作成・登録しました`
+                });
+
                 successMsg.textContent = "バンドを正常に登録しました！";
                 successMsg.style.display = 'block';
                 
