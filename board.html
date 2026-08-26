@@ -231,7 +231,7 @@
                     <div class="post-header">
                         <h3 class="post-title">${escapeHTML(post.title)}</h3>
                         <div class="post-meta">
-                            投稿者: <strong>${post.authorId}</strong><br>
+                            投稿者: <strong>${post.userId}</strong><br> <!-- ★ authorId から userId に変更 -->
                             期限: ${post.expireDate.replace(/-/g, '/')}
                         </div>
                     </div>
@@ -250,7 +250,7 @@
             const todayStr = getTodayStr();
 
             // 自分の投稿を抽出
-            const myPosts = dbPosts.filter(p => p.authorId === currentUserId)
+            const myPosts = dbPosts.filter(p => p.userId === currentUserId) // ★ authorId から userId に変更
                                    .sort((a, b) => b.createdAt - a.createdAt);
 
             if (myPosts.length === 0) {
@@ -356,6 +356,7 @@
                 if (editingPostId) {
                     // 編集（更新）：セキュリティのためステータスを強制的に保留（pending）に戻す
                     await updateDoc(doc(db, "boardPosts", editingPostId), {
+                        userId: currentUserId, // ★ 追加 (ルールを通過するため)
                         title: title,
                         content: content,
                         expireDate: expireDate,
@@ -366,7 +367,7 @@
                 } else {
                     // 新規作成
                     await addDoc(collection(db, "boardPosts"), {
-                        authorId: currentUserId,
+                        userId: currentUserId, // ★ authorId から userId に変更
                         title: title,
                         content: content,
                         expireDate: expireDate,
