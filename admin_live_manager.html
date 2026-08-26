@@ -130,8 +130,16 @@
         </div>
 
         <div class="extract-section" id="extract-section" style="display: none;">
-            <h3 style="margin-top: 0; color: #e65100; font-size: 1.1em;">📋 データ抽出・出力 (承認済みのみ)</h3>
+            <h3 style="margin-top: 0; color: #e65100; font-size: 1.1em;">📋 データ抽出・出力</h3>
             
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label>抽出対象</label>
+                <select id="extract-target">
+                    <option value="approved" selected>承認済みバンドのみ</option>
+                    <option value="all">すべてのバンド（保留・却下含む）</option>
+                </select>
+            </div>
+
             <div style="display: flex; gap: 10px; align-items: flex-end;">
                 <div class="form-group" style="flex: 1; margin-bottom: 0;">
                     <label>抽出形式</label>
@@ -209,7 +217,6 @@
 
     <script type="module">
         import { db, auth } from "./firebase.js";
-        // ▼ 追加: onAuthStateChangedをインポート
         import { collection, getDocs, doc, getDoc, updateDoc, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
@@ -220,11 +227,9 @@
         let pendingEntryId = null; 
         let nameDictionary = JSON.parse(sessionStorage.getItem('adminNameDictionary') || '{}');
         
-        // ▼ 追加: 操作した管理者のIDを保持する変数
         let currentUserId = "不明な管理者";
 
         window.onload = function() {
-            // ▼ 追加: 管理者のIDを取得
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     currentUserId = user.email.split('@')[0];
@@ -287,7 +292,6 @@
                     date: deadline + "T23:59", expire: deadline + "T23:59", notes: messageText, link: "live_entry.html", deleted: false, createdAt: serverTimestamp()
                 });
 
-                // ▼ 追加: 新規ライブ作成のログ
                 await addDoc(collection(db, "logs"), {
                     timestamp: new Date().toISOString(),
                     category: "live",
@@ -575,12 +579,15 @@
 
         function extractIds() {
             const format = document.getElementById('extract-format').value;
+            const extractTarget = document.getElementById('extract-target').value;
             const targetMembersSet = new Set();
             
             entriesData.forEach(entry => {
-                if (entry.status === 'approved') { entry.performerIds.forEach(id => targetMembersSet.add(id)); }
+                if (extractTarget === 'all' || entry.status === 'approved') { 
+                    entry.performerIds.forEach(id => targetMembersSet.add(id)); 
+                }
             });
-            if (targetMembersSet.size === 0) { alert("承認済みのバンドがありません。"); return; }
+            if (targetMembersSet.size === 0) { alert("対象のバンドがありません。"); return; }
             
             const sortedIds = Array.from(targetMembersSet).sort();
             let resultText = "";
@@ -607,9 +614,11 @@
         }
 
         function exportToCSV(type) {
-            const approvedEntries = entriesData.filter(e => e.status === 'approved');
-            if (approvedEntries.length === 0) {
-                alert("承認済みのバンドがありません。");
+            const target = document.getElementById('extract-target').value;
+            const targetEntries = entriesData.filter(e => target === 'all' || e.status === 'approved');
+            
+            if (targetEntries.length === 0) {
+                alert("対象のバンドがありません。");
                 return;
             }
 
@@ -617,7 +626,7 @@
             
             if (type === 'band') {
                 let maxMembers = 0;
-                approvedEntries.forEach(entry => {
+                targetEntries.forEach(entry => {
                     if (entry.performers && entry.performers.length > maxMembers) {
                         maxMembers = entry.performers.length;
                     }
@@ -631,7 +640,7 @@
                 }
                 csvContent += header.join(",") + "\n";
                 
-                approvedEntries.forEach(entry => {
+                targetEntries.forEach(entry => {
                     const row = [];
                     const escape = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
                     
@@ -657,7 +666,7 @@
             } else if (type === 'member') {
                 csvContent += "学籍番号,氏名,パート,区分,所属バンド名\n";
                 
-                approvedEntries.forEach(entry => {
+                targetEntries.forEach(entry => {
                     entry.performers.forEach(p => {
                         const escape = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
                         const row = [
