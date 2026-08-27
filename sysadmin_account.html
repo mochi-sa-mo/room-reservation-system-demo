@@ -49,11 +49,11 @@
         
         <p style="color: #aaa; font-size: 0.9em;">
             ※このページは他の画面とリンクしていません。作業後はブラウザのタブを閉じてください。<br>
-            ※「学籍番号,初期パスワード」の形式で1行ずつ入力してください。
+            ※「学籍番号 初期パスワード」（半角スペースまたはカンマ区切り）の形式で1行ずつ入力してください。
         </p>
 
         <div class="form-group">
-            <textarea id="bulk-input" placeholder="123456,pass1234&#10;234567,pass5678&#10;345678,pass9012"></textarea>
+            <textarea id="bulk-input" placeholder="123456 pass1234&#10;234567 pass5678&#10;345678 pass9012"></textarea>
         </div>
 
         <button id="btn-execute" class="btn">アカウントを一括作成する</button>
@@ -104,7 +104,9 @@
             let errorCount = 0;
 
             for (const line of lines) {
-                const parts = line.split(',');
+                // ▼ カンマ、または半角スペース（タブ等も含む）で区切るように変更 ▼
+                const parts = line.split(/[,\s]+/);
+                
                 if (parts.length !== 2) {
                     addLog(`[エラー] 書式が不正です: ${line}`, 'error');
                     errorCount++;
