@@ -30,6 +30,9 @@
         .form-group { margin-bottom: 15px; }
         textarea { width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box; background: #fff; font-size: 1em; }
         select { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 1em; margin-bottom: 20px; }
+        
+        /* 絞り込み用の小さなセレクトボックス */
+        select.filter-select { padding: 6px; font-size: 0.9em; width: auto; margin-bottom: 0; margin-left: 10px; border: 2px solid var(--primary-color);}
 
         /* サマリー（集計） */
         .summary-box { display: flex; gap: 10px; margin-bottom: 20px; text-align: center;}
@@ -76,7 +79,6 @@
     <header>
         <h1>💰 集金管理</h1>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <!-- ▼ 辞書設定ボタンを追加 ▼ -->
             <button class="btn btn-info" id="btn-open-dict">📖 名簿辞書設定</button>
             <a href="admin.html" class="btn-nav">← 戻る</a>
         </div>
@@ -97,6 +99,14 @@
                 <div class="summary-item unpaid">未払い<span class="summary-num" id="count-unpaid">0</span></div>
             </div>
 
+            <!-- ▼ 学年ごとの絞り込みフィルター ▼ -->
+            <div style="display: flex; align-items: center; margin-bottom: 15px; background: #e8f5e9; padding: 10px; border-radius: 8px;">
+                <strong style="color: #2e7d32; font-size: 0.9em;">🔍 学年（ID）で絞り込み:</strong>
+                <select id="year-filter" class="filter-select">
+                    <option value="all">すべて表示</option>
+                </select>
+            </div>
+
             <div class="payment-list" id="payment-list">
                 <!-- ここにリストが生成されます -->
             </div>
@@ -104,7 +114,6 @@
         <div id="loading-msg" style="color: #999; text-align: center; margin-top: 20px;">ライブを選択してください</div>
     </div>
 
-    <!-- ▼ 辞書設定モーダルを追加 ▼ -->
     <div class="modal" id="dict-modal">
         <div class="modal-content" style="width: 500px; max-width: 95%;">
             <h3 style="margin-top: 0; border-bottom: 2px solid #00bcd4; padding-bottom: 5px; color: #0097a7;">📖 ローカル名簿辞書の登録</h3>
@@ -131,8 +140,9 @@
 
         window.onload = function() {
             document.getElementById('live-select').onchange = handleLiveChange;
+            // ▼ フィルター変更時に再描画するイベントを追加 ▼
+            document.getElementById('year-filter').addEventListener('change', renderList);
             
-            // ▼ 辞書モーダルのイベントを追加 ▼
             document.getElementById('btn-open-dict').onclick = () => {
                 let text = "";
                 for (const [id, name] of Object.entries(nameDictionary)) { text += `${id}\t${name}\n`; }
@@ -149,7 +159,6 @@
             init();
         };
 
-        // ▼ 辞書の保存処理 ▼
         function saveDictionary() {
             const text = document.getElementById('dict-textarea').value;
             const lines = text.split('\n');
@@ -161,10 +170,8 @@
                 if (parts.length >= 2) {
                     const id = parts[0].trim();
                     const name = parts.slice(1).join(" ").trim(); 
-                    
                     if (id.length > 0 && name.length > 0) { 
-                        newDict[id] = name; 
-                        count++;
+                        newDict[id] = name; count++;
                     }
                 }
             });
@@ -175,11 +182,7 @@
             document.body.classList.remove('modal-open');
             
             showToast(`📖 名簿辞書を ${count} 件保存しました`);
-            
-            // ライブが選択中ならリストの名前も再描画する
-            if (currentLiveId) {
-                loadParticipants();
-            }
+            if (currentLiveId) loadParticipants();
         }
 
         function showToast(message) {
@@ -220,7 +223,6 @@
         async function loadParticipants() {
             const dashboard = document.getElementById('dashboard');
             const loadingMsg = document.getElementById('loading-msg');
-            const listContainer = document.getElementById('payment-list');
             
             dashboard.style.display = 'none';
             loadingMsg.style.display = 'block';
@@ -231,19 +233,31 @@
                 const snapRsvp = await getDocs(qRsvp);
                 
                 participants = [];
+                let availableYears = new Set(); // ▼ 存在する学年(ID先頭2桁)を記憶する
                 
                 snapRsvp.forEach(d => {
                     const data = d.data();
                     if (data.status === 'yes') {
                         participants.push({
                             userId: data.userId,
-                            name: nameDictionary[data.userId] || "名前未登録", // 辞書から名前を取得
+                            name: nameDictionary[data.userId] || "名前未登録", 
                             paymentStatus: data.paymentStatus || 'unpaid'
                         });
+                        // IDの先頭2桁を取得してセットに追加 (例: 240001 -> '24')
+                        availableYears.add(data.userId.substring(0, 2));
                     }
                 });
 
+                // 学籍番号順にソート
                 participants.sort((a, b) => a.userId.localeCompare(b.userId));
+
+                // ▼ フィルターのドロップダウンを生成 ▼
+                const filterSelect = document.getElementById('year-filter');
+                filterSelect.innerHTML = '<option value="all">すべて表示</option>';
+                Array.from(availableYears).sort().forEach(year => {
+                    filterSelect.innerHTML += `<option value="${year}">${year}から始まるIDのみ</option>`;
+                });
+
                 renderList();
 
                 loadingMsg.style.display = 'none';
@@ -259,15 +273,25 @@
             const listContainer = document.getElementById('payment-list');
             listContainer.innerHTML = '';
             
+            // ▼ フィルターで選択された学年を取得 ▼
+            const selectedYear = document.getElementById('year-filter').value;
+            
+            // ▼ フィルターに合致する人だけを絞り込む ▼
+            const filteredParticipants = participants.filter(p => {
+                if (selectedYear === 'all') return true;
+                return p.userId.startsWith(selectedYear);
+            });
+
             let paidCount = 0;
 
-            if (participants.length === 0) {
-                listContainer.innerHTML = '<p style="text-align:center; color:#999;">この打ち上げの参加予定者はまだいません。</p>';
+            if (filteredParticipants.length === 0) {
+                listContainer.innerHTML = '<p style="text-align:center; color:#999;">表示する対象者がいません。</p>';
                 updateCounters(0, 0, 0);
                 return;
             }
 
-            participants.forEach(p => {
+            // 絞り込んだリストで表示を生成
+            filteredParticipants.forEach(p => {
                 if (p.paymentStatus === 'paid') paidCount++;
 
                 const card = document.createElement('div');
@@ -294,7 +318,8 @@
                 });
             });
 
-            updateCounters(participants.length, paidCount, participants.length - paidCount);
+            // 上のサマリー（合計人数）は「絞り込んだ人数」で計算して表示します
+            updateCounters(filteredParticipants.length, paidCount, filteredParticipants.length - paidCount);
         }
 
         async function updatePayment(userId, isPaid, cardElement) {
@@ -313,8 +338,11 @@
                 const target = participants.find(p => p.userId === userId);
                 if (target) target.paymentStatus = newStatus;
                 
-                const paidCount = participants.filter(p => p.paymentStatus === 'paid').length;
-                updateCounters(participants.length, paidCount, participants.length - paidCount);
+                // 再計算するために renderList は呼ばず、カウンターだけ更新する
+                const selectedYear = document.getElementById('year-filter').value;
+                const filtered = participants.filter(p => selectedYear === 'all' || p.userId.startsWith(selectedYear));
+                const paidCount = filtered.filter(p => p.paymentStatus === 'paid').length;
+                updateCounters(filtered.length, paidCount, filtered.length - paidCount);
 
                 showToast(isPaid ? `✅ ${target.name} さんの支払いを登録しました` : `❌ ${target.name} さんを未払いに戻しました`);
 
