@@ -111,17 +111,8 @@
         import { doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
-        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
         let isMaintenanceMode = false;
-
-        // ログイン状態の監視
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                // すでにログインしているなら、強制的にトップページに飛ばす（戻らせない）
-                window.location.replace("index.html");
-            }
-        });
 
         // メンテナンス状態のリアルタイム監視
         onSnapshot(doc(db, "systemSettings", "maintenance"), (docSnap) => {
