@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>集金管理 - 部室予約システム</title>
+
+    <script>
+        if (localStorage.getItem('userRole') !== 'admin') {
+            alert('アクセス権限がありません。');
+            window.location.replace('login.html');
+        }
+    </script>
+
+    <style>
+        :root { --primary-color: #4caf50; --bg-color: #f5f7fa; --border-color: #ccc; }
+        body.modal-open { overflow: hidden; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: var(--bg-color); margin: 0; padding: 15px; color: #333; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); flex-wrap: wrap; gap: 10px; }
+        
+        .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto; }
+        .section-title { margin-top: 0; margin-bottom: 15px; border-left: 5px solid var(--primary-color); padding-left: 10px; font-size: 1.3em; }
+        
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; text-align: center; }
+        .btn-nav { background-color: #e0e0e0; color: #333; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-decoration: none;} 
+        .btn-nav:hover { background-color: #d0d0d0; }
+        .btn-info { background-color: #00bcd4; color: white; } 
+        .btn-info:hover { background-color: #0097a7; }
+
+        .form-group { margin-bottom: 15px; }
+        textarea { width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box; background: #fff; font-size: 1em; }
+        select { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 1em; margin-bottom: 20px; }
+
+        /* サマリー（集計） */
+        .summary-box { display: flex; gap: 10px; margin-bottom: 20px; text-align: center;}
+        .summary-item { flex: 1; padding: 15px 5px; border-radius: 8px; border: 1px solid #eee; background: #fafafa; }
+        .summary-item.paid { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; }
+        .summary-item.unpaid { background: #ffebee; color: #c62828; border-color: #ffcdd2; }
+        .summary-num { font-size: 1.8em; font-weight: bold; display: block; margin-top: 5px; }
+
+        /* リストデザイン */
+        .payment-list { display: flex; flex-direction: column; gap: 10px; }
+        .payment-card { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #eee; border-radius: 8px; background: #fff; transition: 0.2s;}
+        .payment-card.is-paid { background: #f1f8e9; border-color: #c5e1a5; }
+        
+        .user-info { display: flex; flex-direction: column; }
+        .user-id { font-size: 0.85em; color: #666; }
+        .user-name { font-size: 1.1em; font-weight: bold; color: #333; }
+
+        /* ▼ iOS風トグルスイッチ ▼ */
+        .switch { position: relative; display: inline-block; width: 60px; height: 30px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 30px; }
+        .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
+        input:checked + .slider { background-color: var(--primary-color); }
+        input:checked + .slider:before { transform: translateX(30px); }
+
+        /* モーダル */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #fff; padding: 20px; border-radius: 8px; width: 450px; max-width: 95%; max-height: 90vh; overflow-y: auto; text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.2); box-sizing: border-box; }
+        .confirm-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .confirm-actions .btn-nav, .confirm-actions .btn { flex: 1; padding: 12px; }
+
+        /* トースト通知 */
+        #toast {
+            visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; 
+            border-radius: 30px; padding: 12px 20px; position: fixed; z-index: 1000; left: 50%; bottom: 30px; 
+            transform: translateX(-50%); font-size: 0.9em; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            opacity: 0; transition: opacity 0.3s, bottom 0.3s;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>💰 集金管理</h1>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <!-- ▼ 辞書設定ボタンを追加 ▼ -->
+            <button class="btn btn-info" id="btn-open-dict">📖 名簿辞書設定</button>
+            <a href="admin.html" class="btn-nav">← 戻る</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="section-title">打ち上げ参加者の集金</div>
+        <p style="font-size: 0.85em; color: #666; margin-top: 0;">回答が「参加」の部員のみ表示されます。スイッチを切り替えると<strong>自動で即時保存</strong>されます。</p>
+
+        <select id="live-select">
+            <option value="">ライブを選択してください...</option>
+        </select>
+
+        <div id="dashboard" style="display: none;">
+            <div class="summary-box">
+                <div class="summary-item">参加予定<span class="summary-num" id="count-total">0</span></div>
+                <div class="summary-item paid">支払済<span class="summary-num" id="count-paid">0</span></div>
+                <div class="summary-item unpaid">未払い<span class="summary-num" id="count-unpaid">0</span></div>
+            </div>
+
+            <div class="payment-list" id="payment-list">
+                <!-- ここにリストが生成されます -->
+            </div>
+        </div>
+        <div id="loading-msg" style="color: #999; text-align: center; margin-top: 20px;">ライブを選択してください</div>
+    </div>
+
+    <!-- ▼ 辞書設定モーダルを追加 ▼ -->
+    <div class="modal" id="dict-modal">
+        <div class="modal-content" style="width: 500px; max-width: 95%;">
+            <h3 style="margin-top: 0; border-bottom: 2px solid #00bcd4; padding-bottom: 5px; color: #0097a7;">📖 ローカル名簿辞書の登録</h3>
+            <div class="form-group">
+                <textarea id="dict-textarea" placeholder="特定のメッセージを入力すると反映される" style="min-height: 150px;"></textarea>
+            </div>
+            <div class="confirm-actions">
+                <button class="btn-nav" id="btn-close-dict">キャンセル</button>
+                <button class="btn btn-info" id="btn-save-dict">辞書を保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- トースト通知 -->
+    <div id="toast">保存しました</div>
+
+    <script type="module">
+        import { db } from "./firebase.js";
+        import { collection, getDocs, doc, setDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+        let currentLiveId = "";
+        let nameDictionary = JSON.parse(sessionStorage.getItem('adminNameDictionary') || '{}');
+        let participants = []; 
+
+        window.onload = function() {
+            document.getElementById('live-select').onchange = handleLiveChange;
+            
+            // ▼ 辞書モーダルのイベントを追加 ▼
+            document.getElementById('btn-open-dict').onclick = () => {
+                let text = "";
+                for (const [id, name] of Object.entries(nameDictionary)) { text += `${id}\t${name}\n`; }
+                document.getElementById('dict-textarea').value = text;
+                document.getElementById('dict-modal').style.display = 'flex';
+                document.body.classList.add('modal-open');
+            };
+            document.getElementById('btn-close-dict').onclick = () => { 
+                document.getElementById('dict-modal').style.display = 'none'; 
+                document.body.classList.remove('modal-open');
+            };
+            document.getElementById('btn-save-dict').onclick = saveDictionary;
+
+            init();
+        };
+
+        // ▼ 辞書の保存処理 ▼
+        function saveDictionary() {
+            const text = document.getElementById('dict-textarea').value;
+            const lines = text.split('\n');
+            const newDict = {};
+            let count = 0;
+
+            lines.forEach(line => {
+                const parts = line.split(/[\t, , ]+/);
+                if (parts.length >= 2) {
+                    const id = parts[0].trim();
+                    const name = parts.slice(1).join(" ").trim(); 
+                    
+                    if (id.length > 0 && name.length > 0) { 
+                        newDict[id] = name; 
+                        count++;
+                    }
+                }
+            });
+
+            nameDictionary = newDict;
+            sessionStorage.setItem('adminNameDictionary', JSON.stringify(nameDictionary));
+            document.getElementById('dict-modal').style.display = 'none';
+            document.body.classList.remove('modal-open');
+            
+            showToast(`📖 名簿辞書を ${count} 件保存しました`);
+            
+            // ライブが選択中ならリストの名前も再描画する
+            if (currentLiveId) {
+                loadParticipants();
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            toast.textContent = message;
+            toast.className = "show";
+            setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 2500);
+        }
+
+        async function init() {
+            try {
+                const liveSelect = document.getElementById('live-select');
+                const livesQuery = query(collection(db, "lives"));
+                const livesSnap = await getDocs(livesQuery);
+                
+                livesSnap.forEach(d => {
+                    const option = document.createElement('option');
+                    option.value = d.id;
+                    option.textContent = d.data().name;
+                    liveSelect.appendChild(option);
+                });
+            } catch (error) { console.error(error); alert("データの読み込みに失敗しました。"); }
+        }
+
+        async function handleLiveChange(e) {
+            currentLiveId = e.target.value;
+            const dashboard = document.getElementById('dashboard');
+            const loadingMsg = document.getElementById('loading-msg');
+            
+            if (!currentLiveId) {
+                dashboard.style.display = 'none';
+                loadingMsg.style.display = 'block';
+                return;
+            }
+            await loadParticipants();
+        }
+
+        async function loadParticipants() {
+            const dashboard = document.getElementById('dashboard');
+            const loadingMsg = document.getElementById('loading-msg');
+            const listContainer = document.getElementById('payment-list');
+            
+            dashboard.style.display = 'none';
+            loadingMsg.style.display = 'block';
+            loadingMsg.textContent = 'データを取得中...';
+
+            try {
+                const qRsvp = query(collection(db, "rsvps"), where("liveId", "==", currentLiveId));
+                const snapRsvp = await getDocs(qRsvp);
+                
+                participants = [];
+                
+                snapRsvp.forEach(d => {
+                    const data = d.data();
+                    if (data.status === 'yes') {
+                        participants.push({
+                            userId: data.userId,
+                            name: nameDictionary[data.userId] || "名前未登録", // 辞書から名前を取得
+                            paymentStatus: data.paymentStatus || 'unpaid'
+                        });
+                    }
+                });
+
+                participants.sort((a, b) => a.userId.localeCompare(b.userId));
+                renderList();
+
+                loadingMsg.style.display = 'none';
+                dashboard.style.display = 'block';
+
+            } catch (error) {
+                console.error(error);
+                loadingMsg.textContent = 'エラーが発生しました。';
+            }
+        }
+
+        function renderList() {
+            const listContainer = document.getElementById('payment-list');
+            listContainer.innerHTML = '';
+            
+            let paidCount = 0;
+
+            if (participants.length === 0) {
+                listContainer.innerHTML = '<p style="text-align:center; color:#999;">この打ち上げの参加予定者はまだいません。</p>';
+                updateCounters(0, 0, 0);
+                return;
+            }
+
+            participants.forEach(p => {
+                if (p.paymentStatus === 'paid') paidCount++;
+
+                const card = document.createElement('div');
+                card.className = `payment-card ${p.paymentStatus === 'paid' ? 'is-paid' : ''}`;
+                card.id = `card-${p.userId}`;
+
+                card.innerHTML = `
+                    <div class="user-info">
+                        <span class="user-id">${p.userId}</span>
+                        <span class="user-name">${p.name}</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-${p.userId}" ${p.paymentStatus === 'paid' ? 'checked' : ''}>
+                        <span class="slider"></span>
+                    </label>
+                `;
+                
+                listContainer.appendChild(card);
+
+                const toggle = card.querySelector(`#toggle-${p.userId}`);
+                toggle.addEventListener('change', async (e) => {
+                    const isPaid = e.target.checked;
+                    await updatePayment(p.userId, isPaid, card);
+                });
+            });
+
+            updateCounters(participants.length, paidCount, participants.length - paidCount);
+        }
+
+        async function updatePayment(userId, isPaid, cardElement) {
+            const docId = `${currentLiveId}_${userId}`;
+            const newStatus = isPaid ? 'paid' : 'unpaid';
+
+            if (isPaid) cardElement.classList.add('is-paid');
+            else cardElement.classList.remove('is-paid');
+
+            try {
+                await setDoc(doc(db, "rsvps", docId), {
+                    paymentStatus: newStatus,
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+
+                const target = participants.find(p => p.userId === userId);
+                if (target) target.paymentStatus = newStatus;
+                
+                const paidCount = participants.filter(p => p.paymentStatus === 'paid').length;
+                updateCounters(participants.length, paidCount, participants.length - paidCount);
+
+                showToast(isPaid ? `✅ ${target.name} さんの支払いを登録しました` : `❌ ${target.name} さんを未払いに戻しました`);
+
+            } catch (error) {
+                console.error("更新エラー:", error);
+                alert("保存に失敗しました。通信環境を確認してください。");
+                document.getElementById(`toggle-${userId}`).checked = !isPaid;
+                if (!isPaid) cardElement.classList.add('is-paid');
+                else cardElement.classList.remove('is-paid');
+            }
+        }
+
+        function updateCounters(total, paid, unpaid) {
+            document.getElementById('count-total').textContent = total;
+            document.getElementById('count-paid').textContent = paid;
+            document.getElementById('count-unpaid').textContent = unpaid;
+        }
+    </script>
+</body>
+</html>
