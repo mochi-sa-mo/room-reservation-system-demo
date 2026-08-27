@@ -18,7 +18,7 @@
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); flex-wrap: wrap; gap: 10px; }
         
-        .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1000px; margin: 0 auto 20px; }
+        .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto 20px; }
         .section-title { margin-top: 0; margin-bottom: 15px; border-left: 5px solid #ff9800; padding-left: 10px; font-size: 1.3em; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;}
         
         .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; background-color: var(--primary-color); color: white; font-weight: bold; transition: 0.2s; text-align: center; }
@@ -45,7 +45,7 @@
         .role-tag { font-size: 0.75em; padding: 2px 6px; border-radius: 12px; margin-left: 5px; background: #9e9e9e; color: white; display: inline-block; margin-top: 3px;}
         .role-performer { background: #ff9800; }
 
-        .select-status, .select-payment { padding: 6px; font-weight: bold; border-radius: 4px; border: 1px solid #ccc; width: 100px; box-sizing: border-box;}
+        .select-status { padding: 6px; font-weight: bold; border-radius: 4px; border: 1px solid #ccc; width: 100px; box-sizing: border-box;}
         .input-comment { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; min-width: 150px;}
         .btn-save-row { background: #4A90E2; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; white-space: nowrap; }
         .btn-save-row:hover { background: #357abd; }
@@ -88,10 +88,10 @@
     <div class="container">
         <div class="section-title">
             <span>打ち上げ参加状況の確認・編集</span>
-            <!-- ▼ CSVダウンロードボタンを追加 ▼ -->
+            <!-- CSVダウンロードボタン -->
             <button class="btn btn-csv" id="btn-download-csv" style="display: none;">📥 CSVで保存</button>
         </div>
-        <p style="font-size: 0.85em; color: #666; margin-top: 0;">ライブの回答状況を一覧で確認し、必要に応じて管理者が代理で変更・保存できます。参加者の集金管理も可能です。</p>
+        <p style="font-size: 0.85em; color: #666; margin-top: 0;">ライブの回答状況を一覧で確認し、必要に応じて管理者が代理で変更・保存できます。</p>
         
         <div class="success-message" id="main-success-msg"></div>
 
@@ -115,8 +115,6 @@
                     <tr>
                         <th>学籍番号 (氏名)</th>
                         <th>回答状況</th>
-                        <!-- ▼ 支払状況の列を追加 ▼ -->
-                        <th>支払状況</th>
                         <th>備考</th>
                         <th>操作</th>
                     </tr>
@@ -169,7 +167,7 @@
         let currentLiveId = "";
         let pendingData = null; 
         let nameDictionary = JSON.parse(sessionStorage.getItem('adminNameDictionary') || '{}');
-        let currentCsvData = []; // ▼ CSV出力用のデータを保持する配列 ▼
+        let currentCsvData = []; 
 
         window.onload = function() {
             document.getElementById('btn-confirm-cancel').onclick = closeConfirmModal;
@@ -177,7 +175,6 @@
             document.getElementById('btn-alert-ok').onclick = closeAlertModal;
             document.getElementById('live-select').onchange = handleLiveChange;
             
-            // ▼ CSVダウンロード処理の追加 ▼
             document.getElementById('btn-download-csv').onclick = downloadCSV;
 
             document.getElementById('btn-open-dict').onclick = () => {
@@ -251,7 +248,7 @@
             
             if (!currentLiveId) {
                 dashboard.style.display = 'none';
-                btnCsv.style.display = 'none'; // ライブ未選択時はCSVボタンを隠す
+                btnCsv.style.display = 'none';
                 loadingMsg.style.display = 'block';
                 loadingMsg.textContent = 'ライブを選択してください';
                 return;
@@ -269,7 +266,7 @@
             btnCsv.style.display = 'none';
             loadingMsg.style.display = 'block';
             loadingMsg.textContent = 'データを取得中...';
-            currentCsvData = []; // データ初期化
+            currentCsvData = []; 
 
             try {
                 const liveDoc = await getDoc(doc(db, "lives", currentLiveId));
@@ -306,8 +303,6 @@
                     const isTarget = targetUserIds.includes(userId); 
                     const currentStatus = ans ? ans.status : 'pending';
                     const currentComment = ans ? (ans.comment || "") : "";
-                    // ▼ 支払状況を取得（デフォルトは unpaid） ▼
-                    const currentPayment = ans ? (ans.paymentStatus || 'unpaid') : 'unpaid';
 
                     if (currentStatus === 'yes') countYes++;
                     else if (currentStatus === 'no') countNo++;
@@ -317,13 +312,12 @@
                     if (currentStatus === 'yes') rowClass = 'row-yes';
                     if (currentStatus === 'no') rowClass = 'row-no';
 
-                    // ▼ CSV出力用のデータを保存 ▼
+                    // CSV用データから支払状況を削除
                     currentCsvData.push({
                         userId: userId,
                         name: nameDictionary[userId] || "",
                         role: isTarget ? "出演者" : "一般参加",
                         status: currentStatus,
-                        paymentStatus: currentPayment,
                         comment: currentComment
                     });
 
@@ -331,17 +325,6 @@
                     tr.className = rowClass;
 
                     const roleTag = isTarget ? '<span class="role-tag role-performer">出演者</span>' : '<span class="role-tag">一般参加</span>';
-
-                    // ▼ 支払状況のUI生成（参加の人だけ操作可能） ▼
-                    let paymentHtml = '<span style="color: #999;">-</span>';
-                    if (currentStatus === 'yes') {
-                        paymentHtml = `
-                            <select class="select-payment" id="payment-${userId}">
-                                <option value="unpaid" ${currentPayment === 'unpaid' ? 'selected' : ''}>未払い</option>
-                                <option value="paid" ${currentPayment === 'paid' ? 'selected' : ''}>✅ 支払済</option>
-                            </select>
-                        `;
-                    }
 
                     tr.innerHTML = `
                         <td class="name-cell">${translateId(userId)}<br>${roleTag}</td>
@@ -352,7 +335,6 @@
                                 <option value="no" ${currentStatus === 'no' ? 'selected' : ''}>❌ 不参加</option>
                             </select>
                         </td>
-                        <td style="text-align: center;">${paymentHtml}</td>
                         <td>
                             <input type="text" class="input-comment" id="comment-${userId}" value="${currentComment}" placeholder="備考を入力">
                         </td>
@@ -362,32 +344,22 @@
                     `;
                     tbody.appendChild(tr);
 
-                    // 行ごとの保存ボタンの処理
                     tr.querySelector('.btn-save-row').addEventListener('click', (e) => {
                         const id = e.target.getAttribute('data-id');
                         const newStatus = document.getElementById(`status-${id}`).value;
                         const newComment = document.getElementById(`comment-${id}`).value.trim();
                         
-                        // 支払状況の取得
-                        let newPayment = 'unpaid';
-                        const paymentSelect = document.getElementById(`payment-${id}`);
-                        if (paymentSelect) {
-                            newPayment = paymentSelect.value;
-                        }
-
                         const nameStr = nameDictionary[id] ? `${id} (${nameDictionary[id]})` : id;
                         const statusStr = newStatus === 'yes' ? '⭕ 参加' : newStatus === 'no' ? '❌ 不参加' : '❓ 未定';
-                        const paymentStr = newStatus === 'yes' ? (newPayment === 'paid' ? '<span style="color:green;">✅ 支払済</span>' : '<span style="color:red;">未払い</span>') : '-';
 
                         document.getElementById('confirm-modal-title').textContent = '回答の更新';
-                        document.getElementById('confirm-modal-message').innerHTML = `以下のユーザーの回答を更新します。<br><br>対象: <strong>${nameStr}</strong><br>状態: <strong>${statusStr}</strong><br>支払: <strong>${paymentStr}</strong><br>備考: ${newComment || 'なし'}`;
+                        document.getElementById('confirm-modal-message').innerHTML = `以下のユーザーの回答を更新します。<br><br>対象: <strong>${nameStr}</strong><br>状態: <strong>${statusStr}</strong><br>備考: ${newComment || 'なし'}`;
                         
                         const executeBtn = document.getElementById('btn-confirm-execute');
                         executeBtn.textContent = '更新する'; executeBtn.style.backgroundColor = '#ff9800';
                         document.getElementById('modal-border-color').style.borderTopColor = '#ff9800';
 
-                        // ▼ paymentStatus も pendingData に含める ▼
-                        pendingData = { action: 'update', userId: id, status: newStatus, paymentStatus: newPayment, comment: newComment };
+                        pendingData = { action: 'update', userId: id, status: newStatus, comment: newComment };
                         document.getElementById('confirm-modal').style.display = 'flex';
                     });
                 });
@@ -399,7 +371,7 @@
 
                 loadingMsg.style.display = 'none';
                 dashboard.style.display = 'block';
-                btnCsv.style.display = 'inline-block'; // CSVボタンを表示
+                btnCsv.style.display = 'inline-block';
 
             } catch (error) {
                 console.error(error);
@@ -407,32 +379,26 @@
             }
         }
 
-        // ▼ CSVファイルを生成・ダウンロードする関数 ▼
         function downloadCSV() {
             if (currentCsvData.length === 0) return;
 
-            // CSVのヘッダー
-            let csvContent = "学籍番号,氏名,区分,回答状況,支払状況,備考\n";
+            // CSVのヘッダーから支払状況を削除
+            let csvContent = "学籍番号,氏名,区分,回答状況,備考\n";
 
             currentCsvData.forEach(row => {
                 let statusText = row.status === 'yes' ? '参加' : (row.status === 'no' ? '不参加' : '未定');
-                let paymentText = row.status === 'yes' ? (row.paymentStatus === 'paid' ? '支払済' : '未払い') : '-';
-                
-                // 備考欄にカンマや改行が含まれていても表が崩れないように「"」で囲む（エスケープ処理）
                 let safeComment = `"${row.comment.replace(/"/g, '""')}"`;
                 
-                csvContent += `${row.userId},${row.name},${row.role},${statusText},${paymentText},${safeComment}\n`;
+                csvContent += `${row.userId},${row.name},${row.role},${statusText},${safeComment}\n`;
             });
 
-            // 文字化け防止（BOM）をつけてBlob（ファイルデータ）を作成
             const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
             const blob = new Blob([bom, csvContent], { type: "text/csv;charset=utf-8;" });
             
-            // ダウンロード用のリンクを擬似的に作ってクリックさせる
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = url;
-            link.download = `打ち上げ名簿_${currentLiveId}.csv`; // ファイル名
+            link.download = `打ち上げ回答_${currentLiveId}.csv`; 
             link.click();
             URL.revokeObjectURL(url);
         }
@@ -459,18 +425,16 @@
                 const successMsg = document.getElementById('main-success-msg');
                 try {
                     const docId = `${currentLiveId}_${data.userId}`;
-                    // ▼ paymentStatus をデータベースに保存するように修正 ▼
                     await setDoc(doc(db, "rsvps", docId), {
                         liveId: currentLiveId,
                         userId: data.userId,
                         status: data.status,
-                        paymentStatus: data.paymentStatus, // 追加
                         comment: data.comment,
                         updatedAt: serverTimestamp()
-                    }, { merge: true }); // 他のデータを消さないための安全策
+                    }, { merge: true }); 
                     
                     window.scrollTo({ top: 0, behavior: 'smooth' });
-                    successMsg.textContent = "回答データ（支払状況含む）を更新しました。"; 
+                    successMsg.textContent = "回答データを更新しました。"; 
                     successMsg.style.display = 'block';
                     setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
                     
@@ -479,7 +443,7 @@
                 } catch (error) {
                     console.error(error);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
-                    customAlert("更新に失敗しました。", true);
+                    customAlert("更新に失敗しました。Firebaseのセキュリティルールを確認してください。", true);
                 }
             }
             pendingData = null;
