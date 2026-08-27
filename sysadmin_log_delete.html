@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【極秘】システム保守・メンテナンス</title>
+
+    <script>
+        // 直打ちページなので、sysadmin以外は弾く
+        if (localStorage.getItem('userRole') !== 'sysadmin') {
+            alert('アクセス権限がありません。');
+            window.location.replace('login.html');
+        }
+    </script>
+
+    <style>
+        :root { --primary-color: #8e44ad; --primary-hover: #732d91; --bg-color: #f5f7fa; --border-color: #ccc; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); flex-wrap: wrap; gap: 10px; }
+        
+        .container { max-width: 800px; margin: 0 auto; }
+        .section-title { margin-top: 0; margin-bottom: 15px; border-left: 5px solid var(--primary-color); padding-left: 10px; font-size: 1.3em; }
+        
+        .btn { padding: 10px 16px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; transition: 0.2s; font-size: 0.95em; }
+        .btn-nav { background-color: #e0e0e0; color: #333; } .btn-nav:hover { background-color: #d0d0d0; }
+        .btn-info { background-color: #00bcd4; } .btn-info:hover { background-color: #0097a7; }
+        .btn-danger { background-color: #d0021b; } .btn-danger:hover { background-color: #a00215; }
+        .btn:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; border-top: 5px solid var(--primary-color); }
+        .card p { color: #555; font-size: 0.9em; line-height: 1.6; }
+        
+        .form-group { margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .form-group label { font-weight: bold; font-size: 1em; }
+        .form-group input[type="number"] { width: 80px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 1.1em; text-align: center; font-weight: bold;}
+
+        .result-box { background: #f9f9f9; border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px; display: none; }
+        .result-box h4 { margin-top: 0; margin-bottom: 10px; color: #333; }
+        .result-box .count { font-size: 1.8em; font-weight: bold; color: #d0021b; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1 style="color: var(--primary-color); margin:0;">🛠️ システム保守・メンテナンス</h1>
+            <button class="btn btn-nav" onclick="window.location.href='index.html'">トップへ戻る</button>
+        </header>
+
+        <div class="card">
+            <h2 class="section-title">🗑️ 古い操作ログの一括削除</h2>
+            <p>
+                システムに蓄積された過去の操作ログ（予約、キャンセル、設定変更など）を期間指定で一括削除します。<br>
+                ※削除されたデータは二度と復元できません。不要になった古いデータのみを対象にしてください。
+            </p>
+
+            <div class="form-group">
+                <input type="number" id="input-months" value="3" min="1" max="60">
+                <label for="input-months">ヶ月以上前のログを対象にする</label>
+            </div>
+
+            <button class="btn btn-info" id="btn-search">対象件数を計算する</button>
+
+            <div class="result-box" id="result-box">
+                <h4>検索結果</h4>
+                <div style="margin-bottom: 15px;">
+                    削除対象の古いログが見つかりました： <span class="count" id="log-count">0</span> 件
+                </div>
+                <button class="btn btn-danger" id="btn-execute-delete" style="width: 100%;">この件数を完全に削除する</button>
+            </div>
+
+            <div class="result-box" id="empty-box" style="border-color: #4caf50; background: #e8f5e9; text-align: center; color: #2e7d32; font-weight: bold;">
+                指定された期間の古いログはありませんでした。
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from "./firebase.js";
+        import { collection, query, where, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+        let targetDocs = []; // 削除対象のドキュメント情報を保持する配列
+
+        document.getElementById('btn-search').addEventListener('click', async () => {
+            const months = parseInt(document.getElementById('input-months').value, 10);
+            if (isNaN(months) || months < 1) {
+                alert("1以上の正しい数字を入力してください。");
+                return;
+            }
+
+            const btnSearch = document.getElementById('btn-search');
+            btnSearch.disabled = true;
+            btnSearch.textContent = '検索中...';
+            
+            document.getElementById('result-box').style.display = 'none';
+            document.getElementById('empty-box').style.display = 'none';
+
+            try {
+                // 指定されたヶ月前の日時（ISO文字列）を計算
+                const limitDate = new Date();
+                limitDate.setMonth(limitDate.getMonth() - months);
+                const limitIso = limitDate.toISOString();
+
+                // データベースから古いログを検索
+                const q = query(collection(db, "logs"), where("timestamp", "<", limitIso));
+                const snap = await getDocs(q);
+
+                targetDocs = [];
+                snap.forEach(d => {
+                    targetDocs.push(d.id);
+                });
+
+                if (targetDocs.length > 0) {
+                    document.getElementById('log-count').textContent = targetDocs.length;
+                    document.getElementById('result-box').style.display = 'block';
+                } else {
+                    document.getElementById('empty-box').style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error("検索エラー:", error);
+                alert("データの検索に失敗しました。通信環境や権限を確認してください。");
+            }
+
+            btnSearch.disabled = false;
+            btnSearch.textContent = '対象件数を計算する';
+        });
+
+        document.getElementById('btn-execute-delete').addEventListener('click', async () => {
+            if (targetDocs.length === 0) return;
+
+            const months = document.getElementById('input-months').value;
+            if (!confirm(`【最終確認】\n${months}ヶ月以上前のログ（計 ${targetDocs.length} 件）を完全に削除します。\nよろしいですか？`)) {
+                return;
+            }
+
+            const btnExecute = document.getElementById('btn-execute-delete');
+            btnExecute.disabled = true;
+            btnExecute.textContent = '削除処理中...';
+
+            try {
+                const promises = targetDocs.map(id => deleteDoc(doc(db, "logs", id)));
+                await Promise.all(promises);
+
+                alert(`【完了】\n${targetDocs.length}件の古いログを削除し、データベースを整理しました！`);
+                
+                // 画面をリセット
+                document.getElementById('result-box').style.display = 'none';
+                targetDocs = [];
+
+            } catch (error) {
+                console.error("削除エラー:", error);
+                alert("削除処理中にエラーが発生しました。");
+                btnExecute.disabled = false;
+                btnExecute.textContent = 'この件数を完全に削除する';
+            }
+        });
+    </script>
+</body>
+</html>
