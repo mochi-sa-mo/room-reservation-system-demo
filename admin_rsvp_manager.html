@@ -88,7 +88,6 @@
     <div class="container">
         <div class="section-title">
             <span>打ち上げ参加状況の確認・編集</span>
-            <!-- CSVダウンロードボタン -->
             <button class="btn btn-csv" id="btn-download-csv" style="display: none;">📥 CSVで保存</button>
         </div>
         <p style="font-size: 0.85em; color: #666; margin-top: 0;">ライブの回答状況を一覧で確認し、必要に応じて管理者が代理で変更・保存できます。</p>
@@ -103,6 +102,15 @@
         </div>
 
         <div id="rsvp-dashboard" style="display: none;">
+            
+            <!-- ▼ 打ち上げ概要設定エリアを追加 ▼ -->
+            <div style="background: #fff8e1; border: 1px solid #ffecb3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="margin-top: 0; font-size: 1.1em; color: #e65100; border-bottom: 1px solid #ffe082; padding-bottom: 5px;">🍻 打ち上げの概要・詳細設定</h3>
+                <p style="font-size: 0.85em; color: #666; margin-bottom: 10px;">ここに記入した内容が、部員が回答する画面に表示されます。（場所、時間、会費など）</p>
+                <textarea id="rsvp-details-text" placeholder="例：&#10;・場所：〇〇居酒屋&#10;・時間：21:00〜&#10;・会費：3000円&#10;・備考：未成年の飲酒は厳禁です！" style="min-height: 100px; margin-bottom: 10px; border-color: #ffca28;"></textarea>
+                <button class="btn" id="btn-save-details" style="width: 100%; background-color: #ffb300; color: #fff;">概要を保存して部員に公開する</button>
+            </div>
+
             <div class="summary-box">
                 <div class="summary-item total">対象者<span class="summary-num" id="count-total">-</span></div>
                 <div class="summary-item yes">参加<span class="summary-num" id="count-yes">-</span></div>
@@ -162,7 +170,7 @@
 
     <script type="module">
         import { db } from "./firebase.js";
-        import { collection, getDocs, doc, getDoc, setDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        import { collection, getDocs, doc, getDoc, setDoc, updateDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
         let currentLiveId = "";
         let pendingData = null; 
@@ -177,6 +185,9 @@
             
             document.getElementById('btn-download-csv').onclick = downloadCSV;
 
+            // ▼ 打ち上げ概要の保存ボタンイベント ▼
+            document.getElementById('btn-save-details').onclick = saveRsvpDetails;
+
             document.getElementById('btn-open-dict').onclick = () => {
                 let text = "";
                 for (const [id, name] of Object.entries(nameDictionary)) { text += `${id}\t${name}\n`; }
@@ -188,6 +199,35 @@
 
             init();
         };
+
+        function showSuccessMsg(msg) {
+            const el = document.getElementById('main-success-msg');
+            el.textContent = msg;
+            el.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => { el.style.display = 'none'; }, 3000);
+        }
+
+        // ▼ 概要をデータベースに保存する関数 ▼
+        async function saveRsvpDetails() {
+            if (!currentLiveId) return;
+            const btn = document.getElementById('btn-save-details');
+            const detailsText = document.getElementById('rsvp-details-text').value.trim();
+            
+            btn.disabled = true;
+            btn.textContent = '保存中...';
+
+            try {
+                await updateDoc(doc(db, "lives", currentLiveId), { rsvpDetails: detailsText });
+                showSuccessMsg("打ち上げの概要を保存しました！部員画面に反映されます。");
+            } catch (error) {
+                console.error("概要保存エラー:", error);
+                customAlert("概要の保存に失敗しました。", true);
+            }
+
+            btn.disabled = false;
+            btn.textContent = '概要を保存して部員に公開する';
+        }
 
         function saveDictionary() {
             const text = document.getElementById('dict-textarea').value;
@@ -274,8 +314,12 @@
                     loadingMsg.textContent = 'ライブデータが見つかりません。';
                     return;
                 }
+
+                // ▼ 保存されている概要をテキストエリアにセット ▼
+                const liveData = liveDoc.data();
+                document.getElementById('rsvp-details-text').value = liveData.rsvpDetails || "";
                 
-                const targetUserIds = liveDoc.data().targetUserIds || [];
+                const targetUserIds = liveData.targetUserIds || [];
                 const allUserSet = new Set(targetUserIds);
 
                 const qRsvp = query(collection(db, "rsvps"), where("liveId", "==", currentLiveId));
@@ -290,7 +334,14 @@
 
                 if (allUserSet.size === 0) {
                     loadingMsg.textContent = 'このライブには打ち上げ回答の対象者（および回答者）がいません。';
+                    // 概要だけは編集できるように dashboard は表示する
+                    dashboard.style.display = 'block';
+                    document.querySelector('.summary-box').style.display = 'none';
+                    document.querySelector('.data-table').style.display = 'none';
                     return;
+                } else {
+                    document.querySelector('.summary-box').style.display = 'flex';
+                    document.querySelector('.data-table').style.display = 'table';
                 }
 
                 const sortedUserIds = Array.from(allUserSet).sort();
@@ -312,7 +363,6 @@
                     if (currentStatus === 'yes') rowClass = 'row-yes';
                     if (currentStatus === 'no') rowClass = 'row-no';
 
-                    // CSV用データから支払状況を削除
                     currentCsvData.push({
                         userId: userId,
                         name: nameDictionary[userId] || "",
@@ -382,7 +432,6 @@
         function downloadCSV() {
             if (currentCsvData.length === 0) return;
 
-            // CSVのヘッダーから支払状況を削除
             let csvContent = "学籍番号,氏名,区分,回答状況,備考\n";
 
             currentCsvData.forEach(row => {
@@ -422,7 +471,6 @@
             closeConfirmModal();
             
             if (data.action === 'update') {
-                const successMsg = document.getElementById('main-success-msg');
                 try {
                     const docId = `${currentLiveId}_${data.userId}`;
                     await setDoc(doc(db, "rsvps", docId), {
@@ -433,11 +481,7 @@
                         updatedAt: serverTimestamp()
                     }, { merge: true }); 
                     
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    successMsg.textContent = "回答データを更新しました。"; 
-                    successMsg.style.display = 'block';
-                    setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
-                    
+                    showSuccessMsg("回答データを更新しました。"); 
                     await loadRsvps(); 
 
                 } catch (error) {
