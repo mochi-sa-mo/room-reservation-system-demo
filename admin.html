@@ -347,18 +347,20 @@
         .tag-ops {
             display: flex;
             justify-content: space-between;
-            gap: 2px;
-            margin-top: 2px;
+            gap: 4px; /* ボタン同士の隙間を少し広げる */
+            margin-top: 5px; /* 上の文字との隙間を広げる */
         }
         .tag-ops button {
             flex: 1;
-            padding: 2px 0;
-            font-size: 0.8em;
+            padding: 8px 4px; /* ★上下の余白を大幅に増やしてタップ領域を拡大 */
+            font-size: 0.95em; /* ★文字を少し大きく */
+            font-weight: bold; /* ★文字を太くして見やすく */
             cursor: pointer;
             border: none;
-            border-radius: 2px;
+            border-radius: 4px; /* 角を少し丸くする */
             background: #fff;
             color: #333;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15); /* 影をつけて「押せる感」をアップ */
         }
         .tag-ops button.btn-tag-del {
             background: #ffcdd2;
