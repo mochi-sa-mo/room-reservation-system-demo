@@ -107,6 +107,11 @@
             <button class="btn btn-success" id="btn-open-create-live" style="height: 40px; white-space: nowrap;">➕ 新規作成</button>
         </div>
 
+        <!-- ▼ アーカイブ（終了）ボタン ▼ -->
+        <div id="archive-panel" style="display: none; margin-bottom: 15px; text-align: right;">
+            <button class="btn btn-nav" id="btn-archive-live" style="background-color: #78909c; color: white;">📦 このライブを終了して過去の履歴に移動</button>
+        </div>
+
         <div class="status-panel" id="status-panel" style="display: none;">
             <div class="status-box">
                 <div style="font-size: 0.85em; color: #666;">エントリー受付</div>
@@ -245,6 +250,11 @@
             document.getElementById('btn-toggle-result').onclick = () => confirmToggle('result');
             document.getElementById('btn-toggle-rsvp').onclick = () => confirmToggle('rsvp');
             
+            // ▼ アーカイブボタンのイベント追加 ▼
+            document.getElementById('btn-archive-live').onclick = () => {
+                showConfirmModal('ライブの終了とアーカイブ', 'このライブを「終了」扱いにします。<br>部員側の画面では「過去の履歴」に移動します。よろしいですか？', 'archive_live', '終了して移動する', '#78909c');
+            };
+            
             document.getElementById('btn-extract-ids').onclick = extractIds;
             document.getElementById('btn-copy-ids').onclick = copyIdsToClipboard;
             
@@ -367,11 +377,13 @@
             const container = document.getElementById('entries-container');
             const statusArea = document.getElementById('status-panel');
             const extractSec = document.getElementById('extract-section');
+            const archivePanel = document.getElementById('archive-panel');
             document.getElementById('extracted-result').style.display = 'none';
             
             if (!currentLiveId) {
                 container.innerHTML = '<p style="color: #999; text-align: center;">ライブを選択してください</p>';
                 statusArea.style.display = 'none';
+                archivePanel.style.display = 'none';
                 extractSec.style.display = 'none';
                 return;
             }
@@ -381,6 +393,7 @@
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 currentLiveState = {
+                    isActive: data.isActive !== undefined ? data.isActive : true,
                     isEntryOpen: data.isEntryOpen !== undefined ? data.isEntryOpen : (data.phase === 'entry'),
                     isResultOpen: data.isResultOpen !== undefined ? data.isResultOpen : false,
                     isRsvpOpen: data.isRsvpOpen !== undefined ? data.isRsvpOpen : (data.phase === 'rsvp')
@@ -393,6 +406,8 @@
 
         function updateStatusAreaUI() {
             document.getElementById('status-panel').style.display = 'flex';
+            // ▼ ライブがアクティブな時だけ終了ボタンを表示
+            document.getElementById('archive-panel').style.display = currentLiveState.isActive ? 'block' : 'none';
             
             const elbl = document.getElementById('entry-status-label');
             const ebtn = document.getElementById('btn-toggle-entry');
@@ -736,6 +751,24 @@
                     successMsg.textContent = "状態を更新しました。"; successMsg.style.display = 'block';
                     setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
                 } 
+                // ▼ 追加：ライブをアーカイブ（終了）する処理 ▼
+                else if (action === 'archive_live') {
+                    await updateDoc(doc(db, "lives", currentLiveId), { isActive: false });
+                    
+                    const liveDoc = await getDoc(doc(db, "lives", currentLiveId));
+                    const liveName = liveDoc.exists() ? liveDoc.data().name : "不明なライブ";
+                    await addDoc(collection(db, "logs"), {
+                        timestamp: new Date().toISOString(),
+                        category: "live", opType: "update", title: liveName, userId: currentUserId,
+                        detail: `管理者(${currentUserId})がライブ「${liveName}」を終了(アーカイブ)しました`
+                    });
+
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    successMsg.textContent = "ライブを終了し、過去の履歴に移動しました。"; successMsg.style.display = 'block';
+                    setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
+                    
+                    await handleLiveChange({ target: { value: currentLiveId } });
+                }
                 else if (action.startsWith('entry_') || action.startsWith('rsvp_') || action.startsWith('result_')) {
                     const [type, state] = action.split('_'); 
                     const isNowOpen = (state === 'open');
@@ -768,7 +801,6 @@
                     
                     updateStatusAreaUI();
                     
-                    // ▼ 追加: 状態の変更をログに記録
                     const liveDoc = await getDoc(doc(db, "lives", currentLiveId));
                     const liveName = liveDoc.exists() ? liveDoc.data().name : "不明なライブ";
                     let stateLabel = "";
