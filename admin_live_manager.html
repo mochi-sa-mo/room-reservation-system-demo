@@ -107,9 +107,9 @@
             <button class="btn btn-success" id="btn-open-create-live" style="height: 40px; white-space: nowrap;">➕ 新規作成</button>
         </div>
 
-        <!-- ▼ アーカイブ（終了）ボタン ▼ -->
+        <!-- ▼ アーカイブ（終了/復元）ボタン ▼ -->
         <div id="archive-panel" style="display: none; margin-bottom: 15px; text-align: right;">
-            <button class="btn btn-nav" id="btn-archive-live" style="background-color: #78909c; color: white;">📦 このライブを終了して過去の履歴に移動</button>
+            <button class="btn btn-nav" id="btn-archive-live" style="color: white;"></button>
         </div>
 
         <div class="status-panel" id="status-panel" style="display: none;">
@@ -250,9 +250,13 @@
             document.getElementById('btn-toggle-result').onclick = () => confirmToggle('result');
             document.getElementById('btn-toggle-rsvp').onclick = () => confirmToggle('rsvp');
             
-            // ▼ アーカイブボタンのイベント追加 ▼
+            // ▼ アーカイブボタンのイベント（トグル化） ▼
             document.getElementById('btn-archive-live').onclick = () => {
-                showConfirmModal('ライブの終了とアーカイブ', 'このライブを「終了」扱いにします。<br>部員側の画面では「過去の履歴」に移動します。よろしいですか？', 'archive_live', '終了して移動する', '#78909c');
+                if (currentLiveState.isActive) {
+                    showConfirmModal('ライブの終了とアーカイブ', 'このライブを「終了」扱いにします。<br>部員側の画面では「過去の履歴」に移動します。よろしいですか？', 'archive_live', '終了して移動する', '#78909c');
+                } else {
+                    showConfirmModal('ライブの復元', 'このライブを「進行中」に戻します。<br>部員側の画面でも上段に表示されるようになります。よろしいですか？', 'restore_live', '進行中に戻す', '#4A90E2');
+                }
             };
             
             document.getElementById('btn-extract-ids').onclick = extractIds;
@@ -406,8 +410,17 @@
 
         function updateStatusAreaUI() {
             document.getElementById('status-panel').style.display = 'flex';
-            // ▼ ライブがアクティブな時だけ終了ボタンを表示
-            document.getElementById('archive-panel').style.display = currentLiveState.isActive ? 'block' : 'none';
+            
+            // ▼ アーカイブボタンの表示内容を状態に応じて切り替え ▼
+            document.getElementById('archive-panel').style.display = 'block';
+            const btnArchive = document.getElementById('btn-archive-live');
+            if (currentLiveState.isActive) {
+                btnArchive.textContent = "📦 このライブを終了して過去の履歴に移動";
+                btnArchive.style.backgroundColor = "#78909c";
+            } else {
+                btnArchive.textContent = "⬆️ 過去の履歴から戻す（進行中にする）";
+                btnArchive.style.backgroundColor = "#4A90E2";
+            }
             
             const elbl = document.getElementById('entry-status-label');
             const ebtn = document.getElementById('btn-toggle-entry');
@@ -751,20 +764,24 @@
                     successMsg.textContent = "状態を更新しました。"; successMsg.style.display = 'block';
                     setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
                 } 
-                // ▼ 追加：ライブをアーカイブ（終了）する処理 ▼
-                else if (action === 'archive_live') {
-                    await updateDoc(doc(db, "lives", currentLiveId), { isActive: false });
+                // ▼ 追加：ライブをアーカイブ（終了/復元）する処理 ▼
+                else if (action === 'archive_live' || action === 'restore_live') {
+                    const makeActive = (action === 'restore_live'); // 復元なら true、アーカイブなら false
+                    await updateDoc(doc(db, "lives", currentLiveId), { isActive: makeActive });
                     
                     const liveDoc = await getDoc(doc(db, "lives", currentLiveId));
                     const liveName = liveDoc.exists() ? liveDoc.data().name : "不明なライブ";
+                    const opText = makeActive ? "進行中に戻し(復元)ました" : "終了(アーカイブ)しました";
+
                     await addDoc(collection(db, "logs"), {
                         timestamp: new Date().toISOString(),
                         category: "live", opType: "update", title: liveName, userId: currentUserId,
-                        detail: `管理者(${currentUserId})がライブ「${liveName}」を終了(アーカイブ)しました`
+                        detail: `管理者(${currentUserId})がライブ「${liveName}」を${opText}`
                     });
 
                     window.scrollTo({ top: 0, behavior: 'smooth' });
-                    successMsg.textContent = "ライブを終了し、過去の履歴に移動しました。"; successMsg.style.display = 'block';
+                    successMsg.textContent = makeActive ? "ライブを進行中に戻しました。" : "ライブを終了し、過去の履歴に移動しました。"; 
+                    successMsg.style.display = 'block';
                     setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
                     
                     await handleLiveChange({ target: { value: currentLiveId } });
