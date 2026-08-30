@@ -135,7 +135,18 @@
                     const card = document.createElement('div');
                     card.className = `rsvp-card ${cardClass}`;
 
-                    let html = `<div class="status-badge-rsvp">${badgeText}</div><div class="live-name">${liveInfo.name} の打ち上げ</div>`;
+                    let html = `<div class="status-badge-rsvp">${badgeText}</div><div class="live-name" style="margin-bottom: 10px;">${liveInfo.name} の打ち上げ</div>`;
+
+                    // ▼ 管理者が登録した「打ち上げ概要」をここに表示！ ▼
+                    if (liveInfo.rsvpDetails && liveInfo.rsvpDetails.trim() !== "") {
+                        html += `
+                            <div style="background: #fff8e1; border: 1px solid #ffe082; padding: 12px; border-radius: 6px; font-size: 0.9em; color: #444; line-height: 1.6; margin-bottom: 15px;">
+                                <div style="color: #e65100; font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #ffe082; padding-bottom: 4px;">🍻 打ち上げ詳細</div>
+                                ${liveInfo.rsvpDetails.replace(/\n/g, '<br>')}
+                            </div>
+                        `;
+                    }
+                    // ▲ 追加箇所はここまで ▲
 
                     if (liveInfo.isRsvpOpen) {
                         html += `
@@ -204,7 +215,13 @@
             document.getElementById('confirm-modal').style.display = 'none'; document.body.classList.remove('modal-open');
             
             try {
-                await setDoc(doc(db, "rsvps", pendingData.docId), { ...pendingData, updatedAt: serverTimestamp() });
+                // 回答と一緒に paymentStatus: 'unpaid' も初期値としてセットしておく（管理側のエラーを防ぐため）
+                await setDoc(doc(db, "rsvps", pendingData.docId), { 
+                    ...pendingData, 
+                    paymentStatus: pendingData.status === 'yes' ? 'unpaid' : 'unpaid',
+                    updatedAt: serverTimestamp() 
+                }, { merge: true });
+                
                 window.scrollTo({ top: 0, behavior: 'smooth' }); 
                 const msg = document.getElementById('main-success-msg');
                 msg.textContent = "回答を送信しました！"; msg.style.display = 'block'; setTimeout(() => { msg.style.display = 'none'; }, 3000);
