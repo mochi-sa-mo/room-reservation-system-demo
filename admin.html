@@ -27,53 +27,8 @@
             padding: 20px;
             color: #333;
         }
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid var(--border-color);
-        }
-
-        /* --- ハンバーガーメニュー --- */
-        .header-actions { display: flex; align-items: center; }
-        .hamburger {
-            width: 25px; height: 18px; cursor: pointer; display: flex; flex-direction: column;
-            justify-content: space-between; z-index: 1010; position: relative;
-        }
-        .hamburger span { display: block; height: 3px; width: 100%; background-color: #333; border-radius: 3px; transition: all 0.3s ease; }
-        .hamburger.open span:nth-child(1) { transform: translateY(7.5px) rotate(45deg); }
-        .hamburger.open span:nth-child(2) { opacity: 0; }
-        .hamburger.open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
-
-        .side-menu {
-            position: fixed; top: 0; right: -250px; width: 250px; height: 100vh;
-            background-color: #fff; box-shadow: -2px 0 5px rgba(0,0,0,0.1);
-            transition: right 0.3s ease; z-index: 1005; padding-top: 70px;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        .side-menu.open { right: 0; }
-        .side-menu ul { list-style: none; padding: 0; margin: 0; }
-        .side-menu li { border-bottom: 1px solid #eee; }
-        .side-menu li.menu-category { 
-            background-color: #f0f4f8; 
-            color: #555; 
-            font-size: 0.85em; 
-            padding: 8px 20px; 
-            font-weight: bold; 
-            border-bottom: 1px solid #e1e4e8;
-            border-top: 1px solid #e1e4e8;
-            margin-top: 10px;
-        }
-        .side-menu li.menu-category:first-child { margin-top: 0; border-top: none; }
-        .side-menu a { display: block; padding: 15px 20px; text-decoration: none; color: #333; font-weight: bold; transition: background-color 0.2s; }
-        .side-menu a:hover { background-color: #f5f7fa; }
-
-        .menu-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
-        .menu-overlay.open { display: block; }
-        /* --------------------------------- */
+        
+        /* ハンバーガーメニュー等のCSSは Component.js で管理するため全削除してスッキリ！ */
         
         .admin-layout {
             display: flex;
@@ -347,20 +302,20 @@
         .tag-ops {
             display: flex;
             justify-content: space-between;
-            gap: 4px; /* ボタン同士の隙間を少し広げる */
-            margin-top: 5px; /* 上の文字との隙間を広げる */
+            gap: 4px;
+            margin-top: 5px;
         }
         .tag-ops button {
             flex: 1;
-            padding: 8px 4px; /* ★上下の余白を大幅に増やしてタップ領域を拡大 */
-            font-size: 0.95em; /* ★文字を少し大きく */
-            font-weight: bold; /* ★文字を太くして見やすく */
+            padding: 8px 4px;
+            font-size: 0.95em;
+            font-weight: bold;
             cursor: pointer;
             border: none;
-            border-radius: 4px; /* 角を少し丸くする */
+            border-radius: 4px;
             background: #fff;
             color: #333;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.15); /* 影をつけて「押せる感」をアップ */
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
         }
         .tag-ops button.btn-tag-del {
             background: #ffcdd2;
@@ -453,10 +408,7 @@
             box-sizing: border-box;
         }
 
-        /* 📸 画像ダウンロード時(capture-mode)のエクセル風レイアウト */
-        .capture-mode {
-            font-family: 'Meiryo', 'Yu Gothic', sans-serif !important;
-        }
+        .capture-mode { font-family: 'Meiryo', 'Yu Gothic', sans-serif !important; }
         
         .capture-mode #capture-inner {
             border: 2px solid #000 !important;
@@ -476,9 +428,7 @@
             box-sizing: border-box !important;
         }
 
-        .capture-mode .schedule-container {
-            padding: 0 !important; 
-        }
+        .capture-mode .schedule-container { padding: 0 !important; }
         
         .capture-mode .grid {
             border: none !important; 
@@ -493,12 +443,8 @@
             color: #000 !important;
         }
         
-        .capture-mode .header-cell {
-            background-color: #d9e1f2 !important;
-        }
-        .capture-mode .header-cell:first-child {
-            background-color: #fff !important; 
-        }
+        .capture-mode .header-cell { background-color: #d9e1f2 !important; }
+        .capture-mode .header-cell:first-child { background-color: #fff !important; }
 
         .capture-mode .cell {
             display: flex !important;
@@ -545,29 +491,7 @@
 </head>
 <body>
 
-    <header>
-        <h1>管理者パネル</h1>
-        <div class="header-actions">
-            <div class="hamburger" id="hamburger-btn">
-                <span></span><span></span><span></span>
-            </div>
-        </div>
-    </header>
-
-    <nav class="side-menu" id="side-menu">
-        <ul>
-            <li class="menu-category">管理者メニュー</li>
-            <li><a href="admin_live_manager.html" style="color: #e91e63;">ライブ審査・管理</a></li>
-            <li><a href="admin_rsvp_manager.html" style="color: #4caf50;">打ち上げ参加状況管理</a></li>
-            <li><a href="admin_rsvp_pay.html" style="color: #ff00ff;">打ち上げ集金状況管理</a></li>
-            <li><a href="admin_board.html" style="color: #ff9800;">掲示板の審査・管理</a></li>
-            
-            <li class="menu-category">アカウント</li>
-            <li><a href="settings.html" style="color: #4A90E2;">パスワード変更</a></li>
-            <li><a id="btn-logout" style="color: #d0021b; cursor: pointer;">ログアウト</a></li>
-        </ul>
-    </nav>
-    <div class="menu-overlay" id="menu-overlay"></div>
+    <!-- ヘッダーとメニューのHTML部分は Component.js で生成するため削除しました -->
 
     <div class="admin-layout">
         
@@ -665,7 +589,7 @@
         </div>
     </div>
 
-    <!-- 汎用アクション確認モーダル (ログアウト・削除用) -->
+    <!-- 汎用アクション確認モーダル (削除用等で利用) -->
     <div class="modal" id="confirm-modal">
         <div class="modal-content center-text" id="modal-border-color">
             <h3 id="confirm-modal-title" style="margin-top: 0; padding-bottom: 5px; border-bottom: 2px solid var(--primary-color);">確認</h3>
@@ -681,6 +605,9 @@
         import { db, auth } from "./firebase.js";
         import { collection, onSnapshot, addDoc, doc, updateDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+        
+        // ▼ Component.js から機能を取り込む ▼
+        import { setupCommonModals, setupHeader } from "./Component.js";
 
         const days = ['日', '月', '火', '水', '木', '金', '土'];
         const periods = ['1限', '2限', '昼休み', '3限', '4限', '5限', '放課後1', '放課後2'];
@@ -733,34 +660,15 @@
                 return;
             }
 
+            // ▼ 画面が開いた瞬間にヘッダーとモーダルを生成！ ▼
+            setupHeader('管理者パネル', 'hamburger');
+            setupCommonModals();
+
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     currentUserId = user.email.split('@')[0];
                 }
             });
-
-            document.getElementById('hamburger-btn').onclick = toggleMenu;
-            document.getElementById('menu-overlay').onclick = toggleMenu;
-
-            document.getElementById('menu-overlay').addEventListener('touchmove', (e) => {
-                e.preventDefault();
-            }, { passive: false });
-
-            document.getElementById('btn-logout').onclick = () => {
-                document.getElementById('hamburger-btn').classList.remove('open');
-                document.getElementById('side-menu').classList.remove('open');
-                document.getElementById('menu-overlay').classList.remove('open');
-                document.body.classList.remove('modal-open');
-                
-                showConfirmModal(
-                    'ログアウト',
-                    'システムからログアウトします。<br>よろしいですか？',
-                    'logout',
-                    null,
-                    'ログアウト',
-                    '#d0021b'
-                );
-            };
 
             document.getElementById('btn-confirm-cancel').onclick = closeConfirmModal;
             document.getElementById('btn-confirm-execute').onclick = executeConfirmAction;
@@ -778,13 +686,6 @@
 
             startRealtimeSync();
         };
-
-        function toggleMenu() {
-            document.getElementById('hamburger-btn').classList.toggle('open');
-            document.getElementById('side-menu').classList.toggle('open');
-            document.getElementById('menu-overlay').classList.toggle('open');
-            document.body.classList.toggle('modal-open');
-        }
 
         function showConfirmModal(title, message, action, data, btnText, color) {
             document.getElementById('confirm-modal-title').textContent = title;
@@ -818,11 +719,7 @@
             execBtn.disabled = true;
             execBtn.textContent = '処理中...';
 
-            if (action === 'logout') {
-                localStorage.removeItem('userRole');
-                sessionStorage.removeItem('adminNameDictionary');
-                window.location.href = 'login.html';
-            } else if (action === 'delete_announcement') {
+            if (action === 'delete_announcement') {
                 const id = data;
                 const target = dbAnnouncements.find(a => a.id === id);
                 const title = target ? target.title : "不明な案内";
@@ -1353,26 +1250,6 @@
             link.click(); 
             document.body.removeChild(link);
         }
-
-        window.addEventListener('pageshow', (event) => {
-            if (event.persisted) {
-                document.getElementById('hamburger-btn').classList.remove('open');
-                document.getElementById('side-menu').classList.remove('open');
-                document.getElementById('menu-overlay').classList.remove('open');
-                document.body.classList.remove('modal-open');
-            }
-        });
-
-        document.querySelectorAll('#side-menu a').forEach(link => {
-            link.addEventListener('click', (e) => {
-                if (e.target.id === 'btn-logout') return;
-                
-                document.getElementById('hamburger-btn').classList.remove('open');
-                document.getElementById('side-menu').classList.remove('open');
-                document.getElementById('menu-overlay').classList.remove('open');
-                document.body.classList.remove('modal-open');
-            });
-        });
     </script>
 </body>
 </html>
