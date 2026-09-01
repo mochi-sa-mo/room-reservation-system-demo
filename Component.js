@@ -2,9 +2,48 @@ import { auth } from "./firebase.js";
 import { signOut } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
 /**
+ * 共通のCSSをページに注入する（1回だけ実行される）
+ */
+function injectComponentStyles() {
+    if (document.getElementById('component-styles')) return; // 既に読み込まれていればスキップ
+
+    const style = document.createElement('style');
+    style.id = 'component-styles';
+    style.innerHTML = `
+        /* モーダル表示時に背景スクロールを止める */
+        body.modal-open { overflow: hidden; }
+
+        /* ハンバーガーメニューのアイコン */
+        .header-actions { display: flex; align-items: center; }
+        .hamburger { width: 25px; height: 18px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; z-index: 1010; position: relative; }
+        .hamburger span { display: block; height: 3px; width: 100%; background-color: #333; border-radius: 3px; transition: all 0.3s ease; }
+        .hamburger.open span:nth-child(1) { transform: translateY(7.5px) rotate(45deg); }
+        .hamburger.open span:nth-child(2) { opacity: 0; }
+        .hamburger.open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
+
+        /* サイドメニュー本体（最初は右に隠しておく） */
+        .side-menu { position: fixed; top: 0; right: -250px; width: 250px; height: 100vh; background-color: #fff; box-shadow: -2px 0 5px rgba(0,0,0,0.1); transition: right 0.3s ease; z-index: 1005; padding-top: 70px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .side-menu.open { right: 0; }
+        .side-menu ul { list-style: none; padding: 0; margin: 0; }
+        .side-menu li { border-bottom: 1px solid #eee; }
+        .side-menu li.menu-category { background-color: #f0f4f8; color: #555; font-size: 0.85em; padding: 8px 20px; font-weight: bold; border-bottom: 1px solid #e1e4e8; border-top: 1px solid #e1e4e8; margin-top: 10px; }
+        .side-menu li.menu-category:first-child { margin-top: 0; border-top: none; }
+        .side-menu a { display: block; padding: 15px 20px; text-decoration: none; color: #333; font-weight: bold; transition: background-color 0.2s; }
+        .side-menu a:hover { background-color: #f5f7fa; }
+
+        /* 背景の黒い半透明オーバーレイ */
+        .menu-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .menu-overlay.open { display: block; }
+    `;
+    document.head.appendChild(style);
+}
+
+/**
  * 共通のログアウトモーダルを画面に準備する
  */
 export function setupCommonModals() {
+    injectComponentStyles(); // CSSを注入
+
     // 画面の最後に共通モーダルのHTMLを注入
     document.body.insertAdjacentHTML('beforeend', `
         <div class="modal-overlay" id="common-logout-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
@@ -56,14 +95,14 @@ export function showLogoutModal() {
  * @param {string} type - 'back' | 'dict-back' | 'hamburger'
  */
 export function setupHeader(title, type = 'back') {
+    injectComponentStyles(); // CSSを注入
+
     let rightContent = '';
     let extraHtml = '';
 
-    // パターン1: 戻るのみ
     if (type === 'back') {
         rightContent = `<button class="btn-back" onclick="window.history.back()" style="background:#999; color:white; padding:10px 15px; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">戻る</button>`;
     } 
-    // パターン2: 名簿辞書 ＋ 戻る
     else if (type === 'dict-back') {
         rightContent = `
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -72,7 +111,6 @@ export function setupHeader(title, type = 'back') {
             </div>
         `;
     } 
-    // パターン3: ハンバーガーメニュー
     else if (type === 'hamburger') {
         rightContent = `
             <div class="header-actions">
@@ -81,17 +119,45 @@ export function setupHeader(title, type = 'back') {
                 </div>
             </div>
         `;
-        // 横から出るメニューもここで一緒に作ってしまう
+
+        const role = localStorage.getItem('userRole');
+        let menuItems = '';
+
+        if (role === 'admin' || role === 'sysadmin') {
+            menuItems = `
+                <li class="menu-category">管理者メニュー</li>
+                <li><a href="admin.html" style="color: #333;">管理者トップ</a></li>
+                <li><a href="admin_live_manager.html" style="color: #e91e63;">ライブ審査・管理</a></li>
+                <li><a href="admin_rsvp_manager.html" style="color: #4caf50;">打ち上げ参加状況管理</a></li>
+                <li><a href="admin_rsvp_pay.html" style="color: #ff00ff;">打ち上げ集金状況管理</a></li>
+                <li><a href="admin_board.html" style="color: #ff9800;">掲示板の審査・管理</a></li>
+            `;
+        } else {
+            menuItems = `
+                <li class="menu-category">部室予約</li>
+                <li><a href="reserve_this_week.html" style="color: #4caf50;">今週の追加予約</a></li>
+                <li><a href="reserve_next_week.html" style="color: #2196f3;">次週の予約</a></li>
+
+                <li class="menu-category">バンド管理</li>
+                <li><a href="create_band.html" style="color: #ff9800;">新規バンドを登録する</a></li>
+                <li><a href="my_bands.html" style="color: #9c27b0;">所属バンドを確認する</a></li>
+
+                <li class="menu-category">ライブ・掲示板</li>
+                <li><a href="live_entry.html" style="color: #e91e63;">ライブエントリーをする</a></li>
+                <li><a href="entry_status.html" style="color: #d84315;">審査状況・履歴を確認する</a></li>
+                <li><a href="rsvp.html" style="color: #4caf50;">打ち上げの回答をする</a></li>
+                <li><a href="board.html" style="color: #00bcd4;">掲示板へ</a></li>
+            `;
+        }
+
         extraHtml = `
             <nav class="side-menu" id="side-menu">
+                <div id="close-menu-btn" style="position:absolute; top:15px; right:20px; font-size:1.5em; font-weight:bold; cursor:pointer; color:#333; z-index: 1011;">✕</div>
                 <ul>
-                    <li class="menu-category">管理者メニュー</li>
-                    <li><a href="admin_live_manager.html" style="color: #e91e63;">ライブ審査・管理</a></li>
-                    <li><a href="admin_rsvp_manager.html" style="color: #4caf50;">打ち上げ参加状況管理</a></li>
-                    <li><a href="admin_rsvp_pay.html" style="color: #ff00ff;">打ち上げ集金状況管理</a></li>
-                    <li><a href="admin_board.html" style="color: #ff9800;">掲示板の審査・管理</a></li>
+                    ${menuItems}
                     <li class="menu-category">アカウント</li>
-                    <li><a href="settings.html" style="color: #4A90E2;">パスワード変更</a></li>
+                    <li><a href="settings.html" style="color: #333;">パスワードの変更</a></li>
+                    <li><a href="inquiry.html" style="color: #4caf50;">サポート・お問い合わせ</a></li>
                     <li><a id="btn-menu-logout" style="color: #d0021b; cursor: pointer;">ログアウト</a></li>
                 </ul>
             </nav>
@@ -99,22 +165,21 @@ export function setupHeader(title, type = 'back') {
         `;
     }
 
-    // bodyの一番上にヘッダーを差し込む
     const headerHtml = `
         <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #ccc; flex-wrap: wrap; gap: 10px;">
-            <h1 style="margin:0; font-size:1.5em;">${title}</h1>
+            <h1 style="margin:0; font-size:1.5em; color:#333;">${title}</h1>
             ${rightContent}
         </header>
     `;
     document.body.insertAdjacentHTML('afterbegin', headerHtml);
 
-    // メニュー用のHTMLがあれば追加して、動作を設定する
     if (extraHtml) {
         document.body.insertAdjacentHTML('beforeend', extraHtml);
 
         const hamburgerBtn = document.getElementById('hamburger-btn');
         const sideMenu = document.getElementById('side-menu');
         const menuOverlay = document.getElementById('menu-overlay');
+        const closeMenuBtn = document.getElementById('close-menu-btn');
 
         const toggleMenu = () => {
             hamburgerBtn.classList.toggle('open');
@@ -124,13 +189,14 @@ export function setupHeader(title, type = 'back') {
         };
 
         hamburgerBtn.addEventListener('click', toggleMenu);
+        closeMenuBtn.addEventListener('click', toggleMenu);
         menuOverlay.addEventListener('click', toggleMenu);
         menuOverlay.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
         document.querySelectorAll('#side-menu a').forEach(link => {
             link.addEventListener('click', (e) => {
                 if (e.target.id === 'btn-menu-logout') {
-                    showLogoutModal(); // 共通のログアウト画面を呼び出す
+                    showLogoutModal();
                     return;
                 }
                 toggleMenu();
