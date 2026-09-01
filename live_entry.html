@@ -6,7 +6,9 @@
     <title>ライブエントリー - 部室予約システム</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f5f7fa; margin: 0; padding: 20px; color: #333; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #ccc; }
+        
+        /* ヘッダーのCSSは Component.js に移動したため削除しました */
+        
         .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto 20px; }
         
         .form-group { margin-bottom: 20px; }
@@ -32,7 +34,6 @@
         .btn-submit:disabled { background-color: #ccc; cursor: not-allowed; }
         .btn-cancel { background-color: #999; color: white; display: none; }
         .btn-cancel:hover { background-color: #888; }
-        .btn-back { background-color: #999; color: white; width: auto; }
         
         .error-message { color: #d0021b; font-size: 0.85em; margin-bottom: 15px; display: none; padding: 10px; background: #ffe8e8; border-radius: 4px;}
         .success-message { color: #4caf50; font-size: 0.9em; margin-bottom: 15px; display: none; padding: 10px; background: #e8f5e9; border-radius: 4px; font-weight: bold; text-align: center;}
@@ -74,10 +75,7 @@
 </head>
 <body>
 
-    <header>
-        <h1>ライブエントリー</h1>
-        <button class="btn btn-back" onclick="window.history.back()">戻る</button>
-    </header>
+    <!-- ヘッダー部分は Component.js で生成するため削除しました -->
 
     <div class="container" id="form-container">
         <!-- 募集要項カードの表示エリア -->
@@ -181,8 +179,14 @@
 
     <script type="module">
         import { db, auth } from "./firebase.js";
+        // ▼ Component.js から setupHeader を取り込む
+        import { setupHeader } from "./Component.js";
+        
         import { collection, getDocs, query, where, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+
+        // ▼ 画面を開いた瞬間にヘッダーを「戻るボタンのみ（back）」で生成！
+        setupHeader('ライブエントリー', 'back');
 
         let currentUserId = "";
         let userBands = {}; 
@@ -658,11 +662,10 @@
             
             if (pendingAction === 'delete') {
                 try {
-                    const entryToDelete = myEntriesData[pendingDeleteId]; // ★ 削除するデータをログ用に保持
+                    const entryToDelete = myEntriesData[pendingDeleteId]; 
                     
                     await deleteDoc(doc(db, "liveEntries", pendingDeleteId));
                     
-                    // ▼ 追加：削除(辞退)時のログ記録
                     await addDoc(collection(db, "logs"), {
                         timestamp: new Date().toISOString(),
                         category: "entry",
@@ -699,7 +702,6 @@
                         pendingEntryData.updatedAt = serverTimestamp();
                         await updateDoc(doc(db, "liveEntries", editingEntryId), pendingEntryData);
                         
-                        // ▼ 追加：変更(更新)時のログ記録
                         await addDoc(collection(db, "logs"), {
                             timestamp: new Date().toISOString(),
                             category: "entry",
@@ -717,7 +719,6 @@
                         pendingEntryData.createdAt = serverTimestamp();
                         await addDoc(collection(db, "liveEntries"), pendingEntryData);
 
-                        // ▼ 追加：新規作成時のログ記録
                         await addDoc(collection(db, "logs"), {
                             timestamp: new Date().toISOString(),
                             category: "entry",
