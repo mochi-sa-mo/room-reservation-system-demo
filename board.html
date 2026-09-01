@@ -15,11 +15,11 @@
         :root { --primary-color: #4A90E2; --primary-hover: #357abd; --bg-color: #f5f7fa; --border-color: #ccc; }
         body.modal-open { overflow: hidden; }
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); }
+        
+        /* ヘッダーや戻るボタンのCSSは Component.js に移動したため削除しました */
+        
         .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 700px; margin: 0 auto 20px; }
         
-        .btn-back { background-color: #999; color: white; padding: 10px 15px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .btn-back:hover { background-color: #888; }
         .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; text-align: center; }
         .btn-success { background-color: #4caf50; color: white; } .btn-success:hover { background-color: #388e3c; }
         .btn-info { background-color: #00bcd4; color: white; } .btn-info:hover { background-color: #0097a7; }
@@ -71,10 +71,7 @@
 </head>
 <body>
 
-    <header>
-        <h1>掲示板</h1>
-        <button class="btn-back" onclick="window.location.href='index.html'">戻る</button>
-    </header>
+    <!-- ヘッダー部分は Component.js で生成するため削除しました -->
 
     <div class="container">
         <div class="success-message" id="main-success-msg"></div>
@@ -145,6 +142,9 @@
 
     <script type="module">
         import { db, auth } from "./firebase.js";
+        // ▼ Component.js から setupHeader を取り込む
+        import { setupHeader } from "./Component.js";
+        
         import { collection, onSnapshot, query, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
@@ -168,6 +168,9 @@
         });
 
         window.onload = () => {
+            // ▼ 画面を開いた瞬間にヘッダーを「戻るボタンのみ（back）」で生成！
+            setupHeader('掲示板', 'back');
+
             document.getElementById('tab-public').onclick = () => switchTab('public');
             document.getElementById('tab-mypost').onclick = () => switchTab('mypost');
             
@@ -231,7 +234,7 @@
                     <div class="post-header">
                         <h3 class="post-title">${escapeHTML(post.title)}</h3>
                         <div class="post-meta">
-                            投稿者: <strong>${post.userId}</strong><br> <!-- ★ authorId から userId に変更 -->
+                            投稿者: <strong>${post.userId}</strong><br>
                             期限: ${post.expireDate.replace(/-/g, '/')}
                         </div>
                     </div>
@@ -250,7 +253,7 @@
             const todayStr = getTodayStr();
 
             // 自分の投稿を抽出
-            const myPosts = dbPosts.filter(p => p.userId === currentUserId) // ★ authorId から userId に変更
+            const myPosts = dbPosts.filter(p => p.userId === currentUserId)
                                    .sort((a, b) => b.createdAt - a.createdAt);
 
             if (myPosts.length === 0) {
@@ -356,7 +359,7 @@
                 if (editingPostId) {
                     // 編集（更新）：セキュリティのためステータスを強制的に保留（pending）に戻す
                     await updateDoc(doc(db, "boardPosts", editingPostId), {
-                        userId: currentUserId, // ★ 追加 (ルールを通過するため)
+                        userId: currentUserId,
                         title: title,
                         content: content,
                         expireDate: expireDate,
@@ -367,7 +370,7 @@
                 } else {
                     // 新規作成
                     await addDoc(collection(db, "boardPosts"), {
-                        userId: currentUserId, // ★ authorId から userId に変更
+                        userId: currentUserId,
                         title: title,
                         content: content,
                         expireDate: expireDate,
@@ -423,4 +426,3 @@
     </script>
 </body>
 </html>
-
