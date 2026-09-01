@@ -122,14 +122,13 @@ export function setupHeader(title, type = 'back') {
             // 管理者用メニュー
             menuItems = `
                 <li class="menu-category">管理者メニュー</li>
-                <li><a href="admin.html" style="color: #333;">管理者トップ</a></li>
                 <li><a href="admin_live_manager.html" style="color: #e91e63;">ライブ審査・管理</a></li>
                 <li><a href="admin_rsvp_manager.html" style="color: #4caf50;">打ち上げ参加状況管理</a></li>
                 <li><a href="admin_rsvp_pay.html" style="color: #ff00ff;">打ち上げ集金状況管理</a></li>
                 <li><a href="admin_board.html" style="color: #ff9800;">掲示板の審査・管理</a></li>
             `;
         } else {
-            // ▼ 一般部員用メニュー（index.htmlに合わせて完全再現！） ▼
+            // 一般部員用メニュー
             menuItems = `
                 <li class="menu-category">部室予約</li>
                 <li><a href="tsuika.html" style="color: #4caf50;">今週の追加予約</a></li>
@@ -147,13 +146,13 @@ export function setupHeader(title, type = 'back') {
             `;
         }
 
+        // 余分な×ボタンを削除
         extraHtml = `
             <nav class="side-menu" id="side-menu">
-                <div id="close-menu-btn" style="position:absolute; top:15px; right:20px; font-size:1.5em; font-weight:bold; cursor:pointer; color:#333; z-index: 1011;">✕</div>
                 <ul>
                     ${menuItems}
                     <li class="menu-category">アカウント</li>
-                    <li><a href="settings.html" style="color: #666;">パスワードの変更</a></li>
+                    <li><a href="settings.html" style="color: #333;">パスワードの変更</a></li>
                     <li><a href="support.html" style="color: #4caf50;">サポート・お問い合わせ</a></li>
                     <li><a id="btn-menu-logout" style="color: #d0021b; cursor: pointer;">ログアウト</a></li>
                 </ul>
@@ -162,9 +161,10 @@ export function setupHeader(title, type = 'back') {
         `;
     }
 
+    // ヘッダーの上下に padding を追加して縦幅を確保
     const headerHtml = `
-        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #ccc; flex-wrap: wrap; gap: 10px;">
-            <h1 style="margin:0; font-size:1.5em; color: #333;">${title}</h1>
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px 0; border-bottom: 2px solid #ccc; flex-wrap: wrap; gap: 10px; min-height: 40px;">
+            <h1 style="margin:0; font-size:1.5em; color:#333;">${title}</h1>
             ${rightContent}
         </header>
     `;
@@ -176,7 +176,6 @@ export function setupHeader(title, type = 'back') {
         const hamburgerBtn = document.getElementById('hamburger-btn');
         const sideMenu = document.getElementById('side-menu');
         const menuOverlay = document.getElementById('menu-overlay');
-        const closeMenuBtn = document.getElementById('close-menu-btn');
 
         const toggleMenu = () => {
             hamburgerBtn.classList.toggle('open');
@@ -186,7 +185,6 @@ export function setupHeader(title, type = 'back') {
         };
 
         hamburgerBtn.addEventListener('click', toggleMenu);
-        closeMenuBtn.addEventListener('click', toggleMenu);
         menuOverlay.addEventListener('click', toggleMenu);
         menuOverlay.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
