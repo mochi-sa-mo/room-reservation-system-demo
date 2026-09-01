@@ -18,8 +18,7 @@ function injectComponentStyles() {
         .hamburger.open span:nth-child(1) { transform: translateY(7.5px) rotate(45deg); }
         .hamburger.open span:nth-child(2) { opacity: 0; }
         .hamburger.open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
-
-        .side-menu { position: fixed; top: 0; right: -250px; width: 250px; height: 100vh; background-color: #fff; box-shadow: -2px 0 5px rgba(0,0,0,0.1); transition: right 0.3s ease; z-index: 1005; padding-top: 70px; overflow-y: auto; -webkit-overflow-scrolling: touch; box-sizing: border-box; padding-bottom: 30px;}
+        .side-menu { position: fixed; top: 0; right: -250px; width: 250px; height: 100%; background-color: #fff; box-shadow: -2px 0 5px rgba(0,0,0,0.1); transition: right 0.3s ease; z-index: 1005; padding-top: 70px; overflow-y: auto; -webkit-overflow-scrolling: touch; box-sizing: border-box; padding-bottom: 30px; overscroll-behavior: contain; }
         .side-menu.open { right: 0; }
         .side-menu ul { list-style: none; padding: 0; margin: 0; }
         .side-menu li { border-bottom: 1px solid #eee; }
