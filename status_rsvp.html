@@ -15,12 +15,10 @@
         :root { --primary-color: #4A90E2; --primary-hover: #357abd; --bg-color: #f5f7fa; --border-color: #ccc; }
         body.modal-open { overflow: hidden; }
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); }
-        .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto 20px; }
         
-        /* 戻るボタンのスタイル */
-        .btn-back { background-color: #999; color: white; padding: 10px 15px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .btn-back:hover { background-color: #888; }
+        /* ヘッダーや戻るボタンのCSSは Component.js に移動したため削除しました */
+        
+        .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto 20px; }
         
         .section-title { margin-top: 0; margin-bottom: 15px; padding-left: 10px; font-size: 1.3em; }
 
@@ -89,10 +87,7 @@
 </head>
 <body>
 
-    <header>
-        <h1>審査・打ち上げ回答</h1>
-        <button class="btn-back" onclick="window.location.href='index.html'">戻る</button>
-    </header>
+    <!-- ヘッダー部分は Component.js で生成するため削除しました -->
 
     <div class="container">
         <div class="success-message" id="main-success-msg"></div>
@@ -140,8 +135,14 @@
 
     <script type="module">
         import { db, auth } from "./firebase.js";
+        // ▼ Component.js から setupHeader を取り込む
+        import { setupHeader } from "./Component.js";
+
         import { collection, getDocs, query, where, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+
+        // ▼ 画面を開いた瞬間にヘッダーを「戻るボタンのみ（back）」で生成！
+        setupHeader('審査・打ち上げ回答', 'back');
 
         let currentUserId = "";
         let pendingData = null; 
@@ -290,8 +291,17 @@
 
                     let html = `
                         <div class="status-badge-rsvp">${badgeText}</div>
-                        <div class="live-name">${liveInfo.name} の打ち上げ</div>
+                        <div class="live-name" style="margin-bottom: 10px;">${liveInfo.name} の打ち上げ</div>
                     `;
+
+                    if (liveInfo.rsvpDetails && liveInfo.rsvpDetails.trim() !== "") {
+                        html += `
+                            <div style="background: #fff8e1; border: 1px solid #ffe082; padding: 12px; border-radius: 6px; font-size: 0.9em; color: #444; line-height: 1.6; margin-bottom: 15px;">
+                                <div style="color: #e65100; font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #ffe082; padding-bottom: 4px;">🍻 打ち上げ詳細</div>
+                                ${liveInfo.rsvpDetails.replace(/\n/g, '<br>')}
+                            </div>
+                        `;
+                    }
 
                     if (liveInfo.isRsvpOpen) {
                         html += `
@@ -354,7 +364,6 @@
                             const statusStr = statusVal === 'yes' ? '<span style="color:#2196f3; font-weight:bold;">⭕ 参加する</span>' : '<span style="color:#f44336; font-weight:bold;">❌ 参加しない</span>';
                             let msgHtml = `<strong>【ライブ名】</strong><br>${liveInfo.name}<br><br><strong>【回答内容】</strong><br>${statusStr}<br><br><strong>【備考】</strong><br>${commentVal ? commentVal.replace(/\n/g, '<br>') : 'なし'}`;
                             
-                            // RSVP専用のダイアログ設定
                             document.querySelector('#confirm-modal .modal-content').style.borderTopColor = '#ff9800';
                             document.getElementById('confirm-modal-title').textContent = '送信内容の確認';
                             document.getElementById('confirm-modal-title').style.borderBottomColor = '#ccc';
@@ -388,7 +397,7 @@
         function showDetailsModal(entryId) {
             const data = myEntriesData[entryId];
             let html = `<p style="margin-bottom: 5px;"><strong>🎵 ライブ:</strong> ${data.liveName}</p>`;
-            html += `<p style="margin-bottom: 15px;"><strong>🎸 バンド:</strong> ${data.bandName}</p>`;
+            html += `<p style="margin-bottom: 15px;"><strong>🎸 バンド:</strong> ${data.bandName}</p>';
             
             html += `<p style="margin-bottom: 5px; background: #eee; padding: 5px; border-radius: 4px;"><strong>🎤 機材・セッティング</strong></p>`;
             html += `<ul style="margin-top: 5px; padding-left: 20px; font-size: 0.9em;">`;
@@ -421,7 +430,7 @@
                 try {
                     await setDoc(doc(db, "rsvps", data.docId), {
                         liveId: data.liveId, userId: data.userId, status: data.status, comment: data.comment, updatedAt: serverTimestamp()
-                    });
+                    }, { merge: true });
                     window.scrollTo({ top: 0, behavior: 'smooth' }); 
                     successMsg.textContent = "回答を送信しました！";
                     successMsg.style.display = 'block';
