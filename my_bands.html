@@ -6,11 +6,10 @@
     <title>所属バンド管理 - 部室予約システム</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f5f7fa; margin: 0; padding: 20px; color: #333; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #ccc; }
-        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto 20px; }
         
-        .btn-back { background-color: #999; color: white; padding: 10px 15px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .btn-back:hover { background-color: #888; }
+        /* ヘッダーや戻るボタンのCSSは Component.js に移動したため削除しました */
+        
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto 20px; }
         
         h2 { margin-top: 0; font-size: 1.2em; color: #4A90E2; }
         p.desc { font-size: 0.85em; color: #666; line-height: 1.5; margin-bottom: 20px; }
@@ -75,10 +74,7 @@
 </head>
 <body>
 
-    <header>
-        <h1>所属バンド管理</h1>
-        <button class="btn-back" onclick="window.history.back()">戻る</button>
-    </header>
+    <!-- ヘッダー部分は Component.js で生成するため削除しました -->
 
     <div class="container" id="list-section">
         <h2>🎸 あなたの所属バンド一覧</h2>
@@ -133,8 +129,14 @@
 
     <script type="module">
         import { db, auth } from "./firebase.js";
+        // ▼ Component.js から setupHeader を取り込む
+        import { setupHeader } from "./Component.js";
+
         import { collection, getDocs, query, where, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+
+        // ▼ 画面を開いた瞬間にヘッダーを「戻るボタンのみ（back）」で生成！
+        setupHeader('所属バンド管理', 'back');
 
         let currentUserId = "";
         let myBandsData = {}; 
@@ -403,7 +405,7 @@
                 const bandRef = doc(db, "bands", editingBandId);
                 await updateDoc(bandRef, pendingUpdateData);
 
-                // ▼ ここから追加：関連する予約やエントリーのバンド名も一斉に更新する ▼
+                // 関連する予約やエントリーのバンド名も一斉に更新する
                 const newBandName = pendingUpdateData.name;
                 const updatePromises = [];
 
@@ -425,7 +427,6 @@
                 if (updatePromises.length > 0) {
                     await Promise.all(updatePromises);
                 }
-                // ▲ 追加ここまで ▲
 
                 editingBandId = null;
                 document.getElementById('edit-section').style.display = 'none';
