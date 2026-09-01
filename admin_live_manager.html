@@ -36,8 +36,8 @@
         
         #dict-textarea { min-height: 300px; font-family: monospace; white-space: pre; overflow-wrap: normal; overflow-x: auto; }
 
-        .live-control-header { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 10px; }
-        .live-control-header .form-group { margin-bottom: 0; flex: 1; }
+        .live-control-header { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 10px; flex-wrap: wrap; }
+        .live-control-header .form-group { margin-bottom: 0; flex: 1; min-width: 200px; }
         
         .status-panel { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
         .status-box { flex: 1; min-width: 150px; background: #f9f9f9; border: 1px solid #eee; padding: 15px; border-radius: 8px; text-align: center; }
@@ -77,7 +77,7 @@
         .success-message { color: #4caf50; font-size: 0.9em; margin-bottom: 15px; display: none; padding: 10px; background: #e8f5e9; border-radius: 4px; font-weight: bold; text-align: center;}
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: #fff; padding: 20px; border-radius: 8px; width: 450px; max-width: 95%; max-height: 90vh; overflow-y: auto; text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.2); box-sizing: border-box; }
+        .modal-content { background: #fff; padding: 20px; border-radius: 8px; width: 450px; max-width: 95%; max-height: 90vh; overflow-y: auto; text-align: left; box-sizing: border-box; }
         .modal-content.center-text { text-align: center; width: 350px; }
         .confirm-actions { display: flex; gap: 10px; margin-top: 20px; }
         .confirm-actions .btn { flex: 1; padding: 12px; }
@@ -85,13 +85,7 @@
 </head>
 <body>
 
-    <header>
-        <h1>ライブ管理パネル</h1>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <button class="btn btn-info" id="btn-open-dict">📖 名簿辞書設定</button>
-            <a href="admin.html" class="btn btn-nav" style="text-decoration: none; line-height: normal; display: inline-flex; align-items: center;">← 戻る</a>
-        </div>
-    </header>
+    <!-- ヘッダー部分は Component.js で生成するため削除しました -->
 
     <div class="container">
         <div class="section-title"><span>🎤 ライブの審査・進行管理</span></div>
@@ -104,6 +98,8 @@
                     <option value="">読込中...</option>
                 </select>
             </div>
+            <!-- ▼ 追加：既存ライブ編集ボタン ＆ 新規作成ボタン ▼ -->
+            <button class="btn btn-warning" id="btn-open-edit-live" disabled style="height: 40px; white-space: nowrap;">✏️ ライブ情報を編集</button>
             <button class="btn btn-success" id="btn-open-create-live" style="height: 40px; white-space: nowrap;">➕ 新規作成</button>
         </div>
 
@@ -175,8 +171,8 @@
     <!-- モーダル群 -->
     <div class="modal" id="create-live-modal">
         <div class="modal-content" style="border-top: 5px solid #4caf50;">
-            <h3 style="margin-top: 0; border-bottom: 2px solid #ccc; padding-bottom: 5px;">🎸 新規ライブの作成と告知</h3>
-            <p style="font-size: 0.85em; color: #555; margin-bottom: 15px;">作成と同時に、トップページに募集開始のお知らせを自動生成します。</p>
+            <h3 id="modal-main-title" style="margin-top: 0; border-bottom: 2px solid #ccc; padding-bottom: 5px;">🎸 新規ライブの作成と告知</h3>
+            <p id="modal-sub-desc" style="font-size: 0.85em; color: #555; margin-bottom: 15px;">作成と同時に、トップページに募集開始のお知らせを自動生成します。</p>
             <form id="create-live-form">
                 <div class="form-group"><label>ライブ名</label><input type="text" id="new-live-name" required></div>
                 <div class="form-group"><label>開催日 (例: 9/9(水))</label><input type="text" id="new-live-date" required></div>
@@ -222,8 +218,14 @@
 
     <script type="module">
         import { db, auth } from "./firebase.js";
+        // ▼ Component.js から setupHeader を取り込む
+        import { setupHeader } from "./Component.js";
+        
         import { collection, getDocs, doc, getDoc, updateDoc, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+
+        // ▼ 画面を開いた瞬間にヘッダーを「戻るボタンと名簿辞書（dict-back）」で生成！
+        setupHeader('ライブ管理パネル', 'dict-back');
 
         let currentLiveId = "";
         let currentLiveState = {}; 
@@ -233,8 +235,20 @@
         let nameDictionary = JSON.parse(sessionStorage.getItem('adminNameDictionary') || '{}');
         
         let currentUserId = "不明な管理者";
+        let isEditMode = false; // 新規作成か編集か
 
         window.onload = function() {
+            // ▼ 名簿辞書ボタンがComponent.jsによって生成された後にイベントを紐付ける
+            const btnOpenDict = document.getElementById('btn-open-dict');
+            if (btnOpenDict) {
+                btnOpenDict.onclick = () => {
+                    let text = "";
+                    for (const [id, name] of Object.entries(nameDictionary)) { text += `${id}\t${name}\n`; }
+                    document.getElementById('dict-textarea').value = text;
+                    document.getElementById('dict-modal').style.display = 'flex';
+                };
+            }
+
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     currentUserId = user.email.split('@')[0];
@@ -250,7 +264,6 @@
             document.getElementById('btn-toggle-result').onclick = () => confirmToggle('result');
             document.getElementById('btn-toggle-rsvp').onclick = () => confirmToggle('rsvp');
             
-            // ▼ アーカイブボタンのイベント（トグル化） ▼
             document.getElementById('btn-archive-live').onclick = () => {
                 if (currentLiveState.isActive) {
                     showConfirmModal('ライブの終了とアーカイブ', 'このライブを「終了」扱いにします。<br>部員側の画面では「過去の履歴」に移動します。よろしいですか？', 'archive_live', '終了して移動する', '#78909c');
@@ -265,26 +278,52 @@
             document.getElementById('btn-export-band').onclick = () => exportToCSV('band');
             document.getElementById('btn-export-member').onclick = () => exportToCSV('member');
 
-            document.getElementById('btn-open-create-live').onclick = () => { document.getElementById('create-live-modal').style.display = 'flex'; };
+            // 新規作成モーダルを開く
+            document.getElementById('btn-open-create-live').onclick = () => {
+                isEditMode = false;
+                document.getElementById('modal-main-title').textContent = '🎸 新規ライブの作成と告知';
+                document.getElementById('modal-sub-desc').textContent = '作成と同時に、トップページに募集開始のお知らせを自動生成します。';
+                document.getElementById('btn-execute-create').textContent = '作成して告知する';
+                document.getElementById('create-live-form').reset();
+                document.getElementById('create-live-modal').style.display = 'flex';
+            };
+
+            // ▼ 既存ライブ編集モーダルを開く ▼
+            document.getElementById('btn-open-edit-live').onclick = async () => {
+                if (!currentLiveId) return;
+                isEditMode = true;
+                document.getElementById('modal-main-title').textContent = '✏️ ライブ情報の編集';
+                document.getElementById('modal-sub-desc').textContent = 'ライブ情報を変更すると、エントリー画面の募集要項や掲示板の内容も自動で連動して更新されます。';
+                document.getElementById('btn-execute-create').textContent = '変更を保存する';
+
+                // データベースから現在のライブ情報を取得してフォームに埋め込む
+                const docSnap = await getDoc(doc(db, "lives", currentLiveId));
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    document.getElementById('new-live-name').value = data.name || '';
+                    document.getElementById('new-live-date').value = data.eventDate || '';
+                    document.getElementById('new-live-location').value = data.location || '';
+                    document.getElementById('new-live-deadline').value = data.deadline || '';
+                    document.getElementById('new-live-conditions').value = data.conditions || '';
+                }
+                document.getElementById('create-live-modal').style.display = 'flex';
+            };
+
             document.getElementById('btn-cancel-create').onclick = () => { document.getElementById('create-live-modal').style.display = 'none'; };
             document.getElementById('create-live-form').onsubmit = handleCreateLive;
 
-            document.getElementById('btn-open-dict').onclick = () => {
-                let text = "";
-                for (const [id, name] of Object.entries(nameDictionary)) { text += `${id}\t${name}\n`; }
-                document.getElementById('dict-textarea').value = text;
-                document.getElementById('dict-modal').style.display = 'flex';
-            };
             document.getElementById('btn-close-dict').onclick = () => { document.getElementById('dict-modal').style.display = 'none'; };
             document.getElementById('btn-save-dict').onclick = saveDictionary;
 
             init();
         };
 
+        // 新規作成 or 編集の共通保存処理
         async function handleCreateLive(e) {
             e.preventDefault();
             const btnExecute = document.getElementById('btn-execute-create');
-            btnExecute.disabled = true; btnExecute.textContent = '作成中...';
+            btnExecute.disabled = true; 
+            btnExecute.textContent = isEditMode ? '保存中...' : '作成中...';
             
             const name = document.getElementById('new-live-name').value.trim();
             const dateStr = document.getElementById('new-live-date').value.trim();
@@ -293,38 +332,78 @@
             const conditions = document.getElementById('new-live-conditions').value.trim();
 
             try {
-                const liveData = {
-                    name: name, eventDate: dateStr, location: location, deadline: deadline, conditions: conditions,
-                    isActive: true, isEntryOpen: true, isResultOpen: false, isRsvpOpen: false, createdAt: serverTimestamp() 
-                };
-                const docRef = await addDoc(collection(db, "lives"), liveData);
+                if (isEditMode) {
+                    // --- 既存ライブの更新 ＆ 告知（announcements）の連動更新 ---
+                    const liveRef = doc(db, "lives", currentLiveId);
+                    const oldSnap = await getDoc(liveRef);
+                    const oldName = oldSnap.exists() ? oldSnap.data().name : "";
 
-                const messageText = `お疲れ様です\n${name}の出演バンドの募集を開始します\n出演を希望するバンドは、システムのエントリー画面から申請してください。\n\n【場所・日時】\n・場所： ${location}\n・日時： ${dateStr}\n\n募集期間： ${deadline.replace(/-/g, '/')} 24時まで\n\n【募集の条件】\n${conditions}`;
-                
-                await addDoc(collection(db, "announcements"), {
-                    type: 'deadline', title: `【${name}】出演バンド募集`,
-                    date: deadline + "T23:59", expire: deadline + "T23:59", notes: messageText, link: "live_entry.html", deleted: false, createdAt: serverTimestamp()
-                });
+                    await updateDoc(liveRef, {
+                        name: name, eventDate: dateStr, location: location, deadline: deadline, conditions: conditions, updatedAt: serverTimestamp()
+                    });
 
-                await addDoc(collection(db, "logs"), {
-                    timestamp: new Date().toISOString(),
-                    category: "live",
-                    opType: "create",
-                    title: name,
-                    userId: currentUserId,
-                    detail: `管理者(${currentUserId})が新規ライブ「${name}」を作成・告知しました`
-                });
+                    // 結びついている announcements（掲示板のお知らせ）も自動で書き換える
+                    const annSnap = await getDocs(collection(db, "announcements"));
+                    const annPromises = [];
+                    const messageText = `お疲れ様です\n${name}の出演バンドの募集を開始します\n出演を希望するバンドは、システムのエントリー画面から申請してください。\n\n【場所・日時】\n・場所： ${location}\n・日時： ${dateStr}\n\n募集期間： ${deadline.replace(/-/g, '/')} 24時まで\n\n【募集の条件】\n${conditions}`;
 
-                document.getElementById('create-live-modal').style.display = 'none';
-                document.getElementById('create-live-form').reset();
-                customAlert("ライブを作成し、募集の告知を自動送信しました！");
-                
-                await init();
-                document.getElementById('live-select').value = docRef.id;
-                await handleLiveChange({ target: { value: docRef.id } });
+                    annSnap.forEach(d => {
+                        const annData = d.data();
+                        if (annData.title === `【${oldName}】出演バンド募集` || annData.title === `【${name}】出演バンド募集`) {
+                            annPromises.push(updateDoc(doc(db, "announcements", d.id), {
+                                title: `【${name}】出演バンド募集`,
+                                date: deadline + "T23:59",
+                                expire: deadline + "T23:59",
+                                notes: messageText
+                            }));
+                        }
+                    });
+                    await Promise.all(annPromises);
 
-            } catch (error) { console.error(error); alert("作成に失敗しました。"); }
-            btnExecute.disabled = false; btnExecute.textContent = '作成して告知する';
+                    // ログ記録
+                    await addDoc(collection(db, "logs"), {
+                        timestamp: new Date().toISOString(),
+                        category: "live", opType: "update", title: name, userId: currentUserId,
+                        detail: `管理者(${currentUserId})がライブ「${name}」の情報を編集しました`
+                    });
+
+                    document.getElementById('create-live-modal').style.display = 'none';
+                    customAlert("ライブ情報を正常に更新し、告知内容も連動して更新しました！");
+                    await handleLiveChange({ target: { value: currentLiveId } });
+
+                } else {
+                    // --- 新規ライブの作成 ＆ 告知の自動生成 ---
+                    const liveData = {
+                        name: name, eventDate: dateStr, location: location, deadline: deadline, conditions: conditions,
+                        isActive: true, isEntryOpen: true, isResultOpen: false, isRsvpOpen: false, createdAt: serverTimestamp() 
+                    };
+                    const docRef = await addDoc(collection(db, "lives"), liveData);
+
+                    const messageText = `お疲れ様です\n${name}の出演バンドの募集を開始します\n出演を希望するバンドは、システムのエントリー画面から申請してください。\n\n【場所・日時】\n・場所： ${location}\n・日時： ${dateStr}\n\n募集期間： ${deadline.replace(/-/g, '/')} 24時まで\n\n【募集の条件】\n${conditions}`;
+                    
+                    await addDoc(collection(db, "announcements"), {
+                        type: 'deadline', title: `【${name}】出演バンド募集`,
+                        date: deadline + "T23:59", expire: deadline + "T23:59", notes: messageText, link: "live_entry.html", deleted: false, createdAt: serverTimestamp()
+                    });
+
+                    await addDoc(collection(db, "logs"), {
+                        timestamp: new Date().toISOString(),
+                        category: "live", opType: "create", title: name, userId: currentUserId,
+                        detail: `管理者(${currentUserId})が新規ライブ「${name}」を作成・告知しました`
+                    });
+
+                    document.getElementById('create-live-modal').style.display = 'none';
+                    document.getElementById('create-live-form').reset();
+                    customAlert("ライブを作成し、募集の告知を自動送信しました！");
+                    
+                    await init();
+                    document.getElementById('live-select').value = docRef.id;
+                    await handleLiveChange({ target: { value: docRef.id } });
+                }
+
+            } catch (error) { console.error(error); alert("処理に失敗しました。"); }
+            btnExecute.disabled = false; 
+            btnExecute.textContent = isEditMode ? '変更を保存する' : '作成して告知する';
         }
 
         function saveDictionary() {
@@ -382,6 +461,7 @@
             const statusArea = document.getElementById('status-panel');
             const extractSec = document.getElementById('extract-section');
             const archivePanel = document.getElementById('archive-panel');
+            const btnEditLive = document.getElementById('btn-open-edit-live'); // 編集ボタン
             document.getElementById('extracted-result').style.display = 'none';
             
             if (!currentLiveId) {
@@ -389,8 +469,11 @@
                 statusArea.style.display = 'none';
                 archivePanel.style.display = 'none';
                 extractSec.style.display = 'none';
+                btnEditLive.disabled = true; // ライブ未選択時は編集ボタン無効
                 return;
             }
+
+            btnEditLive.disabled = false; // ライブ選択時は編集ボタン有効化
 
             const docRef = doc(db, "lives", currentLiveId);
             const docSnap = await getDoc(docRef);
@@ -411,7 +494,6 @@
         function updateStatusAreaUI() {
             document.getElementById('status-panel').style.display = 'flex';
             
-            // ▼ アーカイブボタンの表示内容を状態に応じて切り替え ▼
             document.getElementById('archive-panel').style.display = 'block';
             const btnArchive = document.getElementById('btn-archive-live');
             if (currentLiveState.isActive) {
@@ -764,9 +846,8 @@
                     successMsg.textContent = "状態を更新しました。"; successMsg.style.display = 'block';
                     setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
                 } 
-                // ▼ 追加：ライブをアーカイブ（終了/復元）する処理 ▼
                 else if (action === 'archive_live' || action === 'restore_live') {
-                    const makeActive = (action === 'restore_live'); // 復元なら true、アーカイブなら false
+                    const makeActive = (action === 'restore_live'); 
                     await updateDoc(doc(db, "lives", currentLiveId), { isActive: makeActive });
                     
                     const liveDoc = await getDoc(doc(db, "lives", currentLiveId));
