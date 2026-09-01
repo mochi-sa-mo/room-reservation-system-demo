@@ -5,15 +5,13 @@ import { signOut } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-aut
  * 共通のCSSをページに注入する（1回だけ実行される）
  */
 function injectComponentStyles() {
-    if (document.getElementById('component-styles')) return; // 既に読み込まれていればスキップ
+    if (document.getElementById('component-styles')) return;
 
     const style = document.createElement('style');
     style.id = 'component-styles';
     style.innerHTML = `
-        /* モーダル表示時に背景スクロールを止める */
         body.modal-open { overflow: hidden; }
 
-        /* ハンバーガーメニューのアイコン */
         .header-actions { display: flex; align-items: center; }
         .hamburger { width: 25px; height: 18px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; z-index: 1010; position: relative; }
         .hamburger span { display: block; height: 3px; width: 100%; background-color: #333; border-radius: 3px; transition: all 0.3s ease; }
@@ -21,8 +19,7 @@ function injectComponentStyles() {
         .hamburger.open span:nth-child(2) { opacity: 0; }
         .hamburger.open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
 
-        /* サイドメニュー本体（最初は右に隠しておく） */
-        .side-menu { position: fixed; top: 0; right: -250px; width: 250px; height: 100vh; background-color: #fff; box-shadow: -2px 0 5px rgba(0,0,0,0.1); transition: right 0.3s ease; z-index: 1005; padding-top: 70px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .side-menu { position: fixed; top: 0; right: -250px; width: 250px; height: 100vh; background-color: #fff; box-shadow: -2px 0 5px rgba(0,0,0,0.1); transition: right 0.3s ease; z-index: 1005; padding-top: 70px; overflow-y: auto; -webkit-overflow-scrolling: touch; box-sizing: border-box; padding-bottom: 30px;}
         .side-menu.open { right: 0; }
         .side-menu ul { list-style: none; padding: 0; margin: 0; }
         .side-menu li { border-bottom: 1px solid #eee; }
@@ -31,7 +28,6 @@ function injectComponentStyles() {
         .side-menu a { display: block; padding: 15px 20px; text-decoration: none; color: #333; font-weight: bold; transition: background-color 0.2s; }
         .side-menu a:hover { background-color: #f5f7fa; }
 
-        /* 背景の黒い半透明オーバーレイ */
         .menu-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
         .menu-overlay.open { display: block; }
     `;
@@ -42,9 +38,8 @@ function injectComponentStyles() {
  * 共通のログアウトモーダルを画面に準備する
  */
 export function setupCommonModals() {
-    injectComponentStyles(); // CSSを注入
+    injectComponentStyles();
 
-    // 画面の最後に共通モーダルのHTMLを注入
     document.body.insertAdjacentHTML('beforeend', `
         <div class="modal-overlay" id="common-logout-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
             <div style="background:#fff; padding:20px; border-radius:8px; width:90%; max-width:350px; text-align:center; border-top: 5px solid #d0021b; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
@@ -95,7 +90,7 @@ export function showLogoutModal() {
  * @param {string} type - 'back' | 'dict-back' | 'hamburger'
  */
 export function setupHeader(title, type = 'back') {
-    injectComponentStyles(); // CSSを注入
+    injectComponentStyles();
 
     let rightContent = '';
     let extraHtml = '';
@@ -124,6 +119,7 @@ export function setupHeader(title, type = 'back') {
         let menuItems = '';
 
         if (role === 'admin' || role === 'sysadmin') {
+            // 管理者用メニュー
             menuItems = `
                 <li class="menu-category">管理者メニュー</li>
                 <li><a href="admin.html" style="color: #333;">管理者トップ</a></li>
@@ -133,18 +129,19 @@ export function setupHeader(title, type = 'back') {
                 <li><a href="admin_board.html" style="color: #ff9800;">掲示板の審査・管理</a></li>
             `;
         } else {
+            // ▼ 一般部員用メニュー（index.htmlに合わせて完全再現！） ▼
             menuItems = `
                 <li class="menu-category">部室予約</li>
-                <li><a href="reserve_this_week.html" style="color: #4caf50;">今週の追加予約</a></li>
-                <li><a href="reserve_next_week.html" style="color: #2196f3;">次週の予約</a></li>
+                <li><a href="tsuika.html" style="color: #4caf50;">今週の追加予約</a></li>
+                <li><a href="yoyaku.html" style="color: #4A90E2;">次週の予約</a></li>
 
                 <li class="menu-category">バンド管理</li>
-                <li><a href="create_band.html" style="color: #ff9800;">新規バンドを登録する</a></li>
-                <li><a href="my_bands.html" style="color: #9c27b0;">所属バンドを確認する</a></li>
+                <li><a href="band_register.html" style="color: #ff9800;">新規バンドを登録する</a></li>
+                <li><a href="my_bands.html" style="color: #8e44ad;">所属バンドを確認する</a></li>
 
                 <li class="menu-category">ライブ・掲示板</li>
                 <li><a href="live_entry.html" style="color: #e91e63;">ライブエントリーをする</a></li>
-                <li><a href="entry_status.html" style="color: #d84315;">審査状況・履歴を確認する</a></li>
+                <li><a href="entry_status.html" style="color: #e65100;">審査状況・履歴を確認する</a></li>
                 <li><a href="rsvp.html" style="color: #4caf50;">打ち上げの回答をする</a></li>
                 <li><a href="board.html" style="color: #00bcd4;">掲示板へ</a></li>
             `;
@@ -156,8 +153,8 @@ export function setupHeader(title, type = 'back') {
                 <ul>
                     ${menuItems}
                     <li class="menu-category">アカウント</li>
-                    <li><a href="settings.html" style="color: #333;">パスワードの変更</a></li>
-                    <li><a href="inquiry.html" style="color: #4caf50;">サポート・お問い合わせ</a></li>
+                    <li><a href="settings.html" style="color: #666;">パスワードの変更</a></li>
+                    <li><a href="support.html" style="color: #4caf50;">サポート・お問い合わせ</a></li>
                     <li><a id="btn-menu-logout" style="color: #d0021b; cursor: pointer;">ログアウト</a></li>
                 </ul>
             </nav>
@@ -167,7 +164,7 @@ export function setupHeader(title, type = 'back') {
 
     const headerHtml = `
         <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #ccc; flex-wrap: wrap; gap: 10px;">
-            <h1 style="margin:0; font-size:1.5em; color:#333;">${title}</h1>
+            <h1 style="margin:0; font-size:1.5em; color: #333;">${title}</h1>
             ${rightContent}
         </header>
     `;
