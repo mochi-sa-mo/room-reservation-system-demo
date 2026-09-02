@@ -38,9 +38,10 @@
             display: flex;
             flex-direction: column;
             gap: 30px;
-            /* ▼ 追加：大枠が横に広がるのを防ぐ ▼ */
+            /* ▼ 追加：親要素が横に広がるのを防ぐ ▼ */
             width: 100%;
             min-width: 0;
+            box-sizing: border-box;
         }
 
         .dashboard-section {
@@ -48,7 +49,7 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            /* ▼ 追加：カレンダーの幅に合わせて横に伸びてしまうのを防ぐ ▼ */
+            /* ▼ 追加：セクションが画面幅を超えないようにする ▼ */
             width: 100%;
             min-width: 0; 
             box-sizing: border-box;
@@ -73,10 +74,11 @@
             flex: 1;
             border-right: 1px solid var(--border-color);
             padding-right: 20px;
+            min-width: 0;
         }
         .announcement-list-box {
             flex: 1.5;
-            min-width: 0; /* 追加: はみ出し防止 */
+            min-width: 0; /* 追加: テーブルによるはみ出し防止 */
         }
 
         .tabs {
@@ -134,6 +136,8 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9em;
+            /* ▼ 追加：テーブルの最小幅を確保し、スマホで潰れないようにする ▼ */
+            min-width: 450px;
         }
         .data-table th, .data-table td {
             border: 1px solid var(--border-color);
@@ -152,35 +156,30 @@
             margin-bottom: 15px;
         }
 
+        /* ▼ 修正：カレンダーのスクロール設定を #capture-area 側に移設 ▼ */
         #capture-area {
-            padding: 15px;
             background: #fff;
-            /* ▼ 追加：はみ出し防止 ▼ */
             width: 100%;
             box-sizing: border-box;
+            overflow-x: auto; /* カレンダーを横スクロールさせる */
+            min-width: 0;
+            padding-bottom: 15px;
         }
-
-        .schedule-container {
-            background: #fff;
-            padding: 10px;
-            overflow-x: auto;
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-            /* ▼ 追加：スクロールはこの要素内だけで完結させる ▼ */
-            width: 100%;
-            box-sizing: border-box;
-        }
-        .schedule-container::-webkit-scrollbar {
-            display: none;
-        }
-        /* WebKit系(iPhone/Safari)で右端の余白が消えるバグを防ぐおまじない */
-        .schedule-container::after {
+        
+        /* 右端の余白が消えるバグを防ぐおまじない */
+        #capture-area::after {
             content: "";
             display: block;
             width: 1px;
             height: 1px;
             clear: both;
             padding-right: 15px;
+        }
+
+        .schedule-container {
+            background: #fff;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .grid {
@@ -190,7 +189,7 @@
             background-color: var(--border-color);
             border: 1px solid var(--border-color);
             width: 100%; 
-            min-width: max-content; /* ▼ カレンダーの罫線切れを防ぐ ▼ */
+            min-width: max-content; /* カレンダーの罫線切れを防ぐ */
         }
         
         .today-col {
@@ -414,9 +413,7 @@
             width: max-content !important;
             padding: 20px !important;
             min-width: 850px; 
-        }
-        .capture-mode .schedule-container {
-            overflow: visible !important; 
+            overflow-x: visible !important; /* キャプチャ時はスクロールを解除 */
         }
 
         .capture-mode .admin-tag:not(.confirmed) {
@@ -458,8 +455,6 @@
             text-align: center !important;
             box-sizing: border-box !important;
         }
-
-        .capture-mode .schedule-container { padding: 0 !important; }
         
         .capture-mode .grid {
             border: none !important; 
@@ -556,7 +551,8 @@
                 </div>
                 <div class="announcement-list-box">
                     <h3 style="margin-top:0; font-size:1.1em;">登録中の案内一覧（期限順）</h3>
-                    <div style="overflow-y:auto; max-height:480px;">
+                    <!-- ▼ 修正：テーブルもはみ出さないようにスクロール枠を追加 ▼ -->
+                    <div style="overflow-x:auto; overflow-y:auto; max-height:480px; width:100%;">
                         <table class="data-table">
                             <thead><tr><th>区分</th><th>件名</th><th>非表示日時</th><th>操作</th></tr></thead>
                             <tbody id="announcement-tbody"></tbody>
