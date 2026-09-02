@@ -11,6 +11,10 @@
             overflow-x: hidden;
             width: 100%;
         }
+        /* ▼ 追加：パディング込みで幅を100%にする（PC画面のはみ出し防止） ▼ */
+        * {
+            box-sizing: border-box;
+        }
 
         :root {
             --primary-color: #4A90E2;
@@ -38,10 +42,8 @@
             display: flex;
             flex-direction: column;
             gap: 30px;
-            /* ▼ 追加：親要素が横に広がるのを防ぐ ▼ */
             width: 100%;
             min-width: 0;
-            box-sizing: border-box;
         }
 
         .dashboard-section {
@@ -49,10 +51,8 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            /* ▼ 追加：セクションが画面幅を超えないようにする ▼ */
             width: 100%;
             min-width: 0; 
-            box-sizing: border-box;
         }
         
         .section-title {
@@ -78,7 +78,7 @@
         }
         .announcement-list-box {
             flex: 1.5;
-            min-width: 0; /* 追加: テーブルによるはみ出し防止 */
+            min-width: 0;
         }
 
         .tabs {
@@ -125,7 +125,6 @@
             padding: 8px;
             border: 1px solid var(--border-color);
             border-radius: 4px;
-            box-sizing: border-box;
         }
         .form-group textarea {
             resize: vertical;
@@ -136,7 +135,6 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9em;
-            /* ▼ 追加：テーブルの最小幅を確保し、スマホで潰れないようにする ▼ */
             min-width: 450px;
         }
         .data-table th, .data-table td {
@@ -156,17 +154,14 @@
             margin-bottom: 15px;
         }
 
-        /* ▼ 修正：カレンダーのスクロール設定を #capture-area 側に移設 ▼ */
         #capture-area {
             background: #fff;
             width: 100%;
-            box-sizing: border-box;
-            overflow-x: auto; /* カレンダーを横スクロールさせる */
+            overflow-x: auto;
             min-width: 0;
             padding-bottom: 15px;
         }
         
-        /* 右端の余白が消えるバグを防ぐおまじない */
         #capture-area::after {
             content: "";
             display: block;
@@ -179,7 +174,6 @@
         .schedule-container {
             background: #fff;
             width: 100%;
-            box-sizing: border-box;
         }
 
         .grid {
@@ -189,7 +183,7 @@
             background-color: var(--border-color);
             border: 1px solid var(--border-color);
             width: 100%; 
-            min-width: max-content; /* カレンダーの罫線切れを防ぐ */
+            min-width: max-content; 
         }
         
         .today-col {
@@ -203,7 +197,6 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
-            box-sizing: border-box;
             min-width: 0; 
         }
         .cell.admin-blocked {
@@ -244,7 +237,6 @@
             display: flex;
             flex-direction: column;
             gap: 2px;
-            box-sizing: border-box;
             width: 100%; 
             min-width: 0; 
         }
@@ -413,7 +405,7 @@
             width: max-content !important;
             padding: 20px !important;
             min-width: 850px; 
-            overflow-x: visible !important; /* キャプチャ時はスクロールを解除 */
+            overflow-x: visible !important; 
         }
 
         .capture-mode .admin-tag:not(.confirmed) {
@@ -433,7 +425,6 @@
             opacity: 1 !important; 
             background: transparent !important; 
             width: 100%;
-            box-sizing: border-box;
         }
 
         .capture-mode { font-family: 'Meiryo', 'Yu Gothic', sans-serif !important; }
@@ -453,7 +444,6 @@
             font-size: 26px !important;
             font-weight: bold !important;
             text-align: center !important;
-            box-sizing: border-box !important;
         }
         
         .capture-mode .grid {
@@ -517,8 +507,6 @@
 </head>
 <body>
 
-    <!-- ヘッダーとメニューのHTML部分は Component.js で生成するため削除しました -->
-
     <div class="admin-layout">
         
         <div class="dashboard-section">
@@ -551,7 +539,6 @@
                 </div>
                 <div class="announcement-list-box">
                     <h3 style="margin-top:0; font-size:1.1em;">登録中の案内一覧（期限順）</h3>
-                    <!-- ▼ 修正：テーブルもはみ出さないようにスクロール枠を追加 ▼ -->
                     <div style="overflow-x:auto; overflow-y:auto; max-height:480px; width:100%;">
                         <table class="data-table">
                             <thead><tr><th>区分</th><th>件名</th><th>非表示日時</th><th>操作</th></tr></thead>
@@ -633,7 +620,6 @@
         import { collection, onSnapshot, addDoc, doc, updateDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
         
-        // ▼ Component.js から機能を取り込む ▼
         import { setupCommonModals, setupHeader } from "./Component.js";
 
         const days = ['日', '月', '火', '水', '木', '金', '土'];
@@ -687,7 +673,6 @@
                 return;
             }
 
-            // ▼ 画面が開いた瞬間にヘッダーとモーダルを生成！ ▼
             setupHeader('管理者パネル', 'hamburger');
             setupCommonModals();
 
