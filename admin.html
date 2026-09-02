@@ -6,6 +6,12 @@
     <title>管理者パネル - 部室予約システム</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
+        /* ▼ 追加：画面全体の横揺れを防ぐ ▼ */
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+        }
+
         :root {
             --primary-color: #4A90E2;
             --primary-hover: #357abd;
@@ -27,8 +33,6 @@
             padding: 20px;
             color: #333;
         }
-        
-        /* ハンバーガーメニュー等のCSSは Component.js で管理するため全削除してスッキリ！ */
         
         .admin-layout {
             display: flex;
@@ -145,10 +149,21 @@
             overflow-x: auto;
             -ms-overflow-style: none;
             scrollbar-width: none;
+            min-width: 0; /* ▼ flex/gridの子要素がはみ出さないように */
         }
         .schedule-container::-webkit-scrollbar {
             display: none;
         }
+        /* ▼ 追加：WebKit系(iPhone/Safari)で右端の余白が消えるバグを防ぐおまじない ▼ */
+        .schedule-container::after {
+            content: "";
+            display: block;
+            width: 1px;
+            height: 1px;
+            clear: both;
+            padding-right: 15px;
+        }
+
         #capture-area {
             padding: 15px;
             background: #fff;
@@ -160,6 +175,7 @@
             background-color: var(--border-color);
             border: 1px solid var(--border-color);
             width: 100%; 
+            min-width: max-content; /* ▼ 追加：画面外の罫線が消えるのを防ぐ ▼ */
         }
         
         .today-col {
@@ -1076,7 +1092,7 @@
                         let statusText = '';
                         if (res.rejected) statusText = ' [落選]';
                         else if (res.cancelRequested) statusText = ' [⚠️取消]';
-                        else if (res.confirmed) statusText = ' [確]';      
+                        else if (res.confirmed) statusText = ' [確]';       
                         else if (res.isAdditional) statusText = ' [追加]';
 
                         statusSpan.textContent = statusText;
