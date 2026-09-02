@@ -6,7 +6,7 @@
     <title>管理者パネル - 部室予約システム</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        /* ▼ 追加：画面全体の横揺れを防ぐ ▼ */
+        /* ▼ 画面全体の横揺れを防ぐ ▼ */
         html, body {
             overflow-x: hidden;
             width: 100%;
@@ -38,6 +38,9 @@
             display: flex;
             flex-direction: column;
             gap: 30px;
+            /* ▼ 追加：大枠が横に広がるのを防ぐ ▼ */
+            width: 100%;
+            min-width: 0;
         }
 
         .dashboard-section {
@@ -45,7 +48,12 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            /* ▼ 追加：カレンダーの幅に合わせて横に伸びてしまうのを防ぐ ▼ */
+            width: 100%;
+            min-width: 0; 
+            box-sizing: border-box;
         }
+        
         .section-title {
             margin-top: 0;
             margin-bottom: 15px;
@@ -68,6 +76,7 @@
         }
         .announcement-list-box {
             flex: 1.5;
+            min-width: 0; /* 追加: はみ出し防止 */
         }
 
         .tabs {
@@ -143,18 +152,28 @@
             margin-bottom: 15px;
         }
 
+        #capture-area {
+            padding: 15px;
+            background: #fff;
+            /* ▼ 追加：はみ出し防止 ▼ */
+            width: 100%;
+            box-sizing: border-box;
+        }
+
         .schedule-container {
             background: #fff;
             padding: 10px;
             overflow-x: auto;
             -ms-overflow-style: none;
             scrollbar-width: none;
-            min-width: 0; /* ▼ flex/gridの子要素がはみ出さないように */
+            /* ▼ 追加：スクロールはこの要素内だけで完結させる ▼ */
+            width: 100%;
+            box-sizing: border-box;
         }
         .schedule-container::-webkit-scrollbar {
             display: none;
         }
-        /* ▼ 追加：WebKit系(iPhone/Safari)で右端の余白が消えるバグを防ぐおまじない ▼ */
+        /* WebKit系(iPhone/Safari)で右端の余白が消えるバグを防ぐおまじない */
         .schedule-container::after {
             content: "";
             display: block;
@@ -164,10 +183,6 @@
             padding-right: 15px;
         }
 
-        #capture-area {
-            padding: 15px;
-            background: #fff;
-        }
         .grid {
             display: grid;
             grid-template-columns: 60px repeat(7, minmax(95px, 1fr));
@@ -175,7 +190,7 @@
             background-color: var(--border-color);
             border: 1px solid var(--border-color);
             width: 100%; 
-            min-width: max-content; /* ▼ 追加：画面外の罫線が消えるのを防ぐ ▼ */
+            min-width: max-content; /* ▼ カレンダーの罫線切れを防ぐ ▼ */
         }
         
         .today-col {
