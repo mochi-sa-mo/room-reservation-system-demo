@@ -31,14 +31,8 @@
             padding: 20px;
             color: #333;
         }
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid var(--border-color);
-        }
+        
+        /* ヘッダーのCSSは Component.js に移動したため削除しました */
         
         .main-container {
             display: flex;
@@ -215,8 +209,6 @@
             text-align: center;
         }
         .btn:hover { background-color: var(--primary-hover); }
-        .btn-back { background-color: #999; }
-        .btn-back:hover { background-color: #888; }
         .btn-submit { width: 100%; padding: 10px; font-size: 1em; margin-top: 5px; }
         .btn-submit:disabled { background-color: #ccc; cursor: not-allowed; }
 
@@ -245,11 +237,6 @@
 
         @media (max-width: 768px) {
             body { padding: 10px; }
-            header { 
-                flex-direction: row; 
-                justify-content: space-between; 
-                align-items: center; 
-            }
             .main-container { flex-direction: column; gap: 15px; }
             .calendar-section, .form-section { width: 100%; flex: none; }
             .form-section { position: static; }
@@ -258,12 +245,7 @@
 </head>
 <body>
 
-    <header>
-        <h1>来週の予約</h1>
-        <div>
-            <button class="btn btn-back" id="btn-back-top">戻る</button>
-        </div>
-    </header>
+    <!-- ヘッダー部分は Component.js で生成するため削除しました -->
 
     <div class="main-container">
         <div class="calendar-section">
@@ -310,8 +292,14 @@
         }
 
         import { db, auth } from "./firebase.js";
+        // ▼ Component.js から setupHeader を取り込む
+        import { setupHeader } from "./Component.js";
+
         import { collection, onSnapshot, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+
+        // ▼ 画面を開いた瞬間にヘッダーを「戻るボタンのみ（back）」で生成！
+        setupHeader('来週の予約', 'back');
 
         const days = ['日', '月', '火', '水', '木', '金', '土'];
         const periods = ['1限', '2限', '昼休み', '3限', '4限', '5限', '放課後1', '放課後2'];
@@ -382,7 +370,6 @@
         }
 
         window.onload = function() {
-            document.getElementById('btn-back-top').onclick = () => window.location.href = 'index.html';
             document.getElementById('btn-submit-req').onclick = submitReservationRequest;
             document.getElementById('btn-alert-ok').onclick = () => {
                 document.getElementById('alert-modal').style.display = 'none';
