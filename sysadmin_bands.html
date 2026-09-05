@@ -22,6 +22,7 @@
         .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 100vw; margin: 0 auto 30px; overflow-x: hidden;}
         .section-title { margin-top: 0; margin-bottom: 15px; border-left: 5px solid var(--primary-color); padding-left: 10px; font-size: 1.3em; display: flex; justify-content: space-between; align-items: center; }
         .section-title.blue { border-left-color: #4A90E2; }
+        .section-title.orange { border-left-color: #ff9800; }
         
         .btn { padding: 10px 16px; border: none; border-radius: 4px; cursor: pointer; background-color: var(--primary-color); color: white; font-weight: bold; transition: 0.2s; text-align: center; }
         .btn:hover { background-color: var(--primary-hover); }
@@ -32,13 +33,19 @@
 
         .control-panel { display: flex; flex-direction: column; gap: 15px; background: #f3e5f5; padding: 20px; border-radius: 8px; border: 1px solid #e1bee7; margin-bottom: 20px; }
         .control-panel.blue-panel { background: #e3f2fd; border-color: #bbdefb; }
+        .control-panel.orange-panel { background: #fff8e1; border-color: #ffecb3; }
+        
         .info-text { font-size: 0.9em; color: #4a148c; font-weight: bold; line-height: 1.5; }
         .info-text.blue-text { color: #1565c0; }
+        .info-text.orange-text { color: #e65100; }
 
         .data-table { width: 100%; border-collapse: collapse; font-size: 0.85em; margin-top: 15px; white-space: nowrap; }
         .data-table th, .data-table td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
         .data-table th { background: #f3e5f5; color: #4a148c; font-weight: bold; position: sticky; top: 0;}
         .table-container { max-height: 60vh; overflow-y: auto; overflow-x: auto; border: 1px solid #ccc; border-radius: 4px; display: none; }
+
+        /* 個人テーブルのヘッダー色 */
+        #members-table th { background: #fff8e1; color: #e65100; }
 
         .tag-leader { background: #ff9800; color: white; padding: 2px 6px; border-radius: 12px; font-size: 0.75em; margin-left: 5px; font-weight: bold;}
         .success-message { color: #4caf50; font-size: 0.9em; margin-bottom: 15px; display: none; padding: 10px; background: #e8f5e9; border-radius: 4px; font-weight: bold; text-align: center;}
@@ -99,7 +106,7 @@
                 上の「名簿辞書」を登録しておくと、学籍番号の横に名前が表示されるようになります。
             </div>
             <div style="display: flex; gap: 10px;">
-                <button class="btn" id="btn-load-bands">🔄 全バンドを読み込む</button>
+                <button class="btn" id="btn-load-bands">🔄 データベースを読み込む</button>
                 <button class="btn btn-success" id="btn-export-csv" style="display: none;">📥 CSVでエクスポート</button>
             </div>
         </div>
@@ -116,8 +123,43 @@
                 </tbody>
             </table>
         </div>
-        <p id="bands-empty-msg" style="text-align: center; color: #999;">「全バンドを読み込む」ボタンを押してください。</p>
+        <p id="bands-empty-msg" style="text-align: center; color: #999;">「データベースを読み込む」ボタンを押してください。</p>
     </div>
+
+    <!-- ========================================== -->
+    <!-- ▼ 部員（個人）データ管理セクション ▼ -->
+    <!-- ========================================== -->
+    <div class="container">
+        <div class="section-title orange"><span>👤 全部員（個人）データ</span></div>
+
+        <div class="control-panel orange-panel">
+            <div class="info-text orange-text">
+                登録されているすべてのバンド情報から、個人（学籍番号）単位でデータを名寄せして表示します。<br>
+                ※リストの更新は上の「データベースを読み込む」ボタンと連動しています。
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-success" id="btn-export-members-csv" style="display: none;">📥 個人データをCSV出力</button>
+            </div>
+        </div>
+
+        <div class="table-container" id="members-table-container">
+            <table class="data-table" id="members-table">
+                <thead id="members-thead">
+                    <tr>
+                        <th>学籍番号</th>
+                        <th>氏名</th>
+                        <th>経験パート</th>
+                        <th>所属しているバンド</th>
+                    </tr>
+                </thead>
+                <tbody id="members-tbody">
+                    <!-- 個人データがここに挿入されます -->
+                </tbody>
+            </table>
+        </div>
+        <p id="members-empty-msg" style="text-align: center; color: #999;">「データベースを読み込む」ボタンを押してください。</p>
+    </div>
+
 
     <!-- 汎用アクション確認モーダル -->
     <div class="modal" id="confirm-modal">
@@ -135,8 +177,9 @@
         import { db } from "./firebase.js";
         import { collection, getDocs, query } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
-        // バンド用変数
+        // バンド用・個人用変数
         let allBandsData = [];
+        let allMembersData = []; // ▼ 個人データ格納用
         let maxLeaders = 1;
         let maxMembers = 1;
         
@@ -151,6 +194,9 @@
             // バンドのイベント
             document.getElementById('btn-load-bands').onclick = loadAllBands;
             document.getElementById('btn-export-csv').onclick = exportToCSV;
+            
+            // 個人のイベント
+            document.getElementById('btn-export-members-csv').onclick = exportMembersToCSV;
 
             // 辞書登録のイベント
             document.getElementById('btn-update-dict').onclick = updateDictionary;
@@ -201,25 +247,37 @@
             
             showSuccessMsg(`${parsedCount} 件の名簿データを辞書に登録しました！`);
 
-            // バンドデータが既に表示されていれば、名前を反映させるために再描画
+            // データが既に表示されていれば、名前を反映させるために再描画
             if (allBandsData.length > 0) {
                 renderBandsTable();
+                renderMembersTable(); // 個人テーブルも再描画
             }
         }
 
         // ==========================================
-        // 🎸 バンド関連の処理
+        // 🎸 バンド取得 ＆ 👤 個人データの生成
         // ==========================================
         async function loadAllBands() {
             const btnLoad = document.getElementById('btn-load-bands');
+            
+            // バンド用UI
             const btnExport = document.getElementById('btn-export-csv');
             const loadingMsg = document.getElementById('loading-bands-msg');
             const tableContainer = document.getElementById('bands-table-container');
             const emptyMsg = document.getElementById('bands-empty-msg');
+            
+            // 個人用UI
+            const btnExportMembers = document.getElementById('btn-export-members-csv');
+            const membersContainer = document.getElementById('members-table-container');
+            const membersEmptyMsg = document.getElementById('members-empty-msg');
 
             btnLoad.disabled = true; btnLoad.textContent = '読み込み中...';
+            
+            // UIを一旦隠す
             emptyMsg.style.display = 'none'; tableContainer.style.display = 'none';
             btnExport.style.display = 'none'; loadingMsg.style.display = 'block';
+            membersEmptyMsg.style.display = 'none'; membersContainer.style.display = 'none';
+            btnExportMembers.style.display = 'none';
 
             try {
                 const q = query(collection(db, "bands"));
@@ -240,30 +298,86 @@
                     loadingMsg.style.display = 'none';
                     emptyMsg.textContent = '登録されているバンドがありません。';
                     emptyMsg.style.display = 'block';
-                    btnLoad.disabled = false; btnLoad.textContent = '🔄 全バンドを読み込む';
+                    membersEmptyMsg.textContent = '登録されているデータがありません。';
+                    membersEmptyMsg.style.display = 'block';
+                    btnLoad.disabled = false; btnLoad.textContent = '🔄 データベースを読み込む';
                     return;
                 }
 
+                // 1. バンドのソートと描画
                 allBandsData.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
                 renderBandsTable();
 
+                // 2. 個人名寄せの実行と描画
+                aggregateMemberData();
+                renderMembersTable();
+
+                // UI表示
                 loadingMsg.style.display = 'none';
                 tableContainer.style.display = 'block';
                 btnExport.style.display = 'inline-block';
+                membersContainer.style.display = 'block';
+                btnExportMembers.style.display = 'inline-block';
 
-                showSuccessMsg(`バンドデータ（${allBandsData.length} 件）を読み込みました！`);
+                showSuccessMsg(`データを読み込みました！（バンド：${allBandsData.length} 件 / 部員：${allMembersData.length} 名）`);
 
             } catch (error) {
-                console.error("バンド取得エラー:", error);
+                console.error("データ取得エラー:", error);
                 loadingMsg.style.display = 'none';
-                emptyMsg.textContent = 'バンドデータの取得に失敗しました。';
+                emptyMsg.textContent = 'データの取得に失敗しました。';
                 emptyMsg.style.display = 'block';
+                membersEmptyMsg.textContent = 'データの取得に失敗しました。';
+                membersEmptyMsg.style.display = 'block';
             }
 
             btnLoad.disabled = false;
             btnLoad.textContent = '🔄 再読み込み';
         }
 
+        // ==========================================
+        // ▼ 個人データ（名寄せ）の集計ロジック
+        // ==========================================
+        function aggregateMemberData() {
+            const membersMap = {};
+
+            allBandsData.forEach(band => {
+                const leaders = band.leaders || [];
+                const details = band.memberDetails || [];
+
+                details.forEach(m => {
+                    const id = m.id;
+                    if (!id) return; // 空ならスキップ
+
+                    // 初めて出てきた学籍番号なら初期化
+                    if (!membersMap[id]) {
+                        membersMap[id] = {
+                            id: id,
+                            name: nameDictionary[id] || "未登録",
+                            parts: new Set(), // 重複を排除するための Set
+                            bands: [] // 所属バンド一覧
+                        };
+                    }
+
+                    // パートの追加 (互換性対応: parts配列優先、なければpart文字列)
+                    const partsArray = m.parts || (m.part ? [m.part] : []);
+                    partsArray.forEach(p => membersMap[id].parts.add(p));
+
+                    // バンド名の追加
+                    let bandStr = band.name || "名称未設定";
+                    if (leaders.includes(id)) {
+                        bandStr += " (代表)"; // 代表なら目印をつける
+                    }
+                    membersMap[id].bands.push(bandStr);
+                });
+            });
+
+            // オブジェクトから配列に変換し、学籍番号で昇順ソート
+            allMembersData = Object.values(membersMap).sort((a, b) => a.id.localeCompare(b.id));
+        }
+
+        // ==========================================
+        // 描画処理 (バンド一覧)
+        // ==========================================
         function renderBandsTable() {
             const thead = document.getElementById('bands-thead');
             const tbody = document.getElementById('bands-tbody');
@@ -294,7 +408,12 @@
                     if (details[i]) {
                         const isLeader = leaders.includes(details[i].id);
                         const leaderBadge = isLeader ? '<span class="tag tag-leader">代表</span>' : '';
-                        rowHtml += `<td>${translateId(details[i].id)} ${leaderBadge}</td><td>${escapeHTML(details[i].part)}</td>`;
+                        
+                        // パートの互換性対応
+                        const partsArray = details[i].parts || (details[i].part ? [details[i].part] : []);
+                        const partsStr = partsArray.join(', ');
+
+                        rowHtml += `<td>${translateId(details[i].id)} ${leaderBadge}</td><td>${escapeHTML(partsStr)}</td>`;
                     } else {
                         rowHtml += `<td style="background:#fafafa;"></td><td style="background:#fafafa;"></td>`;
                     }
@@ -304,6 +423,46 @@
             });
         }
 
+        // ==========================================
+        // ▼ 描画処理 (個人一覧)
+        // ==========================================
+        function renderMembersTable() {
+            const tbody = document.getElementById('members-tbody');
+            tbody.innerHTML = '';
+
+            allMembersData.forEach(m => {
+                const tr = document.createElement('tr');
+
+                // 最新の辞書を反映
+                const currentName = nameDictionary[m.id] || "未登録";
+
+                const idTd = document.createElement('td');
+                idTd.style.fontWeight = 'bold';
+                idTd.textContent = m.id;
+
+                const nameTd = document.createElement('td');
+                nameTd.textContent = currentName;
+
+                const partsTd = document.createElement('td');
+                partsTd.style.fontWeight = 'bold';
+                partsTd.style.color = '#e65100';
+                partsTd.textContent = Array.from(m.parts).join(', '); // Setを配列にしてカンマ結合
+
+                const bandsTd = document.createElement('td');
+                bandsTd.innerHTML = m.bands.join('<br>'); // 画面では改行で表示
+
+                tr.appendChild(idTd);
+                tr.appendChild(nameTd);
+                tr.appendChild(partsTd);
+                tr.appendChild(bandsTd);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ==========================================
+        // CSV出力処理
+        // ==========================================
         function exportToCSV() {
             if (allBandsData.length === 0) {
                 alert("出力するデータがありません。"); return;
@@ -333,9 +492,10 @@
                 const details = band.memberDetails || [];
                 for(let i = 0; i < maxMembers; i++) {
                     if (details[i]) {
+                        const partsArray = details[i].parts || (details[i].part ? [details[i].part] : []);
                         row.push(escape(details[i].id));
                         row.push(escape(nameDictionary[details[i].id] || "未登録"));
-                        row.push(escape(details[i].part));
+                        row.push(escape(partsArray.join(', ')));
                     } else {
                         row.push(""); row.push(""); row.push("");
                     }
@@ -343,6 +503,36 @@
                 csvContent += row.join(",") + "\n";
             });
 
+            downloadCSV(csvContent, "全バンドデータ");
+        }
+
+        // ▼ 個人用CSV出力
+        function exportMembersToCSV() {
+            if (allMembersData.length === 0) {
+                alert("出力するデータがありません。"); return;
+            }
+
+            let csvContent = "学籍番号,氏名,経験パート,所属バンド\n";
+
+            allMembersData.forEach(m => {
+                const row = [];
+                const escape = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
+                
+                // 最新の辞書名を使う
+                const currentName = nameDictionary[m.id] || "未登録";
+
+                row.push(escape(m.id));
+                row.push(escape(currentName));
+                row.push(escape(Array.from(m.parts).join(', '))); // カンマ区切り
+                row.push(escape(m.bands.join(', '))); // CSV内では改行ではなくカンマ区切りにする
+                
+                csvContent += row.join(",") + "\n";
+            });
+
+            downloadCSV(csvContent, "個人データ一覧");
+        }
+
+        function downloadCSV(csvContent, prefix) {
             const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
             const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
@@ -351,7 +541,7 @@
             const now = new Date();
             const dateStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}`;
             link.setAttribute("href", url);
-            link.setAttribute("download", `全バンドデータ_${dateStr}.csv`);
+            link.setAttribute("download", `${prefix}_${dateStr}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
