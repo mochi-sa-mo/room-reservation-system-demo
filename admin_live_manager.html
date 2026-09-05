@@ -98,12 +98,10 @@
                     <option value="">読込中...</option>
                 </select>
             </div>
-            <!-- ▼ 追加：既存ライブ編集ボタン ＆ 新規作成ボタン ▼ -->
             <button class="btn btn-warning" id="btn-open-edit-live" disabled style="height: 40px; white-space: nowrap;">✏️ ライブ情報を編集</button>
             <button class="btn btn-success" id="btn-open-create-live" style="height: 40px; white-space: nowrap;">➕ 新規作成</button>
         </div>
 
-        <!-- ▼ アーカイブ（終了/復元）ボタン ▼ -->
         <div id="archive-panel" style="display: none; margin-bottom: 15px; text-align: right;">
             <button class="btn btn-nav" id="btn-archive-live" style="color: white;"></button>
         </div>
@@ -218,13 +216,10 @@
 
     <script type="module">
         import { db, auth } from "./firebase.js";
-        // ▼ Component.js から setupHeader を取り込む
         import { setupHeader } from "./Component.js";
-        
         import { collection, getDocs, doc, getDoc, updateDoc, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
-        // ▼ 画面を開いた瞬間にヘッダーを「戻るボタンと名簿辞書（dict-back）」で生成！
         setupHeader('ライブ管理パネル', 'dict-back');
 
         let currentLiveId = "";
@@ -235,10 +230,9 @@
         let nameDictionary = JSON.parse(sessionStorage.getItem('adminNameDictionary') || '{}');
         
         let currentUserId = "不明な管理者";
-        let isEditMode = false; // 新規作成か編集か
+        let isEditMode = false; 
 
         window.onload = function() {
-            // ▼ 名簿辞書ボタンがComponent.jsによって生成された後にイベントを紐付ける
             const btnOpenDict = document.getElementById('btn-open-dict');
             if (btnOpenDict) {
                 btnOpenDict.onclick = () => {
@@ -278,7 +272,6 @@
             document.getElementById('btn-export-band').onclick = () => exportToCSV('band');
             document.getElementById('btn-export-member').onclick = () => exportToCSV('member');
 
-            // 新規作成モーダルを開く
             document.getElementById('btn-open-create-live').onclick = () => {
                 isEditMode = false;
                 document.getElementById('modal-main-title').textContent = '🎸 新規ライブの作成と告知';
@@ -288,7 +281,6 @@
                 document.getElementById('create-live-modal').style.display = 'flex';
             };
 
-            // ▼ 既存ライブ編集モーダルを開く ▼
             document.getElementById('btn-open-edit-live').onclick = async () => {
                 if (!currentLiveId) return;
                 isEditMode = true;
@@ -296,7 +288,6 @@
                 document.getElementById('modal-sub-desc').textContent = 'ライブ情報を変更すると、エントリー画面の募集要項や掲示板の内容も自動で連動して更新されます。';
                 document.getElementById('btn-execute-create').textContent = '変更を保存する';
 
-                // データベースから現在のライブ情報を取得してフォームに埋め込む
                 const docSnap = await getDoc(doc(db, "lives", currentLiveId));
                 if (docSnap.exists()) {
                     const data = docSnap.data();
@@ -318,7 +309,6 @@
             init();
         };
 
-        // 新規作成 or 編集の共通保存処理
         async function handleCreateLive(e) {
             e.preventDefault();
             const btnExecute = document.getElementById('btn-execute-create');
@@ -333,7 +323,6 @@
 
             try {
                 if (isEditMode) {
-                    // --- 既存ライブの更新 ＆ 告知（announcements）の連動更新 ---
                     const liveRef = doc(db, "lives", currentLiveId);
                     const oldSnap = await getDoc(liveRef);
                     const oldName = oldSnap.exists() ? oldSnap.data().name : "";
@@ -342,7 +331,6 @@
                         name: name, eventDate: dateStr, location: location, deadline: deadline, conditions: conditions, updatedAt: serverTimestamp()
                     });
 
-                    // 結びついている announcements（掲示板のお知らせ）も自動で書き換える
                     const annSnap = await getDocs(collection(db, "announcements"));
                     const annPromises = [];
                     const messageText = `お疲れ様です\n${name}の出演バンドの募集を開始します\n出演を希望するバンドは、システムのエントリー画面から申請してください。\n\n【場所・日時】\n・場所： ${location}\n・日時： ${dateStr}\n\n募集期間： ${deadline.replace(/-/g, '/')} 24時まで\n\n【募集の条件】\n${conditions}`;
@@ -360,7 +348,6 @@
                     });
                     await Promise.all(annPromises);
 
-                    // ログ記録
                     await addDoc(collection(db, "logs"), {
                         timestamp: new Date().toISOString(),
                         category: "live", opType: "update", title: name, userId: currentUserId,
@@ -372,7 +359,6 @@
                     await handleLiveChange({ target: { value: currentLiveId } });
 
                 } else {
-                    // --- 新規ライブの作成 ＆ 告知の自動生成 ---
                     const liveData = {
                         name: name, eventDate: dateStr, location: location, deadline: deadline, conditions: conditions,
                         isActive: true, isEntryOpen: true, isResultOpen: false, isRsvpOpen: false, createdAt: serverTimestamp() 
@@ -461,7 +447,7 @@
             const statusArea = document.getElementById('status-panel');
             const extractSec = document.getElementById('extract-section');
             const archivePanel = document.getElementById('archive-panel');
-            const btnEditLive = document.getElementById('btn-open-edit-live'); // 編集ボタン
+            const btnEditLive = document.getElementById('btn-open-edit-live');
             document.getElementById('extracted-result').style.display = 'none';
             
             if (!currentLiveId) {
@@ -469,11 +455,11 @@
                 statusArea.style.display = 'none';
                 archivePanel.style.display = 'none';
                 extractSec.style.display = 'none';
-                btnEditLive.disabled = true; // ライブ未選択時は編集ボタン無効
+                btnEditLive.disabled = true;
                 return;
             }
 
-            btnEditLive.disabled = false; // ライブ選択時は編集ボタン有効化
+            btnEditLive.disabled = false;
 
             const docRef = doc(db, "lives", currentLiveId);
             const docSnap = await getDoc(docRef);
@@ -608,8 +594,12 @@
 
                     let memberHtml = "";
                     entry.performers.forEach(p => {
-                        let role = p.type === "正規" ? "" : ` (${p.type})`;
-                        memberHtml += `<div><strong>${p.part}</strong>: ${translateId(p.id)}${role}</div>`;
+                        let role = p.type === "正規" ? "" : ` <span style="color:#ff9800; font-size:0.9em; font-weight:bold;">(${p.type})</span>`;
+                        // ▼ 修正：配列(parts)をカンマ区切りで表示 ▼
+                        const partsArray = p.parts || (p.part ? [p.part] : ["不明"]);
+                        const partsStr = partsArray.join(', ');
+
+                        memberHtml += `<div><strong>[${partsStr}]</strong> ${translateId(p.id)}${role}</div>`;
                     });
 
                     card.innerHTML = `
@@ -681,7 +671,13 @@
             else { title = "保留に戻す"; msg = `以下のバンドを未審査に戻しますか？`; color = "#ff9800"; }
 
             msg += `<div style="background: #eee; padding: 10px; margin-top: 10px; border-radius: 4px;"><strong>${entryData.bandName}</strong><br>`;
-            entryData.performers.forEach(p => { msg += `<div style="font-size: 0.9em;">・${p.part}: ${translateId(p.id)}</div>`; });
+            
+            // ▼ 修正：確認モーダルでも配列(parts)をカンマ区切りで表示 ▼
+            entryData.performers.forEach(p => { 
+                const partsArray = p.parts || (p.part ? [p.part] : ["不明"]);
+                const partsStr = partsArray.join(', ');
+                msg += `<div style="font-size: 0.9em;">・[${partsStr}] ${translateId(p.id)}</div>`; 
+            });
             msg += `</div>`;
 
             showConfirmModal(title, msg, action, '状態を変更する', color);
@@ -723,6 +719,7 @@
             .catch(err => { console.error(err); alert("コピーに失敗しました。手動でコピーしてください。"); });
         }
 
+        // ▼ 修正：CSV出力時のパートデータも配列(parts)から取得するように変更 ▼
         function exportToCSV(type) {
             const target = document.getElementById('extract-target').value;
             const targetEntries = entriesData.filter(e => target === 'all' || e.status === 'approved');
@@ -763,7 +760,8 @@
                     const performers = entry.performers || [];
                     for (let i = 0; i < maxMembers; i++) {
                         if (performers[i]) {
-                            row.push(escape(performers[i].part));
+                            const partsArray = performers[i].parts || (performers[i].part ? [performers[i].part] : []);
+                            row.push(escape(partsArray.join(', ')));
                             row.push(performers[i].id);
                             row.push(escape(nameDictionary[performers[i].id] || "未登録"));
                         } else {
@@ -779,10 +777,11 @@
                 targetEntries.forEach(entry => {
                     entry.performers.forEach(p => {
                         const escape = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
+                        const partsArray = p.parts || (p.part ? [p.part] : []);
                         const row = [
                             p.id,
                             escape(nameDictionary[p.id] || "未登録"),
-                            escape(p.part),
+                            escape(partsArray.join(', ')),
                             escape(p.type || "正規"),
                             escape(entry.bandName)
                         ];
