@@ -18,9 +18,10 @@
         .band-card { background: #fff; border: 1px solid #e0e0e0; border-left: 5px solid #4A90E2; padding: 15px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .band-name { font-weight: bold; font-size: 1.2em; margin-bottom: 10px; color: #333; }
         .member-list-view { list-style: none; padding: 0; margin: 0 0 10px 0; font-size: 0.95em; }
-        .member-list-view li { padding: 4px 0; border-bottom: 1px dashed #eee; display: flex; align-items: center; }
+        .member-list-view li { padding: 8px 0; border-bottom: 1px dashed #eee; display: flex; flex-direction: column; gap: 5px; }
         .member-list-view li:last-child { border-bottom: none; }
-        .part-badge { display: inline-block; background: #eee; color: #555; width: 45px; text-align: center; padding: 2px 5px; border-radius: 4px; font-size: 0.85em; font-weight: bold; margin-right: 10px; }
+        .part-badges { display: flex; gap: 4px; flex-wrap: wrap; }
+        .part-badge { display: inline-block; background: #eee; color: #555; text-align: center; padding: 2px 5px; border-radius: 4px; font-size: 0.85em; font-weight: bold; }
         .leader-badge { font-size: 0.8em; color: #ff9800; font-weight: bold; margin-left: auto; background: #fff3e0; padding: 2px 6px; border-radius: 12px; }
         
         .btn-edit-mode { background: #fff3e0; color: #e65100; border: 1px solid #e65100; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.2s; }
@@ -33,14 +34,20 @@
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
         .form-group input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1em; }
         
-        .member-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; background: #f9f9f9; padding: 10px; border-radius: 4px; border: 1px solid #eee; }
-        .member-row select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; background-color: white; }
+        .member-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 15px; border-radius: 4px; border: 1px solid #eee; }
+        .member-row-top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; width: 100%; }
         .member-row input[type="text"] { flex: 1; min-width: 120px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
         
+        /* ▼ チェックボックスのスタイル ▼ */
+        .part-checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; background: #fff; padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        .part-checkbox-label { display: flex; align-items: center; font-size: 0.85em; font-weight: bold; color: #444; cursor: pointer; background: #f0f4f8; padding: 4px 8px; border-radius: 4px; transition: 0.2s;}
+        .part-checkbox-label:hover { background: #d9e2ec; }
+        .part-checkbox-label input { margin-right: 4px; }
+
         .coleader-label { display: flex; align-items: center; font-size: 0.85em; font-weight: bold; color: #555; cursor: pointer; white-space: nowrap; margin-left: auto; }
         .coleader-label input[type="checkbox"] { margin-right: 5px; transform: scale(1.2); }
         
-        .btn-remove { background-color: #e74c3c; color: white; border: none; border-radius: 4px; padding: 8px 12px; cursor: pointer; font-weight: bold; margin-left: 10px; }
+        .btn-remove { background-color: #e74c3c; color: white; border: none; border-radius: 4px; padding: 8px 12px; cursor: pointer; font-weight: bold; margin-left: auto; }
         .btn-add { background-color: #fff; color: #4A90E2; border: 2px dashed #4A90E2; border-radius: 4px; padding: 10px; cursor: pointer; font-weight: bold; width: 100%; text-align: center; margin-bottom: 20px; }
         
         .action-buttons { display: flex; gap: 10px; margin-top: 20px; }
@@ -143,7 +150,7 @@
         let editingBandId = null; 
         let pendingUpdateData = null;
 
-        const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Other"];
+        const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Cho.", "Other"]; // Cho.追加
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -190,14 +197,27 @@
                     
                     data.memberDetails.forEach(m => {
                         const li = document.createElement('li');
-                        li.innerHTML = `<span class="part-badge">${m.part}</span> ${m.id}`;
                         
+                        // 過去データと新データの互換性対応
+                        const partsArray = m.parts || (m.part ? [m.part] : []);
+                        let partsHtml = `<div class="part-badges">`;
+                        partsArray.forEach(p => {
+                            partsHtml += `<span class="part-badge">${p}</span>`;
+                        });
+                        partsHtml += `</div>`;
+                        
+                        let leaderBadge = '';
                         if (data.leaders && data.leaders.includes(m.id)) {
-                            const badge = document.createElement('span');
-                            badge.className = 'leader-badge';
-                            badge.textContent = '👑 代表';
-                            li.appendChild(badge);
+                            leaderBadge = `<span class="leader-badge">👑 代表</span>`;
                         }
+
+                        li.innerHTML = `
+                            <div style="display:flex; align-items:center; width: 100%;">
+                                <span style="font-weight:bold;">${m.id}</span>
+                                ${leaderBadge}
+                            </div>
+                            ${partsHtml}
+                        `;
                         ul.appendChild(li);
                     });
                     card.appendChild(ul);
@@ -231,7 +251,9 @@
             data.memberDetails.forEach(m => {
                 const isMe = (m.id === currentUserId);
                 const isCoLeader = !isMe && data.leaders.includes(m.id);
-                container.appendChild(createMemberRow(isMe, m.id, m.part, isCoLeader));
+                // 互換性対応
+                const partsArray = m.parts || (m.part ? [m.part] : []);
+                container.appendChild(createMemberRow(isMe, m.id, partsArray, isCoLeader));
             });
 
             document.getElementById('list-section').style.display = 'none';
@@ -247,19 +269,12 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
 
-        function createMemberRow(isCreator = false, defaultId = "", defaultPart = "Vo.", isCoLeader = false) {
+        function createMemberRow(isCreator = false, defaultId = "", defaultParts = [], isCoLeader = false) {
             const row = document.createElement('div');
             row.className = 'member-row';
 
-            const select = document.createElement('select');
-            select.className = 'part-select';
-            partsOptions.forEach(part => {
-                const option = document.createElement('option');
-                option.value = part;
-                option.textContent = part;
-                if (part === defaultPart) option.selected = true;
-                select.appendChild(option);
-            });
+            const rowTop = document.createElement('div');
+            rowTop.className = 'member-row-top';
 
             const input = document.createElement('input');
             input.type = 'text';
@@ -293,9 +308,8 @@
                 roleContainer.appendChild(document.createTextNode(' 共同代表にする'));
             }
 
-            row.appendChild(select);
-            row.appendChild(input);
-            row.appendChild(roleContainer);
+            rowTop.appendChild(input);
+            rowTop.appendChild(roleContainer);
 
             if (!isCreator) {
                 const removeBtn = document.createElement('button');
@@ -303,8 +317,33 @@
                 removeBtn.className = 'btn-remove';
                 removeBtn.textContent = '削除';
                 removeBtn.onclick = () => row.remove();
-                row.appendChild(removeBtn);
+                rowTop.appendChild(removeBtn);
             }
+
+            const partGroup = document.createElement('div');
+            partGroup.className = 'part-checkbox-group';
+            
+            const partsArray = Array.isArray(defaultParts) ? defaultParts : (defaultParts ? [defaultParts] : []);
+            
+            partsOptions.forEach(part => {
+                const label = document.createElement('label');
+                label.className = 'part-checkbox-label';
+                
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = part;
+                cb.className = 'part-checkbox';
+                if (partsArray.includes(part)) {
+                    cb.checked = true;
+                }
+
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(part));
+                partGroup.appendChild(label);
+            });
+
+            row.appendChild(rowTop);
+            row.appendChild(partGroup);
 
             return row;
         }
@@ -332,18 +371,22 @@
             let leaders = [currentUserId]; 
             let hasError = false;
             let formatError = false;
+            let partError = false;
 
             memberRows.forEach(row => {
-                const part = row.querySelector('.part-select').value;
                 const id = row.querySelector('.id-input').value.trim();
                 const isCoLeader = row.querySelector('.coleader-checkbox')?.checked;
+                
+                const checkedParts = Array.from(row.querySelectorAll('.part-checkbox:checked')).map(cb => cb.value);
 
                 if (!id) {
                     hasError = true;
                 } else if (!/^\d{6}$/.test(id)) {
                     formatError = true;
+                } else if (checkedParts.length === 0) {
+                    partError = true;
                 } else {
-                    memberDetails.push({ id: id, part: part });
+                    memberDetails.push({ id: id, part: checkedParts[0], parts: checkedParts });
                     memberIds.push(id);
                     if (isCoLeader) leaders.push(id);
                 }
@@ -355,6 +398,10 @@
             }
             if (formatError) {
                 errorMsg.textContent = "学籍番号は「半角数字6桁」で入力してください。";
+                errorMsg.style.display = 'block'; return;
+            }
+            if (partError) {
+                errorMsg.textContent = "担当パートが1つも選択されていないメンバーがいます。";
                 errorMsg.style.display = 'block'; return;
             }
 
@@ -377,7 +424,9 @@
                 let roleText = "";
                 if (m.id === currentUserId) roleText = ' <span style="color:#4A90E2; font-weight:bold;">(代表)</span>';
                 else if (leaders.includes(m.id)) roleText = ' <span style="color:#ff9800; font-weight:bold;">(共同代表)</span>';
-                confirmHtml += `・${m.part} ${m.id}${roleText}<br>`;
+                
+                const partsStr = m.parts.join(', ');
+                confirmHtml += `・${m.id} [${partsStr}]${roleText}<br>`;
             });
             confirmHtml += `</div>`;
 
