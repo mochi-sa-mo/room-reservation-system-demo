@@ -14,10 +14,16 @@
         
         /* 動的追加メンバー行のスタイル */
         .member-list { margin-bottom: 15px; }
-        .member-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; background: #f9f9f9; padding: 10px; border-radius: 4px; border: 1px solid #eee; }
-        .member-row select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; background-color: white; }
+        .member-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 15px; border-radius: 4px; border: 1px solid #eee; }
+        .member-row-top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; width: 100%; }
         .member-row input[type="text"] { flex: 1; min-width: 150px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
         
+        /* ▼ チェックボックスのスタイル ▼ */
+        .part-checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; background: #fff; padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        .part-checkbox-label { display: flex; align-items: center; font-size: 0.85em; font-weight: bold; color: #444; cursor: pointer; background: #f0f4f8; padding: 4px 8px; border-radius: 4px; transition: 0.2s;}
+        .part-checkbox-label:hover { background: #d9e2ec; }
+        .part-checkbox-label input { margin-right: 4px; }
+
         .coleader-label { display: flex; align-items: center; font-size: 0.85em; font-weight: bold; color: #555; cursor: pointer; white-space: nowrap; margin-left: auto; }
         .coleader-label input[type="checkbox"] { margin-right: 5px; transform: scale(1.2); }
         
@@ -117,7 +123,7 @@
         setupHeader('バンド新規登録', 'back');
 
         let currentUserId = "";
-        const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Other"];
+        const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Cho.", "Other"]; // Cho.追加
         let pendingBandData = null; // 確認画面で保持するデータ
 
         // メンバー行を生成する関数
@@ -125,14 +131,8 @@
             const row = document.createElement('div');
             row.className = 'member-row';
 
-            const select = document.createElement('select');
-            select.className = 'part-select';
-            partsOptions.forEach(part => {
-                const option = document.createElement('option');
-                option.value = part;
-                option.textContent = part;
-                select.appendChild(option);
-            });
+            const rowTop = document.createElement('div');
+            rowTop.className = 'member-row-top';
 
             const input = document.createElement('input');
             input.type = 'text';
@@ -166,9 +166,8 @@
                 roleContainer.appendChild(document.createTextNode(' 共同代表にする'));
             }
 
-            row.appendChild(select);
-            row.appendChild(input);
-            row.appendChild(roleContainer);
+            rowTop.appendChild(input);
+            rowTop.appendChild(roleContainer);
 
             if (!isCreator) {
                 const removeBtn = document.createElement('button');
@@ -176,8 +175,28 @@
                 removeBtn.className = 'btn-remove';
                 removeBtn.textContent = '削除';
                 removeBtn.onclick = () => row.remove();
-                row.appendChild(removeBtn);
+                rowTop.appendChild(removeBtn);
             }
+
+            const partGroup = document.createElement('div');
+            partGroup.className = 'part-checkbox-group';
+            
+            partsOptions.forEach(part => {
+                const label = document.createElement('label');
+                label.className = 'part-checkbox-label';
+                
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = part;
+                cb.className = 'part-checkbox';
+
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(part));
+                partGroup.appendChild(label);
+            });
+
+            row.appendChild(rowTop);
+            row.appendChild(partGroup);
 
             return row;
         }
@@ -220,18 +239,21 @@
             let leaders = [currentUserId];
             let hasError = false;
             let formatError = false;
+            let partError = false;
 
             memberRows.forEach(row => {
-                const part = row.querySelector('.part-select').value;
                 const id = row.querySelector('.id-input').value.trim();
                 const isCoLeader = row.querySelector('.coleader-checkbox')?.checked;
+                const checkedParts = Array.from(row.querySelectorAll('.part-checkbox:checked')).map(cb => cb.value);
 
                 if (!id) {
                     hasError = true;
                 } else if (!/^\d{6}$/.test(id)) {
                     formatError = true;
+                } else if (checkedParts.length === 0) {
+                    partError = true;
                 } else {
-                    memberDetails.push({ id: id, part: part });
+                    memberDetails.push({ id: id, part: checkedParts[0], parts: checkedParts });
                     memberIds.push(id);
                     if (isCoLeader) leaders.push(id);
                 }
@@ -243,6 +265,10 @@
             }
             if (formatError) {
                 errorMsg.textContent = "学籍番号は「半角数字6桁」で入力してください。";
+                errorMsg.style.display = 'block'; return;
+            }
+            if (partError) {
+                errorMsg.textContent = "担当パートが1つも選択されていないメンバーがいます。";
                 errorMsg.style.display = 'block'; return;
             }
 
@@ -267,7 +293,9 @@
                 let roleText = "";
                 if (m.id === currentUserId) roleText = ' <span style="color:#4A90E2; font-weight:bold;">(代表)</span>';
                 else if (leaders.includes(m.id)) roleText = ' <span style="color:#ff9800; font-weight:bold;">(共同代表)</span>';
-                confirmHtml += `・${m.part} ${m.id}${roleText}<br>`;
+                
+                const partsStr = m.parts.join(', ');
+                confirmHtml += `・${m.id} [${partsStr}]${roleText}<br>`;
             });
             confirmHtml += `</div>`;
 
