@@ -173,7 +173,12 @@
             html += `<p style="margin-bottom: 5px; background: #eee; padding: 5px; border-radius: 4px; margin-top: 15px;"><strong>【演奏メンバー構成】</strong></p><ul style="margin-top: 5px; padding-left: 20px;">`;
             data.performers.forEach(p => {
                 let role = p.type === "正規" ? "" : ` <span style="font-size: 0.8em; color: #ff9800; font-weight: bold;">(${p.type})</span>`;
-                html += `<li><strong>${p.part}</strong>： ${p.id} ${role}</li>`;
+                
+                // ▼ 修正：配列(parts)を読み込んでカンマ区切りで表示するように変更 ▼
+                const partsArray = p.parts || (p.part ? [p.part] : ["不明"]);
+                const partsStr = partsArray.join(', ');
+                
+                html += `<li><strong>[${partsStr}]</strong>： ${p.id} ${role}</li>`;
             });
             html += `</ul>`;
             
