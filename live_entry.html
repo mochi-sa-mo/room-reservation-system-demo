@@ -18,12 +18,18 @@
         select:disabled { background-color: #e0e0e0; cursor: not-allowed; }
         
         .member-list { margin-top: 10px; padding: 15px; background: #f9f9f9; border-radius: 4px; border: 1px solid #eee; }
-        .member-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
-        .member-row select { width: auto; padding: 8px; }
+        .member-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #ddd; }
+        .member-row-top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; width: 100%; }
         .member-row input[type="text"] { flex: 1; min-width: 120px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
         .member-row select.type-select { width: 110px; background-color: #e8f4f8; }
         
-        .btn-remove { background-color: #e74c3c; color: white; border: none; border-radius: 4px; padding: 8px 12px; cursor: pointer; font-weight: bold; }
+        /* ▼ チェックボックスのスタイル ▼ */
+        .part-checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; background: #f0f4f8; padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        .part-checkbox-label { display: flex; align-items: center; font-size: 0.85em; font-weight: bold; color: #444; cursor: pointer; background: #fff; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; transition: 0.2s;}
+        .part-checkbox-label:hover { background: #e0e0e0; }
+        .part-checkbox-label input { margin-right: 4px; }
+
+        .btn-remove { background-color: #e74c3c; color: white; border: none; border-radius: 4px; padding: 8px 12px; cursor: pointer; font-weight: bold; margin-left: auto; }
         .btn-remove:hover { background-color: #c0392b; }
         .btn-add { background-color: #fff; color: #4A90E2; border: 2px dashed #4A90E2; border-radius: 4px; padding: 10px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; transition: 0.2s; }
         .btn-add:hover { background-color: #f0f8ff; }
@@ -199,21 +205,15 @@
 
         let activeLiveIds = []; 
 
-        const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Other"];
+        const partsOptions = ["Vo.", "Gt.", "Ba.", "Key.", "Dr.", "Cho.", "Other"]; // Cho.追加
         const typeOptions = ["正規", "サポート", "ゲスト"];
 
-        function createPerformerRow(id = "", part = "Vo.", type = "正規") {
+        function createPerformerRow(id = "", defaultParts = [], type = "正規") {
             const row = document.createElement('div');
             row.className = 'member-row';
 
-            const partSelect = document.createElement('select');
-            partSelect.className = 'part-select';
-            partsOptions.forEach(p => {
-                const option = document.createElement('option');
-                option.value = p; option.textContent = p;
-                if (p === part) option.selected = true;
-                partSelect.appendChild(option);
-            });
+            const rowTop = document.createElement('div');
+            rowTop.className = 'member-row-top';
 
             const input = document.createElement('input');
             input.type = 'text';
@@ -237,10 +237,34 @@
             removeBtn.textContent = '削除';
             removeBtn.onclick = () => row.remove();
 
-            row.appendChild(partSelect);
-            row.appendChild(input);
-            row.appendChild(typeSelect);
-            row.appendChild(removeBtn);
+            rowTop.appendChild(input);
+            rowTop.appendChild(typeSelect);
+            rowTop.appendChild(removeBtn);
+
+            const partGroup = document.createElement('div');
+            partGroup.className = 'part-checkbox-group';
+            
+            const partsArray = Array.isArray(defaultParts) ? defaultParts : (defaultParts ? [defaultParts] : []);
+
+            partsOptions.forEach(part => {
+                const label = document.createElement('label');
+                label.className = 'part-checkbox-label';
+                
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = part;
+                cb.className = 'part-checkbox';
+                if (partsArray.includes(part)) {
+                    cb.checked = true;
+                }
+
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(part));
+                partGroup.appendChild(label);
+            });
+
+            row.appendChild(rowTop);
+            row.appendChild(partGroup);
 
             return row;
         }
@@ -379,9 +403,11 @@
                     myEntriesData[entryId] = data; 
 
                     const myInfo = data.performers.find(p => p.id === currentUserId);
-                    const myPart = myInfo ? myInfo.part : "不明";
+                    const partsArray = myInfo ? (myInfo.parts || (myInfo.part ? [myInfo.part] : ["不明"])) : ["不明"];
+                    const myPartStr = partsArray.join(', ');
+                    
                     const myType = myInfo ? myInfo.type : "";
-                    const typeTag = myType !== "正規" ? `<span class="tag" style="background:#ff9800;">${myType}</span>` : `<span class="tag">${myType}</span>`;
+                    const typeTag = myType !== "正規" ? `<span class="tag" style="background:#ff9800; color:white; padding:2px 6px; border-radius:4px; font-size:0.8em;">${myType}</span>` : `<span class="tag" style="background:#eee; padding:2px 6px; border-radius:4px; font-size:0.8em;">${myType}</span>`;
 
                     const item = document.createElement('div');
                     item.className = 'entry-item';
@@ -392,7 +418,7 @@
 
                     const detailDiv = document.createElement('div');
                     detailDiv.className = 'entry-item-detail';
-                    detailDiv.innerHTML = `<strong>出演バンド:</strong> ${data.bandName || 'バンド名未設定'}<br><strong>あなたのパート:</strong> ${myPart} ${typeTag}`;
+                    detailDiv.innerHTML = `<strong>出演バンド:</strong> ${data.bandName || 'バンド名未設定'}<br><strong>あなたのパート:</strong> ${myPartStr} ${typeTag}`;
 
                     const actionDiv = document.createElement('div');
                     actionDiv.className = 'action-buttons';
@@ -471,7 +497,9 @@
             html += `<ul style="margin-top: 5px; padding-left: 20px;">`;
             data.performers.forEach(p => {
                 let role = p.type === "正規" ? "" : ` <span style="font-size: 0.8em; color: #ff9800; font-weight: bold;">(${p.type})</span>`;
-                html += `<li><strong>${p.part}</strong>： ${p.id} ${role}</li>`;
+                const partsArray = p.parts || (p.part ? [p.part] : []);
+                const partsStr = partsArray.join(', ');
+                html += `<li><strong>[${partsStr}]</strong>： ${p.id} ${role}</li>`;
             });
             html += `</ul>`;
             
@@ -498,7 +526,8 @@
             const container = document.getElementById('members-container');
             container.innerHTML = '';
             data.performers.forEach(p => {
-                container.appendChild(createPerformerRow(p.id, p.part, p.type));
+                const partsArray = p.parts || (p.part ? [p.part] : []);
+                container.appendChild(createPerformerRow(p.id, partsArray, p.type));
             });
 
             document.getElementById('performers-section').style.display = 'block';
@@ -544,7 +573,8 @@
             if (bandId && userBands[bandId]) {
                 const band = userBands[bandId];
                 band.memberDetails.forEach(m => {
-                    container.appendChild(createPerformerRow(m.id, m.part, "正規"));
+                    const partsArray = m.parts || (m.part ? [m.part] : []);
+                    container.appendChild(createPerformerRow(m.id, partsArray, "正規"));
                 });
                 document.getElementById('performers-section').style.display = 'block';
             } else {
@@ -553,7 +583,7 @@
         });
 
         document.getElementById('btn-add-member').addEventListener('click', () => {
-            document.getElementById('members-container').appendChild(createPerformerRow("", "Other", "サポート"));
+            document.getElementById('members-container').appendChild(createPerformerRow("", ["Other"], "サポート"));
         });
 
         document.getElementById('entry-form').addEventListener('submit', (e) => {
@@ -582,22 +612,29 @@
             let performers = [];
             let performerIds = [];
             let hasError = false;
+            let partError = false;
 
             memberRows.forEach(row => {
-                const part = row.querySelector('.part-select').value;
                 const id = row.querySelector('.id-input').value.trim();
                 const type = row.querySelector('.type-select').value;
+                const checkedParts = Array.from(row.querySelectorAll('.part-checkbox:checked')).map(cb => cb.value);
 
                 if (!/^\d{6}$/.test(id)) {
                     hasError = true;
+                } else if (checkedParts.length === 0) {
+                    partError = true;
                 } else {
-                    performers.push({ id: id, part: part, type: type });
+                    performers.push({ id: id, part: checkedParts[0], parts: checkedParts, type: type });
                     performerIds.push(id);
                 }
             });
 
             if (hasError) {
                 errorMsg.textContent = "学籍番号は「半角数字6桁」で正しく入力してください。";
+                errorMsg.style.display = 'block'; return;
+            }
+            if (partError) {
+                errorMsg.textContent = "担当パートが1つも選択されていないメンバーがいます。";
                 errorMsg.style.display = 'block'; return;
             }
             if (performers.length === 0) {
@@ -637,7 +674,8 @@
             confirmHtml += `<div><strong>【メンバー構成】</strong><br>`;
             performers.forEach(p => {
                 let roleText = p.type === "正規" ? "" : ` <span style="color:#ff9800; font-weight:bold;">(${p.type})</span>`;
-                confirmHtml += `・${p.part} ${p.id}${roleText}<br>`;
+                const partsStr = p.parts.join(', ');
+                confirmHtml += `・[${partsStr}] ${p.id}${roleText}<br>`;
             });
             confirmHtml += `</div>`;
             
