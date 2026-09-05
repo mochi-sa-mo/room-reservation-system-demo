@@ -72,7 +72,8 @@
         <div class="manual-card">
             <h2 style="margin-top: 0; color: #2e7d32; font-size: 1.2em;">📖 まずは使い方を確認</h2>
             <p>システムの詳しい使い方や、よくある質問はマニュアルにまとめています。<br>お問い合わせの前に一度ご確認ください。</p>
-            <a href="https://app.notion.com/p/user-3c15a75a648b80a68dcaee069b5e77f7?source=copy_link" target="_blank" class="btn btn-manual">取扱説明書（マニュアル）を開く ↗</a>
+            <!-- ▼ 変更：hrefを空にし、idを付与。JSでURLをセットします -->
+            <a href="#" target="_blank" class="btn btn-manual" id="manual-link">読込中...</a>
         </div>
 
         <h2 class="section-title">✉️ 管理者へのお問い合わせ</h2>
@@ -130,31 +131,52 @@
 
     <script type="module">
         import { db, auth } from "./firebase.js";
-        // ▼ Component.js から setupHeader を取り込む
         import { setupHeader } from "./Component.js";
-
         import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
-        // ▼ 画面を開いた瞬間にヘッダーを「戻るボタンのみ（back）」で生成！
         setupHeader('サポート窓口', 'back');
 
         let currentUserId = "";
-        let pendingInquiry = null; // 送信前のデータを保持
+        let pendingInquiry = null;
 
-        // ログインチェックとIDの自動入力
+        // ▼ 追加：ユーザーの権限に応じてURLをセットする関数
+        function loadManualLink() {
+            const manualBtn = document.getElementById('manual-link');
+            const userRole = localStorage.getItem('userRole'); // ログイン時に保存されている権限を取得
+
+            // ==========================================
+            // ▼ ここでマニュアルのURLを設定します ▼
+            // ==========================================
+            const userManualUrl = "https://app.notion.com/p/user-3c15a75a648b80a68dcaee069b5e77f7?source=copy_link"; // 一般部員用
+            const adminManualUrl = "https://app.notion.com/p/admin-3c75a75a648b804bbd74d87d0653d841?source=copy_link"; // admin用
+            // ==========================================
+
+            if (userRole === 'admin' || userRole === 'sysadmin') {
+                // 管理者の場合
+                manualBtn.href = adminManualUrl;
+                manualBtn.textContent = "管理者用マニュアルを開く ↗";
+            } else {
+                // 一般部員の場合
+                manualBtn.href = userManualUrl;
+                manualBtn.textContent = "取扱説明書（マニュアル）を開く ↗";
+            }
+        }
+
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUserId = user.email.split('@')[0];
                 document.getElementById('user-id').value = currentUserId;
                 document.getElementById('btn-submit').disabled = false;
+                
+                // ▼ 追加：ログイン確認後にURLとテキストをセットする
+                loadManualLink();
             } else {
                 alert("ログイン状態が確認できません。再度ログインしてください。");
                 window.location.href = "login.html";
             }
         });
 
-        // カスタムアラートの表示関数
         function customAlert(message, isError = false) {
             document.getElementById('alert-modal-message').innerHTML = message;
             const content = document.getElementById('alert-modal-content');
@@ -170,14 +192,12 @@
             document.body.classList.add('modal-open');
         }
 
-        // アラートのOKボタンで閉じる
         document.getElementById('btn-alert-ok').addEventListener('click', () => {
             document.getElementById('alert-modal').style.display = 'none';
             document.body.classList.remove('modal-open');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
 
-        // フォーム送信で確認モーダルを表示
         document.getElementById('inquiry-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const category = document.getElementById('category').value;
@@ -188,10 +208,8 @@
                 return;
             }
 
-            // 送信データを一時保存
             pendingInquiry = { category, message };
 
-            // モーダルの中身を作成
             let confirmHtml = `<div style="margin-bottom: 10px;"><strong>【件名】</strong><br>${category}</div>`;
             confirmHtml += `<div><strong>【お問い合わせ内容】</strong><br>${message.replace(/\n/g, '<br>')}</div>`;
             
@@ -200,14 +218,12 @@
             document.body.classList.add('modal-open');
         });
 
-        // モーダルのキャンセルボタン
         document.getElementById('btn-confirm-cancel').addEventListener('click', () => {
             document.getElementById('confirm-modal').style.display = 'none';
             document.body.classList.remove('modal-open');
             pendingInquiry = null;
         });
 
-        // モーダルの送信確定ボタン
         document.getElementById('btn-confirm-execute').addEventListener('click', async () => {
             if (!pendingInquiry) return;
 
@@ -242,7 +258,6 @@
                     body: JSON.stringify(discordMessage)
                 }).catch(err => console.error("Discord通知エラー:", err));
 
-                // フォームをリセットし、IDを再セット
                 document.getElementById('inquiry-form').reset();
                 document.getElementById('user-id').value = currentUserId;
                 
