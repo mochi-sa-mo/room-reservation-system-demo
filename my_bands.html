@@ -179,6 +179,12 @@
 
                 snap.forEach(docSnap => {
                     const data = docSnap.data();
+                    
+                    // ▼ 追加：メンバーを学籍番号（ID）順にソートする処理 ▼
+                    if (data.memberDetails && Array.isArray(data.memberDetails)) {
+                        data.memberDetails.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+                    }
+
                     const bandId = docSnap.id;
                     myBandsData[bandId] = data; 
 
