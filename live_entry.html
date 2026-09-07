@@ -495,7 +495,10 @@
 
             html += `<p style="margin-bottom: 5px; background: #eee; padding: 5px; border-radius: 4px; margin-top: 15px;"><strong>【演奏メンバー構成】</strong></p>`;
             html += `<ul style="margin-top: 5px; padding-left: 20px;">`;
-            data.performers.forEach(p => {
+            
+            // ▼ 追加：メンバーを学籍番号（ID）順にソートして表示 ▼
+            const sortedPerformers = [...data.performers].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+            sortedPerformers.forEach(p => {
                 let role = p.type === "正規" ? "" : ` <span style="font-size: 0.8em; color: #ff9800; font-weight: bold;">(${p.type})</span>`;
                 const partsArray = p.parts || (p.part ? [p.part] : []);
                 const partsStr = partsArray.join(', ');
@@ -525,7 +528,10 @@
 
             const container = document.getElementById('members-container');
             container.innerHTML = '';
-            data.performers.forEach(p => {
+            
+            // ▼ 追加：編集画面の入力欄を学籍番号（ID）順にソートして生成 ▼
+            const sortedPerformers = [...data.performers].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+            sortedPerformers.forEach(p => {
                 const partsArray = p.parts || (p.part ? [p.part] : []);
                 container.appendChild(createPerformerRow(p.id, partsArray, p.type));
             });
@@ -572,10 +578,14 @@
 
             if (bandId && userBands[bandId]) {
                 const band = userBands[bandId];
-                band.memberDetails.forEach(m => {
+                
+                // ▼ 追加：バンド選択時に自動入力されるメンバーを学籍番号（ID）順にソート ▼
+                const sortedMembers = [...band.memberDetails].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+                sortedMembers.forEach(m => {
                     const partsArray = m.parts || (m.part ? [m.part] : []);
                     container.appendChild(createPerformerRow(m.id, partsArray, "正規"));
                 });
+                
                 document.getElementById('performers-section').style.display = 'block';
             } else {
                 document.getElementById('performers-section').style.display = 'none';
@@ -646,6 +656,9 @@
                 errorMsg.textContent = "同じ学籍番号が複数回入力されています。";
                 errorMsg.style.display = 'block'; return;
             }
+
+            // ▼ 追加：保存データ作成前（確認画面の表示前）にメンバーを学籍番号（ID）順にソートする ▼
+            performers.sort((a, b) => String(a.id).localeCompare(String(b.id)));
 
             pendingAction = editingEntryId ? 'update' : 'create';
             pendingEntryData = {
