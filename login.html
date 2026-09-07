@@ -177,8 +177,8 @@
                 }
 
                 // 4. メンテナンスモードの確認
-                // ▼ 変更：sysadmin に加えて sysuser もメンテナンス状態を無視してログインできるようにする
-                if (isMaintenanceMode && assignedRole !== 'sysadmin' && assignedRole !== 'sysuser') {
+                // ▼ 変更：sysadmin, adminadmin, useruser はメンテナンス状態を無視してログイン可能にする
+                if (isMaintenanceMode && assignedRole !== 'sysadmin' && assignedRole !== 'adminadmin' && assignedRole !== 'useruser') {
                     errorMsg.textContent = "現在メンテナンス中のためログインできません。";
                     errorMsg.style.display = 'block';
                     btnSubmit.disabled = false;
@@ -192,8 +192,8 @@
                 if (assignedRole === 'admin') window.location.href = 'admin.html';
                 else if (assignedRole === 'log') window.location.href = 'log.html';
                 else if (assignedRole === 'sysadmin') window.location.href = 'sysadmin.html';
-                else if (assignedRole === 'adminadmin') window.location.href = 'sysadmin_bands.html';
-                else if (assignedRole === 'sysuser') window.location.href = 'index.html'; // ▼ 追加：テスト用ユーザーは一般画面へ
+                else if (assignedRole === 'adminadmin') window.location.href = 'admin.html';
+                else if (assignedRole === 'useruser') window.location.href = 'index.html';
                 else window.location.href = 'index.html';
 
             } catch (error) {
