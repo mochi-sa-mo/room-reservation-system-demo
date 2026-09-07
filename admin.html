@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理者パネル - 部室予約システム</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        // ▼ 変更：admin と adminadmin の両方を許可するように修正
+        const checkRole = localStorage.getItem('userRole');
+        if (checkRole !== 'admin' && checkRole !== 'adminadmin') {
+            alert('アクセス権限がありません。');
+            window.location.replace('login.html');
+        }
+    </script>
     <style>
         /* ▼ 画面全体の横揺れを防ぐ ▼ */
         html, body {
@@ -666,8 +674,9 @@
         }
 
         window.onload = function() {
+            // ▼ 変更：admin と adminadmin の両方を許可するように修正
             const role = localStorage.getItem('userRole');
-            if (role !== 'admin') {
+            if (role !== 'admin' && role !== 'adminadmin') {
                 alert('アクセス権限がありません。');
                 window.location.href = 'login.html';
                 return;
