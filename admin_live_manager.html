@@ -593,9 +593,11 @@
                     `;
 
                     let memberHtml = "";
-                    entry.performers.forEach(p => {
+                    
+                    // ▼ 追加：メンバーを学籍番号（ID）順にソートして表示 ▼
+                    const sortedPerformers = [...entry.performers].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+                    sortedPerformers.forEach(p => {
                         let role = p.type === "正規" ? "" : ` <span style="color:#ff9800; font-size:0.9em; font-weight:bold;">(${p.type})</span>`;
-                        // ▼ 修正：配列(parts)をカンマ区切りで表示 ▼
                         const partsArray = p.parts || (p.part ? [p.part] : ["不明"]);
                         const partsStr = partsArray.join(', ');
 
@@ -672,8 +674,9 @@
 
             msg += `<div style="background: #eee; padding: 10px; margin-top: 10px; border-radius: 4px;"><strong>${entryData.bandName}</strong><br>`;
             
-            // ▼ 修正：確認モーダルでも配列(parts)をカンマ区切りで表示 ▼
-            entryData.performers.forEach(p => { 
+            // ▼ 追加：確認モーダルでもメンバーを学籍番号（ID）順にソートして表示 ▼
+            const sortedPerformers = [...entryData.performers].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+            sortedPerformers.forEach(p => { 
                 const partsArray = p.parts || (p.part ? [p.part] : ["不明"]);
                 const partsStr = partsArray.join(', ');
                 msg += `<div style="font-size: 0.9em;">・[${partsStr}] ${translateId(p.id)}</div>`; 
@@ -719,7 +722,6 @@
             .catch(err => { console.error(err); alert("コピーに失敗しました。手動でコピーしてください。"); });
         }
 
-        // ▼ 修正：CSV出力時のパートデータも配列(parts)から取得するように変更 ▼
         function exportToCSV(type) {
             const target = document.getElementById('extract-target').value;
             const targetEntries = entriesData.filter(e => target === 'all' || e.status === 'approved');
@@ -757,13 +759,15 @@
                     row.push(escape(entry.keyboardType || '使用しない'));
                     row.push(escape(entry.entryNotes || ''));
 
-                    const performers = entry.performers || [];
+                    // ▼ 追加：CSV出力（バンド別）でもメンバーを学籍番号（ID）順にソート ▼
+                    const sortedPerformers = [...(entry.performers || [])].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+                    
                     for (let i = 0; i < maxMembers; i++) {
-                        if (performers[i]) {
-                            const partsArray = performers[i].parts || (performers[i].part ? [performers[i].part] : []);
+                        if (sortedPerformers[i]) {
+                            const partsArray = sortedPerformers[i].parts || (sortedPerformers[i].part ? [sortedPerformers[i].part] : []);
                             row.push(escape(partsArray.join(', ')));
-                            row.push(performers[i].id);
-                            row.push(escape(nameDictionary[performers[i].id] || "未登録"));
+                            row.push(sortedPerformers[i].id);
+                            row.push(escape(nameDictionary[sortedPerformers[i].id] || "未登録"));
                         } else {
                             row.push(""); row.push(""); row.push("");
                         }
@@ -775,7 +779,10 @@
                 csvContent += "学籍番号,氏名,パート,区分,所属バンド名\n";
                 
                 targetEntries.forEach(entry => {
-                    entry.performers.forEach(p => {
+                    // ▼ 追加：CSV出力（個人別）でもメンバーを学籍番号（ID）順にソート ▼
+                    const sortedPerformers = [...entry.performers].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+                    
+                    sortedPerformers.forEach(p => {
                         const escape = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
                         const partsArray = p.parts || (p.part ? [p.part] : []);
                         const row = [
