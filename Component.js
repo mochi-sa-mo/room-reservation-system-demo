@@ -1,5 +1,7 @@
-import { auth } from "./firebase.js";
+import { db, auth } from "./firebase.js";
 import { signOut } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+// ▼ 追加：掲示板のデータを取得するためのFirestore関数をインポート
+import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 /**
  * 共通のCSSをページに注入する（1回だけ実行される）
@@ -29,6 +31,9 @@ function injectComponentStyles() {
 
         .menu-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
         .menu-overlay.open { display: block; }
+        
+        /* ▼ 追加：NEWバッジのスタイル */
+        .menu-badge-new { background-color: #ffe8e8; color: #ff6b5e; font-size: 0.7em; padding: 2px 8px; border-radius: 12px; margin-left: 8px; font-weight: bold; vertical-align: middle; }
     `;
     document.head.appendChild(style);
 }
@@ -117,7 +122,7 @@ export function setupHeader(title, type = 'back') {
         const role = localStorage.getItem('userRole');
         let menuItems = '';
 
-        if (role === 'admin' || role === 'sysadmin') {
+        if (role === 'admin' || role === 'sysadmin' || role === 'adminadmin') {
             // 管理者用メニュー
             menuItems = `
                 <li class="menu-category">管理者メニュー</li>
@@ -128,6 +133,7 @@ export function setupHeader(title, type = 'back') {
             `;
         } else {
             // 一般部員用メニュー
+            // ▼ 変更：掲示板の a タグに id="nav-board-link" を付与し、flexでバッジを右に置きやすくした
             menuItems = `
                 <li class="menu-category">部室予約</li>
                 <li><a href="tsuika.html" style="color: #4caf50;">今週の追加予約</a></li>
@@ -141,11 +147,10 @@ export function setupHeader(title, type = 'back') {
                 <li><a href="live_entry.html" style="color: #e91e63;">ライブエントリーをする</a></li>
                 <li><a href="entry_status.html" style="color: #e65100;">審査状況・履歴を確認する</a></li>
                 <li><a href="rsvp.html" style="color: #4caf50;">打ち上げの回答をする</a></li>
-                <li><a href="board.html" style="color: #00bcd4;">掲示板へ</a></li>
+                <li><a href="board.html" id="nav-board-link" style="color: #00bcd4; display: flex; align-items: center;"><span>掲示板へ</span></a></li>
             `;
         }
 
-        // 余分な×ボタンを削除
         extraHtml = `
             <nav class="side-menu" id="side-menu">
                 <ul>
@@ -160,7 +165,7 @@ export function setupHeader(title, type = 'back') {
         `;
     }
 
-    // ヘッダーの上下に padding を追加して縦幅を確保
+    // ヘッダーの生成
     const headerHtml = `
         <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px 0; border-bottom: 2px solid #ccc; flex-wrap: wrap; gap: 10px; min-height: 40px;">
             <h1 style="margin:0; font-size:1.5em; color:#333;">${title}</h1>
@@ -196,5 +201,42 @@ export function setupHeader(title, type = 'back') {
                 toggleMenu();
             });
         });
+
+        // ==========================================
+        // ▼ 追加：掲示板の「NEWバッジ」判定ロジック ▼
+        // ==========================================
+        const boardLink = document.getElementById('nav-board-link');
+        if (boardLink) {
+            const postsRef = collection(db, "boardPosts");
+            const q = query(postsRef, where("status", "==", "approved"));
+            
+            getDocs(q).then(snap => {
+                const now = new Date();
+                let hasRecentNewPost = false;
+
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    // 承認日時、更新日時、作成日時のどれかを取得
+                    const dateData = data.approvedAt || data.updatedAt || data.createdAt;
+                    if (dateData) {
+                        // FirebaseのTimestamp型ならtoDate()で変換、文字列ならnew Date()で変換
+                        const postDate = dateData.toDate ? dateData.toDate() : new Date(dateData);
+                        const diffHours = (now - postDate) / (1000 * 60 * 60);
+                        
+                        // 48時間（2日）以内の記事があればフラグを立てる
+                        if (diffHours <= 48) {
+                            hasRecentNewPost = true;
+                        }
+                    }
+                });
+
+                if (hasRecentNewPost) {
+                    // フラグが立っていればリンク内にバッジを追加
+                    boardLink.innerHTML += '<span class="menu-badge-new">NEW</span>';
+                }
+            }).catch(err => {
+                console.error("掲示板のNEWバッジ取得エラー:", err);
+            });
+        }
     }
 }
