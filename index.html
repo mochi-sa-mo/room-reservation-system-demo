@@ -231,7 +231,6 @@
         }
 
         window.onload = function() {
-            // ▼ 画面を開いた瞬間にヘッダーと共通ログアウトモーダルを展開！
             setupHeader('軽音ポータル', 'hamburger');
             setupCommonModals();
 
@@ -310,10 +309,9 @@
             }
         }
 
-        // ▼ 追加：シート未提出アラートのチェック関数 ▼
+        // ▼ 修正：シート未提出アラートのチェック関数（モーダルを開かせる仕様） ▼
         async function checkUnsubmittedSheets() {
             try {
-                // 自分が代表を務めているバンドのIDを取得
                 const myLeaderBandIds = [];
                 const bandsQ = query(collection(db, "bands"), where("leaders", "array-contains", currentUserId));
                 const bandsSnap = await getDocs(bandsQ);
@@ -321,21 +319,18 @@
 
                 if (myLeaderBandIds.length === 0) return;
 
-                // 承認済み かつ 未提出 のエントリーを検索
                 const entriesQ = query(collection(db, "liveEntries"), where("status", "==", "approved"));
                 const entriesSnap = await getDocs(entriesQ);
                 
-                // ライブごとに未提出バンドをまとめるマップ
-                const unsubmittedMap = {}; // { liveId: { liveName: "", url: "", bands: [] } }
+                const unsubmittedMap = {}; // { liveId: { liveName: "", announcement: null, bands: [] } }
 
                 entriesSnap.forEach(doc => {
                     const data = doc.data();
-                    // 自分が代表のバンドで、シート未提出の場合
                     if (myLeaderBandIds.includes(data.bandId) && data.sheetSubmitted !== true) {
                         if (!unsubmittedMap[data.liveId]) {
                             unsubmittedMap[data.liveId] = {
                                 liveName: data.liveName,
-                                url: null, // あとで検索する
+                                announcement: null, // ▼ 修正：URLではなくお知らせデータ全体を保持する
                                 bands: []
                             };
                         }
@@ -345,14 +340,13 @@
 
                 if (Object.keys(unsubmittedMap).length === 0) return;
 
-                // 未提出ライブについて、管理者の「シート提出用のお知らせ」が存在するか探す
                 const annQ = query(collection(db, "announcements"), where("type", "==", "sheet"));
                 const annSnap = await getDocs(annQ);
                 
                 annSnap.forEach(doc => {
                     const data = doc.data();
                     if (!data.deleted && unsubmittedMap[data.targetLiveId]) {
-                        unsubmittedMap[data.targetLiveId].url = data.link; // 提出先URLをセット
+                        unsubmittedMap[data.targetLiveId].announcement = { id: doc.id, ...data }; // ▼ 修正：お知らせ情報をセット
                     }
                 });
 
@@ -360,20 +354,26 @@
                 container.innerHTML = '';
                 let hasAlert = false;
 
-                // アラートの生成
                 for (const liveId in unsubmittedMap) {
                     const info = unsubmittedMap[liveId];
-                    // 管理者がお知らせ(URL)を登録している場合のみ表示する
-                    if (info.url) {
+                    // ▼ 修正：お知らせが存在すれば表示（URLが空でもモーダルで確認できる）
+                    if (info.announcement) {
                         hasAlert = true;
                         const alertDiv = document.createElement('div');
                         alertDiv.className = 'rsvp-alert';
                         const bandStr = info.bands.join(', ');
+                        
+                        // ▼ 修正：<a>タグではなく<button>にして、クリック時にモーダルを開く
                         alertDiv.innerHTML = `
                             <div class="rsvp-alert-text">⚠️ 「${info.liveName}」のエントリーシートが未提出です！<br><span style="font-size: 0.8em; font-weight: normal; color: #333;">(対象: ${bandStr})</span></div>
-                            <a href="${info.url}" target="_blank" class="btn-rsvp-link">今すぐ提出する ↗</a>
+                            <button class="btn-rsvp-link" style="border:none; cursor:pointer; font-family:inherit; font-size:1em;" id="btn-sheet-alert-${liveId}">提出先を確認する</button>
                         `;
                         container.appendChild(alertDiv);
+                        
+                        // ▼ 修正：ボタンを押したらモーダルを開く処理を紐付ける
+                        document.getElementById(`btn-sheet-alert-${liveId}`).onclick = () => {
+                            openDetailModal("📝 シート提出先", info.announcement, 'sheet');
+                        };
                     }
                 }
 
@@ -473,7 +473,6 @@
                                 countdownBadge.className = 'badge badge-deadline';
                                 
                                 if (diffDays === 0) {
-                                    // ▼ 修正：シート提出の場合は文字を変える
                                     countdownBadge.textContent = item.type === 'event' ? '本日開催' : '本日締め切り';
                                 } else {
                                     countdownBadge.textContent = `残り${diffDays}日`;
@@ -499,7 +498,6 @@
                     } else if (item.type === 'deadline') {
                         li.onclick = () => openDetailModal("⚠️ 締め切り詳細", item, 'deadline');
                     } else if (item.type === 'sheet') {
-                        // ▼ 追加：シートの場合は一応詳細モーダルを開く設定
                         li.onclick = () => openDetailModal("📝 シート提出先", item, 'sheet');
                     }
 
@@ -507,7 +505,6 @@
                         eventList.appendChild(li);
                         eventCount++;
                     } else if (item.type === 'deadline' || item.type === 'sheet') {
-                        // ▼ 修正：シート提出の告知も「締め切りリスト」の枠に表示する
                         deadlineList.appendChild(li);
                         deadlineCount++;
                     }
@@ -621,7 +618,6 @@
                     { label: '備考', value: data.notes }
                 ];
             } else if (type === 'sheet') {
-                // ▼ 追加：シート提出のお知らせの場合
                 fields = [
                     { label: '件名', value: data.title },
                     { label: '備考', value: data.notes },
