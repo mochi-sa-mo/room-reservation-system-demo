@@ -137,6 +137,8 @@
     <!-- ヘッダーとメニューのHTML部分は Component.js で生成するため削除しました -->
 
     <div id="rsvp-alert-container" style="display: none;"></div>
+    <!-- ▼ 追加：シート未提出アラート用コンテナ ▼ -->
+    <div id="sheet-alert-container" style="display: none;"></div>
 
     <div class="announcements">
         <div class="announcement-box">
@@ -250,6 +252,7 @@
                 currentUserId = user.email.split('@')[0];
                 await loadMyBands();
                 checkUnansweredRsvps();
+                checkUnsubmittedSheets(); // ▼ 追加：シート未提出のチェックを実行
             }
         });
 
@@ -304,6 +307,82 @@
                 }
             } catch (error) {
                 console.error("未回答アラートチェックエラー:", error);
+            }
+        }
+
+        // ▼ 追加：シート未提出アラートのチェック関数 ▼
+        async function checkUnsubmittedSheets() {
+            try {
+                // 自分が代表を務めているバンドのIDを取得
+                const myLeaderBandIds = [];
+                const bandsQ = query(collection(db, "bands"), where("leaders", "array-contains", currentUserId));
+                const bandsSnap = await getDocs(bandsQ);
+                bandsSnap.forEach(d => myLeaderBandIds.push(d.id));
+
+                if (myLeaderBandIds.length === 0) return;
+
+                // 承認済み かつ 未提出 のエントリーを検索
+                const entriesQ = query(collection(db, "liveEntries"), where("status", "==", "approved"));
+                const entriesSnap = await getDocs(entriesQ);
+                
+                // ライブごとに未提出バンドをまとめるマップ
+                const unsubmittedMap = {}; // { liveId: { liveName: "", url: "", bands: [] } }
+
+                entriesSnap.forEach(doc => {
+                    const data = doc.data();
+                    // 自分が代表のバンドで、シート未提出の場合
+                    if (myLeaderBandIds.includes(data.bandId) && data.sheetSubmitted !== true) {
+                        if (!unsubmittedMap[data.liveId]) {
+                            unsubmittedMap[data.liveId] = {
+                                liveName: data.liveName,
+                                url: null, // あとで検索する
+                                bands: []
+                            };
+                        }
+                        unsubmittedMap[data.liveId].bands.push(data.bandName);
+                    }
+                });
+
+                if (Object.keys(unsubmittedMap).length === 0) return;
+
+                // 未提出ライブについて、管理者の「シート提出用のお知らせ」が存在するか探す
+                const annQ = query(collection(db, "announcements"), where("type", "==", "sheet"));
+                const annSnap = await getDocs(annQ);
+                
+                annSnap.forEach(doc => {
+                    const data = doc.data();
+                    if (!data.deleted && unsubmittedMap[data.targetLiveId]) {
+                        unsubmittedMap[data.targetLiveId].url = data.link; // 提出先URLをセット
+                    }
+                });
+
+                const container = document.getElementById('sheet-alert-container');
+                container.innerHTML = '';
+                let hasAlert = false;
+
+                // アラートの生成
+                for (const liveId in unsubmittedMap) {
+                    const info = unsubmittedMap[liveId];
+                    // 管理者がお知らせ(URL)を登録している場合のみ表示する
+                    if (info.url) {
+                        hasAlert = true;
+                        const alertDiv = document.createElement('div');
+                        alertDiv.className = 'rsvp-alert';
+                        const bandStr = info.bands.join(', ');
+                        alertDiv.innerHTML = `
+                            <div class="rsvp-alert-text">⚠️ 「${info.liveName}」のエントリーシートが未提出です！<br><span style="font-size: 0.8em; font-weight: normal; color: #333;">(対象: ${bandStr})</span></div>
+                            <a href="${info.url}" target="_blank" class="btn-rsvp-link">今すぐ提出する ↗</a>
+                        `;
+                        container.appendChild(alertDiv);
+                    }
+                }
+
+                if (hasAlert) {
+                    container.style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error("シート未提出チェックエラー:", error);
             }
         }
 
@@ -394,6 +473,7 @@
                                 countdownBadge.className = 'badge badge-deadline';
                                 
                                 if (diffDays === 0) {
+                                    // ▼ 修正：シート提出の場合は文字を変える
                                     countdownBadge.textContent = item.type === 'event' ? '本日開催' : '本日締め切り';
                                 } else {
                                     countdownBadge.textContent = `残り${diffDays}日`;
@@ -418,12 +498,16 @@
                         li.onclick = () => openDetailModal("📢 イベント詳細", item, 'event');
                     } else if (item.type === 'deadline') {
                         li.onclick = () => openDetailModal("⚠️ 締め切り詳細", item, 'deadline');
+                    } else if (item.type === 'sheet') {
+                        // ▼ 追加：シートの場合は一応詳細モーダルを開く設定
+                        li.onclick = () => openDetailModal("📝 シート提出先", item, 'sheet');
                     }
 
                     if (item.type === 'event') {
                         eventList.appendChild(li);
                         eventCount++;
-                    } else if (item.type === 'deadline') {
+                    } else if (item.type === 'deadline' || item.type === 'sheet') {
+                        // ▼ 修正：シート提出の告知も「締め切りリスト」の枠に表示する
                         deadlineList.appendChild(li);
                         deadlineCount++;
                     }
@@ -535,6 +619,13 @@
                     { label: '日時', value: data.date },
                     { label: '提出先', value: data.submissionTo },
                     { label: '備考', value: data.notes }
+                ];
+            } else if (type === 'sheet') {
+                // ▼ 追加：シート提出のお知らせの場合
+                fields = [
+                    { label: '件名', value: data.title },
+                    { label: '備考', value: data.notes },
+                    { label: '提出用リンク', value: data.link, isLink: true }
                 ];
             } else if (type === 'reservation') {
                 let statusMsg = data.confirmed ? '確定済み' : '承認待ち（保留中）';
