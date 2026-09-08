@@ -1,6 +1,6 @@
 import { db, auth } from "./firebase.js";
 import { signOut } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
-// ▼ 追加：掲示板のデータを取得するためのFirestore関数をインポート
+// ▼ 掲示板のデータを取得するためのFirestore関数をインポート
 import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 /**
@@ -32,7 +32,7 @@ function injectComponentStyles() {
         .menu-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
         .menu-overlay.open { display: block; }
         
-        /* ▼ 追加：NEWバッジのスタイル */
+        /* ▼ NEWバッジのスタイル */
         .menu-badge-new { background-color: #ffe8e8; color: #ff6b5e; font-size: 0.7em; padding: 2px 8px; border-radius: 12px; margin-left: 8px; font-weight: bold; vertical-align: middle; }
     `;
     document.head.appendChild(style);
@@ -124,16 +124,16 @@ export function setupHeader(title, type = 'back') {
 
         if (role === 'admin' || role === 'sysadmin' || role === 'adminadmin') {
             // 管理者用メニュー
+            // ▼ 変更：管理者側の掲示板リンクにも id を付与
             menuItems = `
                 <li class="menu-category">管理者メニュー</li>
                 <li><a href="admin_live_manager.html" style="color: #e91e63;">ライブ審査・管理</a></li>
                 <li><a href="admin_rsvp_manager.html" style="color: #4caf50;">打ち上げ参加状況管理</a></li>
                 <li><a href="admin_rsvp_pay.html" style="color: #ff00ff;">打ち上げ集金状況管理</a></li>
-                <li><a href="admin_board.html" style="color: #ff9800;">掲示板の審査・管理</a></li>
+                <li><a href="admin_board.html" id="nav-admin-board-link" style="color: #ff9800; display: flex; align-items: center;"><span>掲示板の審査・管理</span></a></li>
             `;
         } else {
             // 一般部員用メニュー
-            // ▼ 変更：掲示板の a タグに id="nav-board-link" を付与し、flexでバッジを右に置きやすくした
             menuItems = `
                 <li class="menu-category">部室予約</li>
                 <li><a href="tsuika.html" style="color: #4caf50;">今週の追加予約</a></li>
@@ -203,8 +203,10 @@ export function setupHeader(title, type = 'back') {
         });
 
         // ==========================================
-        // ▼ 追加：掲示板の「NEWバッジ」判定ロジック ▼
+        // ▼ 掲示板の「NEWバッジ」判定ロジック ▼
         // ==========================================
+        
+        // 1. 一般部員向け：承認済みで48時間以内の記事があるか
         const boardLink = document.getElementById('nav-board-link');
         if (boardLink) {
             const postsRef = collection(db, "boardPosts");
@@ -216,14 +218,11 @@ export function setupHeader(title, type = 'back') {
 
                 snap.forEach(doc => {
                     const data = doc.data();
-                    // 承認日時、更新日時、作成日時のどれかを取得
                     const dateData = data.approvedAt || data.updatedAt || data.createdAt;
                     if (dateData) {
-                        // FirebaseのTimestamp型ならtoDate()で変換、文字列ならnew Date()で変換
                         const postDate = dateData.toDate ? dateData.toDate() : new Date(dateData);
                         const diffHours = (now - postDate) / (1000 * 60 * 60);
                         
-                        // 48時間（2日）以内の記事があればフラグを立てる
                         if (diffHours <= 48) {
                             hasRecentNewPost = true;
                         }
@@ -231,11 +230,27 @@ export function setupHeader(title, type = 'back') {
                 });
 
                 if (hasRecentNewPost) {
-                    // フラグが立っていればリンク内にバッジを追加
                     boardLink.innerHTML += '<span class="menu-badge-new">NEW</span>';
                 }
             }).catch(err => {
                 console.error("掲示板のNEWバッジ取得エラー:", err);
+            });
+        }
+
+        // 2. 管理者向け：未承認（pending）の記事があるか
+        const adminBoardLink = document.getElementById('nav-admin-board-link');
+        if (adminBoardLink) {
+            const postsRef = collection(db, "boardPosts");
+            // ステータスが "pending" (承認待ち) のものを検索
+            const qPending = query(postsRef, where("status", "==", "pending"));
+            
+            getDocs(qPending).then(snap => {
+                if (!snap.empty) {
+                    // 1件でも未承認があればバッジを表示（管理者の注意を引くためオレンジ色に）
+                    adminBoardLink.innerHTML += '<span class="menu-badge-new" style="background-color: #ff9800; color: #fff;">NEW</span>';
+                }
+            }).catch(err => {
+                console.error("管理者向け掲示板バッジ取得エラー:", err);
             });
         }
     }
