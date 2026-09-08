@@ -6,7 +6,6 @@
     <title>管理者パネル - 部室予約システム</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
-        // ▼ 変更：admin と adminadmin の両方を許可するように修正
         const checkRole = localStorage.getItem('userRole');
         if (checkRole !== 'admin' && checkRole !== 'adminadmin') {
             alert('アクセス権限がありません。');
@@ -14,12 +13,10 @@
         }
     </script>
     <style>
-        /* ▼ 画面全体の横揺れを防ぐ ▼ */
         html, body {
             overflow-x: hidden;
             width: 100%;
         }
-        /* ▼ 追加：パディング込みで幅を100%にする（PC画面のはみ出し防止） ▼ */
         * {
             box-sizing: border-box;
         }
@@ -95,7 +92,7 @@
             margin-bottom: 15px;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 5px;
-            flex-wrap: wrap; /* 追加: タブが増えても折り返すように */
+            flex-wrap: wrap; 
         }
         .tab {
             padding: 8px 16px;
@@ -551,17 +548,18 @@
                         <button type="submit" class="btn">即時公開する</button>
                     </form>
 
-                    <!-- ▼ 追加：シート提出登録フォーム ▼ -->
+                    <!-- ▼ 変更：シート提出登録フォーム（必須項目を日付のみに変更） ▼ -->
                     <form id="form-sheet" class="form-panel">
                         <div class="form-group">
-                            <label>対象ライブ<span class="required-badge">*</span></label>
-                            <select id="s-live" required><option value="">読込中...</option></select>
+                            <label>対象ライブ</label>
+                            <!-- ライブ選択時に件名を自動入力するイベントを後でJSで追加します -->
+                            <select id="s-live"><option value="">選択してください</option></select>
                         </div>
-                        <div class="form-group"><label>件名<span class="required-badge">*</span></label><input type="text" id="s-title" placeholder="例: エントリーシート提出"></div>
-                        <div class="form-group"><label>日時</label><input type="datetime-local" id="s-date"></div>
-                        <div class="form-group"><label>提出先リンク<span class="required-badge">*</span></label><input type="url" id="d-link" placeholder="必ずURLを入力してください" required></div>
+                        <div class="form-group"><label>件名</label><input type="text" id="s-title" placeholder="ライブを選択すると自動入力されます"></div>
+                        <div class="form-group"><label>提出先リンク (Googleフォーム等)</label><input type="url" id="s-link" placeholder="URLを入力してください"></div>
                         <div class="form-group"><label>備考</label><textarea id="s-notes"></textarea></div>
-                        <div class="form-group"><label>非表示日時<span class="required-badge">*</span></label><input type="date" id="s-expire" required></div>
+                        <!-- ▼ 変更：必須項目は日付のみ ▼ -->
+                        <div class="form-group"><label>締め切り日時 (非表示日時)<span class="required-badge">*</span></label><input type="date" id="s-expire" required></div>
                         <button type="submit" class="btn">即時公開する</button>
                     </form>
                 </div>
@@ -668,7 +666,7 @@
         let dbAnnouncements = [];
         let dbReservations = [];
         let dbDisabledSlots = [];
-        let dbLives = []; // ▼ 追加：ライブ一覧保持用
+        let dbLives = []; 
         
         let currentEditingId = null;
         let currentEditingType = null; 
@@ -695,7 +693,6 @@
             return dates;
         }
 
-        // ▼ 追加：シート動作用のライブ一覧を取得する関数 ▼
         async function loadLivesForDropdown() {
             try {
                 const snap = await getDocs(query(collection(db, "lives")));
@@ -737,13 +734,21 @@
 
             document.getElementById('tab-event').onclick = () => switchTab('event');
             document.getElementById('tab-deadline').onclick = () => switchTab('deadline');
-            // ▼ 追加：シート提出登録タブのイベント ▼
             document.getElementById('tab-sheet').onclick = () => switchTab('sheet');
             
             document.getElementById('form-event').onsubmit = (e) => submitAnnouncement(e, 'event');
             document.getElementById('form-deadline').onsubmit = (e) => submitAnnouncement(e, 'deadline');
-            // ▼ 追加：シート提出フォームの送信イベント ▼
             document.getElementById('form-sheet').onsubmit = (e) => submitAnnouncement(e, 'sheet');
+
+            // ▼ 追加：シート提出のライブを選択した時に、件名を自動で入力するイベント ▼
+            document.getElementById('s-live').addEventListener('change', function() {
+                const selectedText = this.options[this.selectedIndex].text;
+                if (this.value) {
+                    document.getElementById('s-title').value = `【${selectedText}】エントリーシート提出`;
+                } else {
+                    document.getElementById('s-title').value = "";
+                }
+            });
 
             document.getElementById('btn-download-img').onclick = downloadTimetableImage;
             document.getElementById('btn-edit-cancel').onclick = closeEditModal;
@@ -753,7 +758,6 @@
             document.getElementById('btn-admin-next').onclick = () => changeWeek(1);
 
             startRealtimeSync();
-            // ▼ 追加：画面ロード時にライブ一覧を取得
             loadLivesForDropdown();
         };
 
@@ -795,7 +799,6 @@
                 const title = target ? target.title : "不明な案内";
                 const annType = target ? target.type : "unknown";
                 
-                // ▼ 追加：削除ログの名称分岐 ▼
                 const typeName = annType === 'event' ? 'イベント' : annType === 'deadline' ? '締め切り' : 'シート提出';
 
                 try {
@@ -868,31 +871,40 @@
 
         async function submitAnnouncement(event, type) {
             event.preventDefault();
-            // ▼ 修正：シート提出登録用の prefix を追加
             const prefix = type === 'event' ? 'e' : type === 'deadline' ? 'd' : 's';
-            const title = document.getElementById(`${prefix}-title`).value.trim();
+            
+            // ▼ 変更：シート提出の場合は、必須チェックを日付だけに絞る
             const expireDate = document.getElementById(`${prefix}-expire`).value;
+            if (!expireDate) return alert('非表示日時（締め切り日）を入力してください。');
+            const expire = expireDate + "T23:59"; // ▼ 日付が選ばれたら裏で23:59に固定する
 
-            if (!title || !expireDate) return alert('必須項目を入力してください。');
-
-            const expire = expireDate + "T23:59";
+            // イベント・締め切りタブの必須チェック
+            let title = document.getElementById(`${prefix}-title`).value.trim();
+            if (type !== 'sheet' && !title) return alert('件名を入力してください。');
+            
+            // シート提出タブで件名が空の場合はデフォルト文字を入れる
+            if (type === 'sheet' && !title) {
+                const sLive = document.getElementById('s-live');
+                const liveName = sLive.options[sLive.selectedIndex].text;
+                title = `【${liveName}】エントリーシート提出`;
+            }
 
             const data = {
                 type: type,
                 title: title,
-                date: document.getElementById(`${prefix}-date`).value.trim(),
                 expire: expire,
                 deleted: false,
                 createdAt: new Date().toISOString()
             };
 
-            // ▼ 修正：シート提出(sheet)の場合のデータ処理分岐を追加
             if (type === 'event') {
+                data.date = document.getElementById('e-date').value.trim();
                 data.location = document.getElementById('e-location').value.trim();
                 data.schedule = document.getElementById('e-schedule').value.trim();
                 data.link = document.getElementById('e-link').value.trim();
                 data.notes = document.getElementById('e-notes').value.trim();
             } else if (type === 'deadline') {
+                data.date = document.getElementById('d-date').value.trim();
                 data.submissionTo = document.getElementById('d-sub').value.trim();
                 data.link = document.getElementById('d-link').value.trim();
                 data.notes = document.getElementById('d-notes').value.trim();
@@ -935,7 +947,6 @@
                     tr.style.backgroundColor = '#f5f5f5';
                 }
 
-                // ▼ 修正：一覧表示に「シート提出」を追加
                 const typeName = item.type === 'event' ? 'イベント' : item.type === 'deadline' ? '締め切り' : 'シート提出';
                 const typeTd = document.createElement('td'); 
                 typeTd.innerHTML = typeName + (item.deleted ? '<br><span style="color:#d0021b; font-size:0.8em; font-weight:bold;">(非表示)</span>' : '');
@@ -995,17 +1006,17 @@
             
             let html = `
                 <div class="form-group"><label>件名 *</label><input type="text" id="edit-title" value="${item.title || ''}"></div>
-                <div class="form-group"><label>日時</label><input type="datetime-local" id="edit-date" value="${item.date || ''}"></div>
             `;
 
-            // ▼ 修正：シート提出用の編集画面UIを追加
             if (item.type === 'event') {
                 html += `
+                    <div class="form-group"><label>日時</label><input type="datetime-local" id="edit-date" value="${item.date || ''}"></div>
                     <div class="form-group"><label>場所</label><input type="text" id="edit-location" value="${item.location || ''}"></div>
                     <div class="form-group"><label>タイムスケジュール</label><textarea id="edit-schedule">${item.schedule || ''}</textarea></div>
                 `;
             } else if (item.type === 'deadline') {
                 html += `
+                    <div class="form-group"><label>日時</label><input type="datetime-local" id="edit-date" value="${item.date || ''}"></div>
                     <div class="form-group"><label>提出先</label><input type="text" id="edit-sub" value="${item.submissionTo || ''}"></div>
                 `;
             } else if (item.type === 'sheet') {
@@ -1015,7 +1026,7 @@
                     optionsHtml += `<option value="${l.id}" ${selected}>${l.name}</option>`;
                 });
                 html += `
-                    <div class="form-group"><label>対象ライブ *</label><select id="edit-targetLiveId">${optionsHtml}</select></div>
+                    <div class="form-group"><label>対象ライブ</label><select id="edit-targetLiveId">${optionsHtml}</select></div>
                 `;
             }
 
@@ -1047,17 +1058,17 @@
             
             const updateData = {
                 title: title,
-                date: document.getElementById('edit-date').value.trim(),
                 link: document.getElementById('edit-link').value.trim(),
                 notes: document.getElementById('edit-notes').value.trim(),
                 expire: expire
             };
 
-            // ▼ 修正：シート提出用の編集データ保存処理を追加
             if (currentEditingType === 'event') {
+                updateData.date = document.getElementById('edit-date').value.trim();
                 updateData.location = document.getElementById('edit-location').value.trim();
                 updateData.schedule = document.getElementById('edit-schedule').value.trim();
             } else if (currentEditingType === 'deadline') {
+                updateData.date = document.getElementById('edit-date').value.trim();
                 updateData.submissionTo = document.getElementById('edit-sub').value.trim();
             } else if (currentEditingType === 'sheet') {
                 updateData.targetLiveId = document.getElementById('edit-targetLiveId').value;
