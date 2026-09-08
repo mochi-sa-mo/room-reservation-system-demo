@@ -95,6 +95,7 @@
             margin-bottom: 15px;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 5px;
+            flex-wrap: wrap; /* 追加: タブが増えても折り返すように */
         }
         .tab {
             padding: 8px 16px;
@@ -128,11 +129,12 @@
             color: red;
             margin-left: 4px;
         }
-        .form-group input, .form-group textarea {
+        .form-group input, .form-group textarea, .form-group select {
             width: 100%;
             padding: 8px;
             border: 1px solid var(--border-color);
             border-radius: 4px;
+            font-size: 1em;
         }
         .form-group textarea {
             resize: vertical;
@@ -524,7 +526,10 @@
                     <div class="tabs">
                         <div class="tab active" id="tab-event">イベント登録</div>
                         <div class="tab" id="tab-deadline">締め切り登録</div>
+                        <!-- ▼ 追加：シート提出登録タブ ▼ -->
+                        <div class="tab" id="tab-sheet">シート提出登録</div>
                     </div>
+
                     <form id="form-event" class="form-panel active">
                         <div class="form-group"><label>件名<span class="required-badge">*</span></label><input type="text" id="e-title" placeholder="例: ○○LIVEについて"></div>
                         <div class="form-group"><label>日時</label><input type="datetime-local" id="e-date" placeholder="例: 1月1日"></div>
@@ -535,6 +540,7 @@
                         <div class="form-group"><label>非表示日時<span class="required-badge">*</span></label><input type="date" id="e-expire"></div>
                         <button type="submit" class="btn">即時公開する</button>
                     </form>
+
                     <form id="form-deadline" class="form-panel">
                         <div class="form-group"><label>件名<span class="required-badge">*</span></label><input type="text" id="d-title" placeholder="例: ○○LIVEについて"></div>
                         <div class="form-group"><label>日時</label><input type="datetime-local" id="d-date" placeholder="例: 1月1日まで"></div>
@@ -544,7 +550,22 @@
                         <div class="form-group"><label>非表示日時<span class="required-badge">*</span></label><input type="date" id="d-expire"></div>
                         <button type="submit" class="btn">即時公開する</button>
                     </form>
+
+                    <!-- ▼ 追加：シート提出登録フォーム ▼ -->
+                    <form id="form-sheet" class="form-panel">
+                        <div class="form-group">
+                            <label>対象ライブ<span class="required-badge">*</span></label>
+                            <select id="s-live" required><option value="">読込中...</option></select>
+                        </div>
+                        <div class="form-group"><label>件名<span class="required-badge">*</span></label><input type="text" id="s-title" placeholder="例: エントリーシート提出"></div>
+                        <div class="form-group"><label>日時</label><input type="datetime-local" id="s-date"></div>
+                        <div class="form-group"><label>提出先リンク (Googleフォーム等)<span class="required-badge">*</span></label><input type="url" id="s-link" placeholder="必ずURLを入力してください" required></div>
+                        <div class="form-group"><label>備考</label><textarea id="s-notes"></textarea></div>
+                        <div class="form-group"><label>非表示日時<span class="required-badge">*</span></label><input type="date" id="s-expire" required></div>
+                        <button type="submit" class="btn">即時公開する</button>
+                    </form>
                 </div>
+
                 <div class="announcement-list-box">
                     <h3 style="margin-top:0; font-size:1.1em;">登録中の案内一覧（期限順）</h3>
                     <div style="overflow-x:auto; overflow-y:auto; max-height:480px; width:100%;">
@@ -625,7 +646,7 @@
 
     <script type="module">
         import { db, auth } from "./firebase.js";
-        import { collection, onSnapshot, addDoc, doc, updateDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        import { collection, onSnapshot, addDoc, doc, updateDoc, setDoc, deleteDoc, getDocs, query } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
         
         import { setupCommonModals, setupHeader } from "./Component.js";
@@ -647,6 +668,7 @@
         let dbAnnouncements = [];
         let dbReservations = [];
         let dbDisabledSlots = [];
+        let dbLives = []; // ▼ 追加：ライブ一覧保持用
         
         let currentEditingId = null;
         let currentEditingType = null; 
@@ -673,8 +695,27 @@
             return dates;
         }
 
+        // ▼ 追加：シート動作用のライブ一覧を取得する関数 ▼
+        async function loadLivesForDropdown() {
+            try {
+                const snap = await getDocs(query(collection(db, "lives")));
+                dbLives = [];
+                let html = '<option value="">選択してください</option>';
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    dbLives.push({ id: docSnap.id, name: data.name });
+                    html += `<option value="${docSnap.id}">${data.name}</option>`;
+                });
+                const sLive = document.getElementById('s-live');
+                if (sLive) sLive.innerHTML = html;
+            } catch (err) {
+                console.error("ライブ一覧取得エラー:", err);
+                const sLive = document.getElementById('s-live');
+                if (sLive) sLive.innerHTML = '<option value="">エラー</option>';
+            }
+        }
+
         window.onload = function() {
-            // ▼ 変更：admin と adminadmin の両方を許可するように修正
             const role = localStorage.getItem('userRole');
             if (role !== 'admin' && role !== 'adminadmin') {
                 alert('アクセス権限がありません。');
@@ -696,8 +737,14 @@
 
             document.getElementById('tab-event').onclick = () => switchTab('event');
             document.getElementById('tab-deadline').onclick = () => switchTab('deadline');
+            // ▼ 追加：シート提出登録タブのイベント ▼
+            document.getElementById('tab-sheet').onclick = () => switchTab('sheet');
+            
             document.getElementById('form-event').onsubmit = (e) => submitAnnouncement(e, 'event');
             document.getElementById('form-deadline').onsubmit = (e) => submitAnnouncement(e, 'deadline');
+            // ▼ 追加：シート提出フォームの送信イベント ▼
+            document.getElementById('form-sheet').onsubmit = (e) => submitAnnouncement(e, 'sheet');
+
             document.getElementById('btn-download-img').onclick = downloadTimetableImage;
             document.getElementById('btn-edit-cancel').onclick = closeEditModal;
             document.getElementById('btn-edit-save').onclick = saveEditedData;
@@ -706,6 +753,8 @@
             document.getElementById('btn-admin-next').onclick = () => changeWeek(1);
 
             startRealtimeSync();
+            // ▼ 追加：画面ロード時にライブ一覧を取得
+            loadLivesForDropdown();
         };
 
         function showConfirmModal(title, message, action, data, btnText, color) {
@@ -745,6 +794,10 @@
                 const target = dbAnnouncements.find(a => a.id === id);
                 const title = target ? target.title : "不明な案内";
                 const annType = target ? target.type : "unknown";
+                
+                // ▼ 追加：削除ログの名称分岐 ▼
+                const typeName = annType === 'event' ? 'イベント' : annType === 'deadline' ? '締め切り' : 'シート提出';
+
                 try {
                     await deleteDoc(doc(db, "announcements", id));
                     await addDoc(collection(db, "logs"), {
@@ -754,7 +807,7 @@
                         opType: "delete",
                         title: title,
                         userId: currentUserId,
-                        detail: `管理者(${currentUserId})が${annType === 'event' ? 'イベント' : '締め切り'}「${title}」を完全に削除しました`
+                        detail: `管理者(${currentUserId})が${typeName}「${title}」を完全に削除しました`
                     });
                 } catch (error) { console.error("削除エラー:", error); }
                 closeConfirmModal();
@@ -815,7 +868,8 @@
 
         async function submitAnnouncement(event, type) {
             event.preventDefault();
-            const prefix = type === 'event' ? 'e' : 'd';
+            // ▼ 修正：シート提出登録用の prefix を追加
+            const prefix = type === 'event' ? 'e' : type === 'deadline' ? 'd' : 's';
             const title = document.getElementById(`${prefix}-title`).value.trim();
             const expireDate = document.getElementById(`${prefix}-expire`).value;
 
@@ -832,16 +886,23 @@
                 createdAt: new Date().toISOString()
             };
 
+            // ▼ 修正：シート提出(sheet)の場合のデータ処理分岐を追加
             if (type === 'event') {
                 data.location = document.getElementById('e-location').value.trim();
                 data.schedule = document.getElementById('e-schedule').value.trim();
                 data.link = document.getElementById('e-link').value.trim();
                 data.notes = document.getElementById('e-notes').value.trim();
-            } else {
+            } else if (type === 'deadline') {
                 data.submissionTo = document.getElementById('d-sub').value.trim();
                 data.link = document.getElementById('d-link').value.trim();
                 data.notes = document.getElementById('d-notes').value.trim();
+            } else if (type === 'sheet') {
+                data.targetLiveId = document.getElementById('s-live').value;
+                data.link = document.getElementById('s-link').value.trim();
+                data.notes = document.getElementById('s-notes').value.trim();
             }
+
+            const typeName = type === 'event' ? 'イベント' : type === 'deadline' ? '締め切り' : 'シート提出';
 
             try {
                 await addDoc(collection(db, "announcements"), data);
@@ -853,7 +914,7 @@
                     title: title,
                     expire: expire,
                     userId: currentUserId,
-                    detail: `管理者(${currentUserId})が${type === 'event' ? 'イベント' : '締め切り'}「${title}」を登録しました`
+                    detail: `管理者(${currentUserId})が${typeName}「${title}」を登録しました`
                 });
                 document.getElementById(`form-${type}`).reset();
                 alert('登録しました。');
@@ -874,9 +935,10 @@
                     tr.style.backgroundColor = '#f5f5f5';
                 }
 
+                // ▼ 修正：一覧表示に「シート提出」を追加
+                const typeName = item.type === 'event' ? 'イベント' : item.type === 'deadline' ? '締め切り' : 'シート提出';
                 const typeTd = document.createElement('td'); 
-                typeTd.innerHTML = (item.type === 'event' ? 'イベント' : '締め切り') + 
-                                   (item.deleted ? '<br><span style="color:#d0021b; font-size:0.8em; font-weight:bold;">(非表示)</span>' : '');
+                typeTd.innerHTML = typeName + (item.deleted ? '<br><span style="color:#d0021b; font-size:0.8em; font-weight:bold;">(非表示)</span>' : '');
                 
                 const titleTd = document.createElement('td'); titleTd.textContent = item.title;
                 const expireTd = document.createElement('td'); expireTd.textContent = item.expire.replace('T', ' ');
@@ -936,6 +998,7 @@
                 <div class="form-group"><label>日時</label><input type="datetime-local" id="edit-date" value="${item.date || ''}"></div>
             `;
 
+            // ▼ 修正：シート提出用の編集画面UIを追加
             if (item.type === 'event') {
                 html += `
                     <div class="form-group"><label>場所</label><input type="text" id="edit-location" value="${item.location || ''}"></div>
@@ -944,6 +1007,15 @@
             } else if (item.type === 'deadline') {
                 html += `
                     <div class="form-group"><label>提出先</label><input type="text" id="edit-sub" value="${item.submissionTo || ''}"></div>
+                `;
+            } else if (item.type === 'sheet') {
+                let optionsHtml = '<option value="">選択してください</option>';
+                dbLives.forEach(l => {
+                    const selected = (l.id === item.targetLiveId) ? 'selected' : '';
+                    optionsHtml += `<option value="${l.id}" ${selected}>${l.name}</option>`;
+                });
+                html += `
+                    <div class="form-group"><label>対象ライブ *</label><select id="edit-targetLiveId">${optionsHtml}</select></div>
                 `;
             }
 
@@ -981,11 +1053,14 @@
                 expire: expire
             };
 
+            // ▼ 修正：シート提出用の編集データ保存処理を追加
             if (currentEditingType === 'event') {
                 updateData.location = document.getElementById('edit-location').value.trim();
                 updateData.schedule = document.getElementById('edit-schedule').value.trim();
             } else if (currentEditingType === 'deadline') {
                 updateData.submissionTo = document.getElementById('edit-sub').value.trim();
+            } else if (currentEditingType === 'sheet') {
+                updateData.targetLiveId = document.getElementById('edit-targetLiveId').value;
             }
 
             try {
